@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Fichas de acondicionado{% endblock %}
+{% block crumbs %}<span>Módulos</span><span class="sep">/</span><b>Fichas de acondicionado</b>{% endblock %}
+{% block content %}
+<div class="actions">
+  <h1 style="margin:0; flex:1">Fichas de acondicionado</h1>
+  <a class="btn" href="{% url 'admin:copacking_packagingspec_add' %}">Nueva ficha</a>
+</div>
+{% for spec in specs %}
+<div class="panel" style="margin-bottom:12px">
+  <b>{{ spec.product }}</b> <span class="muted">· {{ spec.units_per_box }} unidades por caja</span>
+  · <a href="{% url 'admin:copacking_packagingspec_change' spec.pk %}">editar</a>
+  {% if spec.instructions %}<p class="muted">{{ spec.instructions|linebreaksbr }}</p>{% endif %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Tipo</th><th>Insumo</th><th>Cant. por unidad</th><th>% desperdicio</th></tr></thead>
+    <tbody>{% for m in spec.materials.all %}
+      <tr><td>{{ m.get_kind_display }}</td><td>{{ m.material }}</td>
+        <td class="num">{% if m.kind == "caja" %}1 cada {{ spec.units_per_box }}{% else %}{{ m.qty_per_unit|floatformat:"-4" }}{% endif %}</td>
+        <td class="num">{{ m.waste_percent|floatformat:"-2" }}</td></tr>
+    {% empty %}<tr><td colspan="4" class="muted">Sin insumos.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+{% empty %}
+<div class="panel muted">Aún no hay fichas. Crea una para calcular insumos de las órdenes de acondicionado.</div>
+{% endfor %}
+{% endblock %}

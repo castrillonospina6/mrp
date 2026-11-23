@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% load mes_assets %}
+{% block title %}v{{ v.number }} · Versión del plan{% endblock %}
+{% block crumbs %}<a href="{% url 'mes_core:plan_versions' %}?site={{ site.pk }}">Versiones</a><span class="sep">/</span><b>v{{ v.number }}</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/planner.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow"><span class="pv-st {{ v.status }}">{{ v.get_status_display }}</span><span>{{ site.code }} · creada {{ v.created_at|date:"d/m/Y H:i" }} por {{ v.created_by|default:"—" }}</span></div>
+    <h1>Versión v{{ v.number }}{% if v.name %} · {{ v.name }}{% endif %}</h1>
+    {% if v.note %}<p>{{ v.note }}</p>{% endif %}
+  </div>
+  <form class="tools" method="get">
+    <label class="muted" for="vs">Comparar con</label>
+    <select class="sselect" name="vs" id="vs" onchange="this.form.submit()">
+      <option value="">El plan actual</option>
+      {% for o in others %}<option value="{{ o.pk }}" {% if other and other.pk == o.pk %}selected{% endif %}>v{{ o.number }} · {{ o.get_status_display }} · {{ o.created_at|date:"d/m H:i" }}</option>{% endfor %}
+    </select>
+  </form>
+</div>
+
+<div class="kpis">
+  <div class="kpi"><div class="k-h">Cambios de {{ label_a }} a {{ label_b }}</div><div class="k-v">{{ diff.changes }}</div>
+    <div class="k-s">{{ diff.moved|length }} movidas · {{ diff.relined|length }} de línea · {{ diff.added|length }} nuevas · {{ diff.removed|length }} retiradas</div></div>
+  <div class="kpi"><div class="k-h">Pedidos atrasados</div><div class="k-v">{{ diff.b.late }}</div><div class="k-s">{{ label_b }} · antes ({{ label_a }}): {{ diff.a.late }}</div></div>
+  <div class="kpi"><div class="k-h">Horas-hombre</div><div class="k-v">{{ diff.b.man_hours|floatformat:"0g" }}</div><div class="k-s">{{ label_b }} · antes: {{ diff.a.man_hours|floatformat:"0g" }}</div></div>
+  <div class="kpi"><div class="k-h">Operaciones</div><div class="k-v">{{ diff.b.ops }}</div><div class="k-s">{{ label_b }} · antes: {{ diff.a.ops }}</div></div>
+</div>
+<p class="muted small" style="margin:-8px 0 16px">Columna A = {{ label_a }} · columna B = {{ label_b }}.</p>
+
+{% if v.status == 'propuesta' and can_approve %}
+<section class="card pv-decide" id="decidir" style="margin-bottom:20px">
+  <div class="card-h"><h2>Decisión del jefe de planta</h2></div>
+  <form method="post" class="card-b">{% csrf_token %}
+    <input type="hidden" name="id" value="{{ v.pk }}"><input type="hidden" name="site" value="{{ site.pk }}">
+    <input type="hidden" name="next" value="{% url 'mes_core:plan_version_detail' v.pk %}">
+    <label>Comentario<textarea name="note" rows="2" placeholder="Obligatorio si rechazas: qué debe corregir planeación"></textarea></label>
+    <div class="pv-btns">
+      <button class="btn" name="action" value="approve" type="submit">Aprobar y enviar a insumos</button>
+      <button class="btn danger" name="action" value="reject" type="submit">Rechazar</button>
+    </div>
+  </form>
+</section>
+{% elif v.decision_note %}<div class="callout" style="margin-bottom:16px"><b>Comentario de {{ v.decided_by }}:</b> {{ v.decision_note }}</div>{% endif %}
+
+<section class="card" style="margin-bottom:20px">
+  <div class="card-h"><h2>Fin de cada pedido</h2><span class="sub">Solo los que cambian</span></div>
+  <div class="table-wrap flat"><table>
+    <thead><tr><th>Pedido</th><th>{{ label_a }}</th><th>{{ label_b }}</th><th class="num">Diferencia</th></tr></thead>
+    <tbody>{% for o in diff.orders %}
+      <tr><td><b>{{ o.order }}</b></td><td>{{ o.a|slice:":16"|default:"—" }}</td><td>{{ o.b|slice:":16"|default:"—" }}</td>
+        <td class="num {% if o.delta_h > 0 %}late{% else %}pos{% endif %}">{% if o.delta_h is None %}—{% else %}{% if o.delta_h > 0 %}+{% endif %}{{ o.delta_h }} h{% endif %}</td></tr>
+    {% empty %}<tr class="empty-row"><td colspan="4">Ningún pedido cambia su fecha de fin.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+
+<div class="pv-layout eq">
+  <section class="card">
+    <div class="card-h"><h2>Operaciones movidas</h2><span class="sub">{{ diff.moved|length }}</span></div>
+    <div class="table-wrap flat"><table>
+      <thead><tr><th>Operación</th><th>Línea</th><th>{{ label_a }}</th><th>{{ label_b }}</th><th class="num">Δ</th></tr></thead>
+      <tbody>{% for m in diff.moved|slice:":60" %}
+        <tr><td><b>{{ m.b.order }}</b> {{ m.b.op|truncatechars:24 }}</td><td>{{ m.b.line }}</td>
+          <td>{{ m.a.start|slice:"5:16" }}</td><td>{{ m.b.start|slice:"5:16" }}</td>
+          <td class="num {% if m.delta_h > 0 %}late{% else %}pos{% endif %}">{% if m.delta_h > 0 %}+{% endif %}{{ m.delta_h }} h</td></tr>
+      {% empty %}<tr class="empty-row"><td colspan="5">Sin operaciones movidas.</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+  <section class="card">
+    <div class="card-h"><h2>Cambios de línea, nuevas y retiradas</h2></div>
+    <div class="table-wrap flat"><table>
+      <thead><tr><th>Cambio</th><th>Operación</th><th>Detalle</th></tr></thead>
+      <tbody>
+        {% for m in diff.relined %}<tr><td><span class="pill info">Otra línea</span></td><td><b>{{ m.b.order }}</b> {{ m.b.op|truncatechars:22 }}</td><td>{{ m.a.line }} → {{ m.b.line }}</td></tr>{% endfor %}
+        {% for r in diff.added %}<tr><td><span class="pill ok">Nueva</span></td><td><b>{{ r.order }}</b> {{ r.op|truncatechars:22 }}</td><td>{{ r.line }} · {{ r.start|slice:"5:16" }}</td></tr>{% endfor %}
+        {% for r in diff.removed %}<tr><td><span class="pill bad">Retirada</span></td><td><b>{{ r.order }}</b> {{ r.op|truncatechars:22 }}</td><td>{{ r.line }} · {{ r.start|slice:"5:16" }}</td></tr>{% endfor %}
+        {% if not diff.relined and not diff.added and not diff.removed %}<tr class="empty-row"><td colspan="3">Sin cambios de línea, ni operaciones nuevas o retiradas.</td></tr>{% endif %}
+      </tbody>
+    </table></div>
+  </section>
+</div>
+{% endblock %}

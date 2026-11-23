@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% load staff_tags mes_sites %}
+{% block title %}Mercar pedidos{% endblock %}
+{% block crumbs %}<span>Logística</span><span class="sep">/</span><b>Mercar pedidos</b>{% endblock %}
+{% block extra_head %}
+<style>
+  .gq-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
+  .gq-bar input[name=q] { flex: 1 1 220px; min-width: 0; height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); }
+  .gq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 14px; }
+  .gq-card { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; scroll-margin-top: 80px; }
+  .gq-card.done { border-color: color-mix(in srgb, var(--success) 40%, var(--border)); }
+  .gq-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 14px 16px 10px; }
+  .gq-num { font-size: 18px; font-weight: 700; letter-spacing: .01em; }
+  .gq-cust { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .gq-prod { padding: 0 16px 12px; }
+  .gq-prod b { display: block; font-size: 15px; }
+  .gq-qty { font-size: 22px; font-weight: 700; margin-top: 4px; }
+  .gq-qty small { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .gq-dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; padding: 12px 16px; border-top: 1px solid var(--border); background: var(--surface-2); font-size: 13px; }
+  .gq-dl dt { color: var(--muted); }
+  .gq-dl dd { margin: 0; color: var(--text); overflow-wrap: anywhere; }
+  .gq-notes { padding: 10px 16px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text-2); white-space: pre-line; }
+  .gq-foot { margin-top: auto; padding: 12px 16px 14px; border-top: 1px solid var(--border); }
+  .gq-foot details > summary { list-style: none; cursor: pointer; }
+  .gq-foot details > summary::-webkit-details-marker { display: none; }
+  .gq-foot .btn.full { width: 100%; justify-content: center; }
+  .gq-form { display: grid; gap: 10px; margin-top: 12px; }
+  .gq-form label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; color: var(--text-2); }
+  .gq-form input, .gq-form textarea { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+  .gq-form textarea { min-height: 64px; resize: vertical; }
+  .gq-done { display: grid; gap: 4px; font-size: 13px; }
+  .gq-done .loc { font-size: 15px; font-weight: 700; color: var(--text); }
+  .gq-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .gq-links summary { display: inline-flex; }
+  .gq-empty { padding: 40px 16px; text-align: center; color: var(--muted); background: var(--surface); border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); }
+  .gq-late { color: var(--danger); font-weight: 600; }
+</style>
+{% endblock %}
+{% block content %}
+{% if no_site %}<div class="callout">No hay plantas activas.</div>{% else %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Logística · {% if site %}{{ site.code }} · {{ site.name }}{% else %}todas las bodegas{% endif %}</div>
+    <h1>Mercar pedidos</h1>
+    <p>Mira la información de cada pedido, merca la mercancía y márcalo como <b>mercado</b> con quién lo mercó y dónde quedó.</p>
+  </div>
+</div>
+<div style="margin:-6px 0 14px">{% site_chips %}</div>
+
+<form method="get" class="gq-bar">
+  <input type="hidden" name="site" value="{{ site_param }}"><input type="hidden" name="tab" value="{{ tab }}">
+  <div class="segmented" role="group" aria-label="Vista">
+    <a class="{% if tab == 'mercar' %}on{% endif %}" href="?site={{ site_param }}&tab=mercar">Por mercar · {{ n_pending }}</a>
+    <a class="{% if tab == 'mercados' %}on{% endif %}" href="?site={{ site_param }}&tab=mercados">Mercados · {{ n_picked }}</a>
+  </div>
+  <input name="q" value="{{ q }}" placeholder="Pedido, cliente, producto, OP, ubicación…" aria-label="Buscar">
+  <button class="sbtn" type="submit"><svg class="ico sm"><use href="#i-search"/></svg> Buscar</button>
+</form>
+
+{% if locations %}<datalist id="gq-locs">{% for l in locations %}<option value="{{ l }}">{% endfor %}</datalist>{% endif %}
+
+<div class="gq-grid">
+{% for o in orders %}
+  <article class="gq-card {% if o.goods_status == 'mercado' %}done{% endif %}" id="o{{ o.pk }}">
+    <div class="gq-head">
+      <div><div class="gq-num mono">{{ o.number }}</div>
+        <div class="gq-cust">{{ o.customer.name|default:"Sin cliente" }}</div></div>
+      {% if o.goods_status == 'mercado' %}<span class="pill ok">Mercado</span>{% else %}<span class="pill warn">Por mercar</span>{% endif %}
+    </div>
+    <div class="gq-prod">
+      <b>{{ o.product.name }}</b><span class="muted mono">{{ o.product.sku }}</span>
+      <div class="gq-qty">{{ o.quantity|floatformat:"-2g" }} <small>{{ o.product.unit }}</small></div>
+    </div>
+    <dl class="gq-dl">
+      <dt>Servicio</dt><dd>{{ o.process_label }}</dd>
+      <dt>Inicia</dt><dd>{% if o.planned_start %}{{ o.planned_start|date:"D d/m H:i" }}{% else %}Sin programar{% endif %}</dd>
+      <dt>Compromiso</dt><dd>{{ o.due_date|date:"D d/m H:i"|default:"—" }}</dd>
+      {% if o.dispatch_date %}<dt>Despacho</dt><dd>{{ o.dispatch_date|date:"D d/m" }}</dd>{% endif %}
+      <dt>Línea</dt><dd>{{ o.lines|join:", "|default:"—" }}</dd>
+      <dt>Supervisor</dt><dd>{% for s in o.sups %}{{ s|uname }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</dd>
+      {% if o.external_op %}<dt>OP</dt><dd>{{ o.external_op }}</dd>{% endif %}
+      {% if o.purchase_order %}<dt>OC</dt><dd>{{ o.purchase_order }}</dd>{% endif %}
+      {% if o.reference %}<dt>Referencia</dt><dd>{{ o.reference }}</dd>{% endif %}
+      {% if o.shipment %}<dt>Embarque</dt><dd>{{ o.shipment }}</dd>{% endif %}
+      <dt>Estado</dt><dd><span class="badge {{ o.status }}">{{ o.get_status_display }}</span></dd>
+      {% if o.status == 'insumos' or o.status == 'planificada' %}<dt>Insumos</dt><dd>{% if o.supplies_released_at %}<span class="pill ok">Liberados</span>{% if o.goods_status != 'mercado' %} <small class="muted">al mercarlo pasa a planta</small>{% endif %}{% else %}<span class="pill">Pendientes</span>{% endif %}</dd>{% endif %}
+    </dl>
+    {% if o.description or o.notes %}<div class="gq-notes">{% if o.description %}{{ o.description }}{% endif %}{% if o.description and o.notes %}
+{% endif %}{% if o.notes %}{{ o.notes }}{% endif %}</div>{% endif %}
+
+    <div class="gq-foot">
+    {% if o.goods_status == 'mercado' %}
+      <div class="gq-done">
+        <span class="muted">Mercancía en</span><span class="loc">{{ o.goods_location }}</span>
+        <span>Mercó <b>{{ o.goods_picked_by }}</b>{% if o.goods_marked_at %} · {{ o.goods_marked_at|date:"D d/m H:i" }}{% endif %}</span>
+        {% if o.goods_note %}<span class="muted" style="white-space:pre-line">{{ o.goods_note }}</span>{% endif %}
+      </div>
+      {% if can_mark %}
+      <div class="gq-links">
+        <details><summary class="sbtn sm">Corregir datos</summary>
+          <form method="post" action="{% url 'mes_core:goods_mark' o.pk %}" class="gq-form">{% csrf_token %}
+            <input type="hidden" name="tab" value="{{ tab }}"><input type="hidden" name="q" value="{{ q }}">
+            <label>¿Quién mercó?<input name="picked_by" value="{{ o.goods_picked_by }}" maxlength="120" required></label>
+            <label>Ubicación de la mercancía<input name="location" value="{{ o.goods_location }}" maxlength="120" list="gq-locs" required></label>
+            <label>Observaciones<textarea name="note">{{ o.goods_note }}</textarea></label>
+            <button class="btn" type="submit">Guardar</button>
+          </form></details>
+        <details><summary class="sbtn sm">Volver a por mercar</summary>
+          <form method="post" action="{% url 'mes_core:goods_mark' o.pk %}" class="gq-form">{% csrf_token %}
+            <input type="hidden" name="action" value="unmark">
+            <input type="hidden" name="tab" value="{{ tab }}"><input type="hidden" name="q" value="{{ q }}">
+            <label>¿Por qué?<input name="reason" maxlength="200" required placeholder="Ej.: se marcó por error"></label>
+            <button class="sbtn" type="submit">Volver a por mercar</button>
+          </form></details>
+      </div>
+      {% endif %}
+    {% elif can_mark %}
+      <details>
+        <summary class="btn full"><svg class="ico sm"><use href="#i-check"/></svg> Marcar como mercado</summary>
+        <form method="post" action="{% url 'mes_core:goods_mark' o.pk %}" class="gq-form">{% csrf_token %}
+          <input type="hidden" name="tab" value="{{ tab }}"><input type="hidden" name="q" value="{{ q }}">
+          <label>¿Quién mercó?<input name="picked_by" value="{{ my_name }}" maxlength="120" required></label>
+          <label>Ubicación de la mercancía<input name="location" maxlength="120" list="gq-locs" required placeholder="Ej.: Bodega 2 · estiba 14"></label>
+          <label>Observaciones <span class="muted" style="font-weight:400">(opcional)</span><textarea name="note"></textarea></label>
+          <button class="btn" type="submit">Confirmar: mercado</button>
+        </form>
+      </details>
+    {% else %}
+      <span class="muted">Pendiente de logística.</span>
+    {% endif %}
+    </div>
+  </article>
+{% empty %}
+  <div class="gq-empty" style="grid-column:1/-1">{% if q %}Ningún pedido coincide con «{{ q }}».{% elif tab == 'mercar' %}No hay pedidos por mercar. Aparecen aquí cuando planeación los programa.{% else %}Todavía no hay pedidos mercados.{% endif %}</div>
+{% endfor %}
+</div>
+{% endif %}
+{% endblock %}

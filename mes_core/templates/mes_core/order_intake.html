@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+{% load static mes_assets %}
+{% block title %}Nuevo pedido{% endblock %}
+{% block crumbs %}<a href="{% url 'mes_core:order_list' %}">Pedidos</a><span class="sep">/</span><b>Nuevo pedido</b>{% endblock %}
+{% block body_class %}scheduler-page{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/scheduler.css' %}"><link rel="stylesheet" href="{% asset 'mes_core/planning.css' %}">{% endblock %}
+{% block content %}
+<style>
+  .promise { margin-top: 14px; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; background: var(--surface-2); }
+  .promise.ok { border-color: color-mix(in srgb, var(--success) 40%, var(--border)); background: var(--success-soft); }
+  .promise.bad { border-color: color-mix(in srgb, var(--danger) 40%, var(--border)); background: var(--danger-soft); }
+  .promise-h { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+  .promise-h span { font-size: 12.5px; }
+  .promise-b { margin-top: 8px; }
+  .promise-verdict { margin: 8px 0 4px; font-weight: 600; }
+  .promise.ok .promise-verdict { color: var(--success); }
+  .promise.bad .promise-verdict { color: var(--danger); }
+  /* Tipo de servicio: lista desplegable que también acepta texto libre */
+  .combo { position: relative; }
+  .combo input { width: 100%; padding-right: 38px !important; }
+  .combo-btn { position: absolute; right: 1px; top: 1px; bottom: 1px; width: 34px; border: 0; background: transparent; color: var(--muted);
+    border-radius: 0 var(--radius) var(--radius) 0; cursor: pointer; display: grid; place-items: center; }
+  .combo-btn:hover { color: var(--text); background: var(--surface-3); }
+  .combo.open .combo-btn svg { transform: rotate(180deg); }
+  .combo-list { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 4px); margin: 0; padding: 4px; list-style: none;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-lg);
+    max-height: 260px; overflow: auto; }
+  .combo-list li { padding: 8px 10px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; gap: 10px; font-size: 13.5px; }
+  .combo-list li small { color: var(--faint); font-size: 11.5px; white-space: nowrap; }
+  .combo-list li.hl, .combo-list li:hover { background: var(--primary-soft); color: var(--primary-ink); }
+  .combo-list li.combo-empty { cursor: default; color: var(--muted); background: none; }
+  .combo-list li.combo-new { color: var(--primary-ink); font-weight: 600; }
+</style>
+<div class="pl-head">
+  <div class="sch-eyebrow">Ventas · recepción de pedidos</div>
+  <h1 class="sch-title">Nuevo pedido</h1>
+  <p class="pl-lead">Registra lo que pide el cliente. El equipo de planeación definirá después las etapas, los tiempos y los operarios.</p>
+</div>
+
+<form method="post" class="pl-form" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="pl-error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+  <div class="pl-grid2">
+    <section class="pl-card">
+      <h2>Pedido</h2>
+      <div class="pl-fields">
+        {% include "mes_core/_field.html" with field=form.site %}
+        <div class="pl-field{% if form.process_type.errors %} has-error{% endif %}">
+          <label class="pl-lbl" for="id_process_type">{{ form.process_type.label }} <small class="muted">(opcional)</small></label>
+          <div class="combo" id="svc-combo">
+            {{ form.process_type }}
+            <button type="button" class="combo-btn" tabindex="-1" aria-label="Ver tipos de servicio">
+              <svg class="ico sm" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+            <ul class="combo-list" role="listbox" id="svc-list" hidden>
+              {% for st in form.service_options %}<li role="option" data-value="{{ st.name }}">{{ st.name }}{% if not st.has_route %}<small>sin etapas estándar</small>{% endif %}</li>{% endfor %}
+              <li class="combo-empty" hidden>Sin coincidencias</li>
+            </ul>
+          </div>
+          <span class="pl-help" id="svc-help">{{ form.process_type.help_text }}</span>
+          {% for e in form.process_type.errors %}<span class="pl-err">{{ e }}</span>{% endfor %}
+        </div>
+        {% include "mes_core/_field.html" with field=form.customer %}
+        {% include "mes_core/_field.html" with field=form.new_customer %}
+      </div>
+      <div class="pl-fields one">{% include "mes_core/_field.html" with field=form.product %}</div>
+      <div class="pl-fields">
+        {% include "mes_core/_field.html" with field=form.quantity %}
+        {% include "mes_core/_field.html" with field=form.priority %}
+      </div>
+      <div class="pl-fields one">{% include "mes_core/_field.html" with field=form.description %}</div>
+
+      <h3>Documentos y referencias <small>(opcionales)</small></h3>
+      <div class="pl-fields">
+        {% include "mes_core/_field.html" with field=form.reference %}
+        {% include "mes_core/_field.html" with field=form.purchase_order %}
+        {% include "mes_core/_field.html" with field=form.external_op %}
+        {% include "mes_core/_field.html" with field=form.shipment %}
+      </div>
+      <div class="pl-fields one">{% include "mes_core/_field.html" with field=form.notes %}</div>
+    </section>
+
+    <section class="pl-card">
+      <h2>Fechas y transporte</h2>
+      <div class="pl-fields one">
+        {% include "mes_core/_field.html" with field=form.received_on %}
+        {% include "mes_core/_field.html" with field=form.delivery_date %}
+        {% include "mes_core/_field.html" with field=form.transit_days %}
+      </div>
+      <div class="pl-calc" id="calc">
+        <div class="pl-calc-row"><span>Despacho del vehículo</span><b id="c-dispatch">—</b></div>
+        <div class="pl-calc-row"><span>Producción lista antes de</span><b id="c-ready">—</b></div>
+        <div class="pl-calc-row"><span>Días calendario desde hoy</span><b id="c-days">—</b></div>
+        <p class="pl-note">Despacho = entrega en el cliente − días de tránsito. La producción debe terminar al inicio de la
+          jornada de ese día; esa será la <b>fecha compromiso</b> de la orden.</p>
+      </div>
+      <div class="promise" id="promise" data-url="{% url 'mes_core:api_promise' %}" aria-live="polite">
+        <div class="promise-h"><b>Promesa de entrega</b><span id="p-state" class="muted">Completa planta, servicio y unidades</span></div>
+        <div class="promise-b" id="p-body" hidden>
+          <div class="pl-calc-row"><span>Producción terminaría</span><b id="p-end">—</b></div>
+          <div class="pl-calc-row"><span>Primer despacho posible</span><b id="p-dispatch">—</b></div>
+          <div class="pl-calc-row"><span>Entrega más temprana en el cliente</span><b id="p-delivery">—</b></div>
+          <p class="promise-verdict" id="p-verdict"></p>
+          <p class="pl-note">Calculado con la capacidad real: calendario laboral, turnos, líneas y lo que ya está programado,
+            sin mover otros pedidos. Ruta estándar del servicio; es una estimación para comprometer fecha con el cliente.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+  <div class="pl-actions">
+    <button class="sbtn accent" type="submit">Registrar pedido</button>
+    <a class="sbtn" href="{% url 'mes_core:order_list' %}">Cancelar</a>
+  </div>
+</form>
+{{ site_day_start|json_script:"day-starts" }}
+<script>
+(() => {
+  const starts = JSON.parse(document.getElementById("day-starts").textContent);
+  const $ = (id) => document.getElementById(id);
+  const fmt = (d) => d.toLocaleDateString("es", { weekday: "short", day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+  function update() {
+    const delivery = $("id_delivery_date").value, transit = parseInt($("id_transit_days").value || "0", 10);
+    const site = $("id_site").value;
+    if (!delivery) { ["c-dispatch", "c-ready", "c-days"].forEach((i) => ($(i).textContent = "—")); return; }
+    const [y, m, d] = delivery.split("-").map(Number);
+    const dispatch = new Date(Date.UTC(y, m - 1, d - (isNaN(transit) ? 0 : transit)));
+    const today = new Date(); const t0 = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+    const days = Math.round((dispatch - t0) / 86400000);
+    $("c-dispatch").textContent = fmt(dispatch);
+    $("c-ready").textContent = `${fmt(dispatch)} · ${starts[site] || "00:00"}`;
+    $("c-days").textContent = days < 0 ? `${-days} día(s) en el pasado` : `${days} día(s)`;
+    $("calc").classList.toggle("bad", days < 0);
+    $("calc").classList.toggle("tight", days >= 0 && days <= 1);
+  }
+  ["id_delivery_date", "id_transit_days", "id_site"].forEach((i) => $(i).addEventListener("input", update));
+  update();
+
+  // Promesa de entrega con la capacidad real
+  const box = $("promise"), csrf = document.querySelector("[name=csrfmiddlewaretoken]")?.value || "";
+  const fmtD = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("es", { weekday: "short", day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+  const fmtDT = (iso) => new Date(iso).toLocaleString("es", { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hour12: false });
+  let timer, seq = 0;
+  async function promise() {
+    const body = { site: $("id_site").value, process_type: $("id_process_type").value, quantity: $("id_quantity").value,
+                   product: $("id_product").value, priority: $("id_priority")?.value || 3,
+                   transit_days: $("id_transit_days").value || 0, delivery_date: $("id_delivery_date").value };
+    if (!body.site || !(parseFloat(body.quantity) > 0)) {
+      $("p-state").textContent = "Completa planta, servicio y unidades"; $("p-body").hidden = true; box.className = "promise"; return;
+    }
+    if (!body.process_type.trim()) {
+      $("p-state").textContent = "Sin tipo de servicio: la promesa se calcula cuando planeación defina las etapas.";
+      $("p-body").hidden = true; box.className = "promise"; return;
+    }
+    const my = ++seq;
+    $("p-state").textContent = "Calculando…";
+    try {
+      const r = await fetch(box.dataset.url, { method: "POST", headers: { "Content-Type": "application/json", "X-CSRFToken": csrf }, body: JSON.stringify(body) });
+      const d = await r.json();
+      if (my !== seq) return;
+      if (!r.ok) throw new Error(d.error || "No se pudo calcular");
+      $("p-body").hidden = false;
+      $("p-end").textContent = fmtDT(d.end);
+      $("p-dispatch").textContent = fmtD(d.dispatch);
+      $("p-delivery").textContent = fmtD(d.delivery);
+      $("p-state").textContent = `${d.man_hours} horas-hombre · ${d.ops} operaciones`;
+      const v = $("p-verdict");
+      if (d.ok === undefined) { v.textContent = "Indica la fecha de entrega que pide el cliente para compararla."; box.className = "promise"; }
+      else if (d.ok) { v.textContent = d.days_early ? `Se cumple la fecha pedida con ${d.days_early} día(s) de holgura.` : "Se cumple justo la fecha pedida."; box.className = "promise ok"; }
+      else { v.textContent = `No alcanza: la entrega más temprana es ${d.days_late} día(s) después de la fecha pedida. Negocia la fecha o pide horas extra a planeación.`; box.className = "promise bad"; }
+    } catch (e) {
+      if (my !== seq) return;
+      $("p-state").textContent = e.message; $("p-body").hidden = true; box.className = "promise";
+    }
+  }
+  const schedule = () => { clearTimeout(timer); timer = setTimeout(promise, 600); };
+
+  // Tipo de servicio: lista desplegable + texto libre (si no está en la lista, se crea al registrar el pedido)
+  const combo = $("svc-combo"), input = $("id_process_type"), list = $("svc-list");
+  const opts = [...list.querySelectorAll("li[data-value]")], empty = list.querySelector(".combo-empty");
+  const fold = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+  const help = $("svc-help"), helpText = help.textContent;
+  let hl = -1, newItem = null;
+  const visible = () => [...list.querySelectorAll("li[data-value]:not([hidden]), li.combo-new")];
+  function filter(showAll) {
+    const q = fold(input.value);
+    let exact = false;
+    opts.forEach((li) => {
+      const v = fold(li.dataset.value);
+      li.hidden = !showAll && q && !v.includes(q);
+      if (v === q) exact = true;
+    });
+    newItem?.remove(); newItem = null;
+    if (q && !exact) {
+      newItem = document.createElement("li");
+      newItem.className = "combo-new"; newItem.dataset.new = input.value.trim();
+      newItem.textContent = `+ Usar «${input.value.trim()}» (nuevo)`;
+      list.prepend(newItem);
+    }
+    empty.hidden = visible().length > 0;
+    help.textContent = !q ? helpText : exact ? "Tipo de servicio de la lista." : "No está en la lista: se agregará al registrar el pedido.";
+    hl = -1; paint();
+  }
+  function paint() { visible().forEach((li, i) => li.classList.toggle("hl", i === hl)); }
+  function openList(showAll) { filter(showAll); list.hidden = false; combo.classList.add("open"); input.setAttribute("aria-expanded", "true"); }
+  function closeList() { list.hidden = true; combo.classList.remove("open"); input.setAttribute("aria-expanded", "false"); }
+  function pick(li) {
+    input.value = li.dataset.value ?? li.dataset.new ?? input.value;
+    closeList(); filter(false); input.dispatchEvent(new Event("change"));
+  }
+  combo.querySelector(".combo-btn").addEventListener("click", () => {
+    if (list.hidden) { openList(true); input.focus(); } else closeList();
+  });
+  input.addEventListener("focus", () => openList(true));
+  input.addEventListener("input", () => openList(false));
+  input.addEventListener("keydown", (e) => {
+    const items = visible();
+    if (e.key === "ArrowDown") { e.preventDefault(); if (list.hidden) openList(true); hl = Math.min(items.length - 1, hl + 1); paint(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); hl = Math.max(0, hl - 1); paint(); }
+    else if (e.key === "Enter" && !list.hidden) { e.preventDefault(); if (items[hl]) pick(items[hl]); else closeList(); }
+    else if (e.key === "Escape") closeList();
+  });
+  list.addEventListener("mousedown", (e) => { const li = e.target.closest("li[data-value], li.combo-new"); if (li) { e.preventDefault(); pick(li); } });
+  document.addEventListener("click", (e) => { if (!combo.contains(e.target)) closeList(); });
+  input.addEventListener("blur", () => setTimeout(closeList, 120));
+  filter(false); closeList();
+  ["id_site", "id_process_type", "id_quantity", "id_product", "id_priority", "id_transit_days", "id_delivery_date"]
+    .forEach((i) => { $(i)?.addEventListener("input", schedule); $(i)?.addEventListener("change", schedule); });
+  schedule();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+{% block title %}EAN {{ order.number }}{% endblock %}
+{% block crumbs %}<a href="{% url 'eanes:queue' %}?site={{ order.site_id }}">Validación EAN</a><span class="sep">/</span><b>{{ order.number }}</b>{% endblock %}
+{% block extra_head %}
+<style>
+  .eo-grid { display: grid; gap: 16px; }
+  .eo-sum { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: baseline; }
+  .eo-big { font-size: 22px; font-weight: 700; }
+  .eo-tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 18px 0; }
+  .eo-tabs button { height: 34px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--surface); color: var(--text-2); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .eo-tabs button.on { background: var(--primary-soft); color: var(--primary-ink); border-color: transparent; }
+  .eo-panel { display: grid; gap: 10px; padding: 14px 18px 18px; }
+  .eo-panel textarea { width: 100%; box-sizing: border-box; min-height: 180px; padding: 10px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text); font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; resize: vertical; }
+  .eo-panel input[type=text], .eo-panel input:not([type]), .eo-panel input[type=number], .eo-panel select { height: 38px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; box-sizing: border-box; max-width: 100%; }
+  .eo-help { margin: 0; padding-left: 18px; color: var(--text-2); font-size: 13px; }
+  .eo-help li { margin: 3px 0; }
+  .eo-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .eo-scan { font-size: 20px !important; height: 52px !important; width: 100%; font-family: ui-monospace, Menlo, Consolas, monospace !important; letter-spacing: .04em; }
+  .eo-scanmsg { min-height: 20px; font-size: 13px; font-weight: 600; }
+  .eo-scanmsg.bad { color: var(--danger); }
+  .eo-scanmsg.ok { color: var(--success); }
+  .eo-scanlist td input { width: 90px; height: 32px; }
+  .eo-scanlist tr.hit { animation: eohit .6s ease; }
+  @keyframes eohit { from { background: var(--success-soft); } to { background: transparent; } }
+  .eo-map { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+  .eo-map label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; color: var(--text-2); }
+  .eo-apply { display: grid; gap: 10px; padding: 14px 18px 18px; border-top: 1px solid var(--border); }
+  .eo-apply label.chk { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
+  .eo-apply input[name=reason] { height: 38px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+  .eo-scroll { max-height: 460px; overflow: auto; }
+  .eo-log { display: grid; gap: 2px; padding: 10px 18px; border-top: 1px solid var(--border); font-size: 13px; }
+  .eo-log:first-child { border-top: 0; }
+  .eo-log pre { margin: 4px 0 0; white-space: pre-wrap; font: inherit; color: var(--text-2); }
+  td.num, th.num { text-align: right; }
+  .mono { font-variant-numeric: tabular-nums; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Validación EAN · {{ order.site.name }}</div>
+    <h1>EAN del pedido {{ order.number }}</h1>
+    <p><b>{{ order.product.name }}</b> <span class="mono muted">{{ order.product.sku }}</span> · {{ order.customer.name|default:"Sin cliente" }} · <b>{{ order.quantity|floatformat:"-2g" }} {{ order.product.unit }}</b>{% if order.external_op %} · OP {{ order.external_op }}{% endif %}{% if order.purchase_order %} · OC {{ order.purchase_order }}{% endif %}</p>
+  </div>
+  <div class="tools">
+    {% if status == "cargado" %}<span class="pill ok">EAN cargados</span>{% elif status == "no_aplica" %}<span class="pill">No aplica EAN</span>{% else %}<span class="pill warn">Pendiente de EAN</span>{% endif %}
+    <a class="sbtn" href="{% url 'mes_core:order_detail' order.pk %}">Ver pedido</a>
+    {% if next_pending %}<a class="sbtn" href="{% url 'eanes:order' next_pending.pk %}" title="Siguiente pedido esperando EAN">Siguiente pendiente →</a>{% endif %}
+  </div>
+</div>
+
+<div class="eo-grid">
+{% if cancelled %}<div class="callout bad">El pedido está cancelado: no se le cargan EAN.</div>{% endif %}
+{% if status == "no_aplica" %}
+<div class="card"><div class="card-b">
+  <b>Este pedido no lleva EAN.</b> En planta no se pedirá escanear.{% if sheet.note %} <span class="muted">Nota: {{ sheet.note }}</span>{% endif %}
+  {% if sheet.loaded_at %}<div class="muted" style="font-size:13px;margin-top:4px">Marcado {{ sheet.loaded_at|date:"D d/m H:i" }}{% if sheet.loaded_by %} por {{ sheet.loaded_by.get_full_name|default:sheet.loaded_by.username }}{% endif %}.</div>{% endif %}
+  {% if can_edit and not cancelled %}<form method="post" class="eo-row" style="margin-top:12px">{% csrf_token %}<input type="hidden" name="action" value="reopen">
+    <input name="reason" maxlength="255" placeholder="¿Por qué? (opcional)" style="height:36px;padding:0 10px;border:1px solid var(--border-strong);border-radius:var(--radius);flex:1 1 220px">
+    <button class="sbtn">Sí lleva EAN: volver a pendiente</button></form>{% endif %}
+</div></div>
+{% endif %}
+
+{% if review %}
+<div class="card" id="revision">
+  <div class="card-h"><h2>Revisión antes de guardar</h2><span class="sub">{% if source == "archivo" %}Archivo «{{ file_name }}»{% elif source == "copia" %}Copiado de {{ copy_from.number }}{% elif source == "escaneo" %}Escaneo{% else %}Pegado{% endif %}</span></div>
+  <div class="card-b" style="display:grid;gap:12px">
+    <div class="eo-sum">
+      <span><span class="eo-big">{{ review.rows|length }}</span> referencias</span>
+      <span><span class="eo-big">{{ review.total|floatformat:"0g" }}</span> unidades{% if review.unlimited %} + {{ review.unlimited }} sin límite{% endif %}</span>
+      <span>Pedido: <b>{{ review.order_qty|floatformat:"-2g" }}</b></span>
+      {% if review.diff is None %}<span class="pill info">Solo referencias sin límite</span>
+      {% elif review.matches_order %}<span class="pill ok">✔ Cuadra con el pedido</span>
+      {% elif review.diff > 0 %}<span class="pill warn">Sobran {{ review.diff|floatformat:"-2g" }} frente al pedido</span>
+      {% else %}<span class="pill warn">Faltan {{ review.diff_abs|floatformat:"-2g" }} frente al pedido</span>{% endif %}
+      {% if lines %}<span class="muted">Si la <b>sumas</b> a la lista actual ({{ total|floatformat:"0g" }}) quedan {{ review.total|add:total|floatformat:"0g" }} unidades.</span>{% endif %}
+    </div>
+    {% if review.merged %}<div class="callout warn">Venían repetidos y <b>se sumaron</b>: {% for e, n in review.merged|slice:":12" %}<span class="mono">{{ e }}</span> ({{ n }} veces){% if not forloop.last %}, {% endif %}{% endfor %}{% if review.merged|length > 12 %} y {{ review.merged|length|add:"-12" }} más{% endif %}.</div>{% endif %}
+    {% if review.errors %}
+    <div class="callout bad"><b>{{ review.errors|length }} línea{{ review.errors|length|pluralize }} con problema</b> — no se guardan. Corrígelas y vuelve a revisar{% if review.rows %}, o guarda solo las válidas{% endif %}.
+      <div class="table-wrap flat eo-scroll" style="margin-top:8px;max-height:240px"><table><thead><tr><th>{% if source == "archivo" %}Fila{% else %}Línea{% endif %}</th><th>Dato</th><th>Problema</th></tr></thead><tbody>
+      {% for n, txt, msg in review.errors|slice:":200" %}<tr><td class="mono">{% if n %}{{ n }}{% endif %}</td><td class="mono">{{ txt }}</td><td>{{ msg }}</td></tr>{% endfor %}
+      </tbody></table></div></div>
+    {% endif %}
+    {% if review.warnings %}<details><summary class="muted" style="cursor:pointer">{{ review.warnings|length }} aviso{{ review.warnings|length|pluralize }}</summary><ul class="eo-help">{% for w in review.warnings|slice:":100" %}<li>{{ w }}</li>{% endfor %}</ul></details>{% endif %}
+    {% if columns %}
+    <form method="post" class="eo-map">{% csrf_token %}<input type="hidden" name="action" value="remap">
+      <label>Columna del EAN<select name="col_ean">{% for c in columns %}<option value="{{ forloop.counter0 }}" {% if forloop.counter0 == mapping.ean %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></label>
+      <label>Columna de la cantidad<select name="col_qty">{% for c in columns %}<option value="{{ forloop.counter0 }}" {% if forloop.counter0 == mapping.qty %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></label>
+      <label>Descripción (opcional)<select name="col_desc"><option value="">— ninguna —</option>{% for c in columns %}<option value="{{ forloop.counter0 }}" {% if forloop.counter0 == mapping.desc %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></label>
+      <button class="sbtn">Leer con estas columnas</button>
+    </form>
+    {% endif %}
+  </div>
+  {% if review.rows %}
+  <div class="table-wrap flat eo-scroll"><table>
+    <thead><tr><th>#</th><th>EAN</th><th>Descripción</th><th class="num">Unidades</th></tr></thead>
+    <tbody>{% for r in preview_rows %}<tr><td class="muted">{{ forloop.counter }}</td><td class="mono">{{ r.ean }}</td><td>{{ r.description }}</td><td class="num mono">{% if r.quantity is None %}<span class="pill info">sin límite</span>{% else %}{{ r.quantity|floatformat:"0g" }}{% endif %}</td></tr>{% endfor %}
+    {% if preview_more %}<tr><td colspan="4" class="muted">… y {{ preview_more }} referencias más.</td></tr>{% endif %}</tbody>
+  </table></div>
+  {% if can_edit and not cancelled %}
+  <form method="post" class="eo-apply" id="eo-apply">{% csrf_token %}
+    <input type="hidden" name="action" value="apply"><input type="hidden" name="source" value="{{ source }}">
+    <input type="hidden" name="payload" value="{{ payload }}">
+    {% if review.errors %}<input type="hidden" name="had_errors" value="1">{% endif %}
+    {% if columns %}{% if mapping.ean is not None %}<input type="hidden" name="col_ean" value="{{ mapping.ean }}">{% endif %}{% if mapping.qty is not None %}<input type="hidden" name="col_qty" value="{{ mapping.qty }}">{% endif %}{% if mapping.desc is not None %}<input type="hidden" name="col_desc" value="{{ mapping.desc }}">{% endif %}{% endif %}
+    {% if lines %}
+    <div class="eo-row">
+      <label class="chk"><input type="radio" name="mode" value="replace" checked> <span><b>Reemplazar</b> la lista actual ({{ lines|length }} referencias) por esta</span></label>
+      <label class="chk"><input type="radio" name="mode" value="add"> <span><b>Sumar</b> a la lista actual</span></label>
+    </div>
+    {% endif %}
+    {% if review.errors %}<label class="chk"><input type="checkbox" name="ignore_errors" value="1" required> <span>Guardar solo las {{ review.rows|length }} válidas y dejar por fuera las {{ review.errors|length }} con problema.</span></label>{% endif %}
+    {% if source == "archivo" and order.customer %}<label class="chk"><input type="checkbox" name="remember" value="1" checked> <span>Recordar estas columnas para los archivos de <b>{{ order.customer.name }}</b>.</span></label>{% endif %}
+    {% if in_production and lines %}<label style="display:grid;gap:4px;font-size:13px;font-weight:600">El pedido ya está en producción: ¿por qué cambian los EAN?<input name="reason" maxlength="255" required placeholder="Ej.: el cliente cambió las cantidades"></label>{% endif %}
+    <div class="eo-row">
+      <button class="btn" type="submit"><svg class="ico sm"><use href="#i-check"/></svg> Guardar EAN</button>
+      {% if next_pending %}<button class="sbtn" type="submit" name="next" value="1">Guardar y seguir con el siguiente pendiente</button>{% endif %}
+      <a class="sbtn" href="{% url 'eanes:order' order.pk %}">Descartar</a>
+    </div>
+  </form>
+  {% endif %}
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-h"><h2>Referencias del pedido</h2>
+    <span class="sub">{% if lines %}{{ lines|length }} EAN · {{ total|floatformat:"0g" }} unidades{% if unlimited %} + {{ unlimited }} sin límite{% endif %}{% else %}Aún no hay EAN cargados{% endif %}</span></div>
+  {% if lines %}
+  <div class="card-b" style="padding-bottom:0">
+    {% if diff is None %}<span class="pill info">Solo referencias sin límite</span>
+    {% elif diff == 0 %}<span class="pill ok">✔ Los EAN suman exactamente la cantidad del pedido</span>
+    {% elif diff > 0 %}<span class="pill warn">Los EAN suman {{ diff|floatformat:"-2g" }} más que el pedido ({{ order.quantity|floatformat:"-2g" }})</span>
+    {% else %}<span class="pill warn">A los EAN les faltan {{ diff_abs|floatformat:"-2g" }} para la cantidad del pedido ({{ order.quantity|floatformat:"-2g" }})</span>{% endif %}
+    {% if sheet.loaded_at %}<span class="muted" style="font-size:13px;margin-left:8px">Cargados {{ sheet.loaded_at|date:"D d/m H:i" }}{% if sheet.loaded_by %} por {{ sheet.loaded_by.get_full_name|default:sheet.loaded_by.username }}{% endif %} · {{ sheet.get_source_display|lower }}</span>{% endif %}
+  </div>
+  <div class="table-wrap flat eo-scroll"><table>
+    <thead><tr><th>#</th><th>EAN</th><th>Descripción</th><th class="num">Unidades</th></tr></thead>
+    <tbody>{% for l in lines %}<tr><td class="muted">{{ forloop.counter }}</td><td class="mono">{{ l.ean }}</td><td>{{ l.description }}</td><td class="num mono">{% if l.quantity is None %}<span class="pill info">sin límite</span>{% else %}{{ l.quantity|floatformat:"0g" }}{% endif %}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  <div class="card-b eo-row">
+    {% if can_edit and not cancelled %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="edit"><button class="sbtn sm">Corregir la lista</button></form>{% endif %}
+    <a class="sbtn sm" href="{% url 'eanes:order_csv' order.pk %}">Descargar (CSV)</a>
+  </div>
+  {% endif %}
+</div>
+
+{% if progress and progress.stages %}
+<div class="card">
+  <div class="card-h"><h2>Avance por referencia</h2><span class="sub">Buenas + sobrantes + justificado de cada referencia, por etapa</span></div>
+  <div class="table-wrap flat eo-scroll"><table>
+    <thead><tr><th>EAN</th><th>Descripción</th><th class="num">Meta</th>{% for s in progress.stages %}<th>{{ s }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for row in progress.rows %}<tr><td class="mono">{{ row.ean }}</td><td>{{ row.desc|truncatechars:34 }}</td><td class="num mono">{% if row.qty is None %}sin límite{% else %}{{ row.qty|floatformat:"0g" }}{% endif %}</td>
+      {% for c in row.cells %}<td><span class="pill {% if c.status == 'Completado' %}ok{% elif c.status == 'En proceso' %}warn{% elif c.status == 'Sin límite' %}info{% endif %}">{{ c.done|floatformat:"-2g" }}</span> <small class="muted">{{ c.status }}{% if c.remaining %} · faltan {{ c.remaining|floatformat:"-2g" }}{% endif %}</small></td>{% endfor %}</tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+{% endif %}
+
+{% if can_edit and not cancelled %}
+<div class="card" id="cargar">
+  <div class="card-h"><h2>{% if lines %}Cambiar o agregar EAN{% else %}Cargar EAN{% endif %}</h2><span class="sub">Elige cómo: nada se guarda hasta que revises y confirmes.</span></div>
+  <div class="eo-tabs" role="tablist">
+    <button type="button" data-tab="pegar">📋 Pegar desde Excel</button>
+    <button type="button" data-tab="archivo">📄 Archivo del cliente</button>
+    <button type="button" data-tab="escanear">🔫 Escanear</button>
+    <button type="button" data-tab="copiar">⧉ Copiar de otro pedido</button>
+    {% if status != "no_aplica" %}<button type="button" data-tab="noaplica">No lleva EAN</button>{% endif %}
+  </div>
+
+  <form method="post" class="eo-panel" data-panel="pegar">{% csrf_token %}<input type="hidden" name="action" value="preview_text"><input type="hidden" name="source" value="pegado">
+    <ul class="eo-help">
+      <li>En Excel selecciona las columnas <b>EAN</b> y <b>cantidad</b> (y si quieres la descripción), cópialas y pégalas aquí. El orden de las columnas no importa y el encabezado se ignora.</li>
+      <li>También puedes escribir una referencia por línea: <span class="mono">7705675995066 122</span>. Para una referencia sin tope escribe <span class="mono">sin límite</span> en lugar de la cantidad.</li>
+    </ul>
+    <textarea name="text" placeholder="EAN&#9;Cantidad&#9;Descripción&#10;7705675995066&#9;122&#9;Camiseta azul T-S&#10;7705675995073&#9;61">{{ text }}</textarea>
+    <div class="eo-row"><button class="btn">Revisar</button></div>
+  </form>
+
+  <form method="post" enctype="multipart/form-data" class="eo-panel" data-panel="archivo">{% csrf_token %}<input type="hidden" name="action" value="preview_file">
+    <ul class="eo-help">
+      <li>Sube el Excel (.xlsx) o CSV tal como lo manda el cliente. El sistema busca solo las columnas del EAN y de la cantidad; si no las reconoce, te deja elegirlas.</li>
+      {% if saved_fmt %}<li>Para <b>{{ order.customer.name }}</b> ya se recuerdan las columnas: EAN «{{ saved_fmt.ean_column }}», cantidad «{{ saved_fmt.qty_column }}»{% if saved_fmt.desc_column %}, descripción «{{ saved_fmt.desc_column }}»{% endif %}.</li>{% endif %}
+    </ul>
+    <input type="file" name="file" accept=".xlsx,.xlsm,.csv,.txt,.tsv" required>
+    <div class="eo-row"><button class="btn">Leer archivo</button></div>
+  </form>
+
+  <div class="eo-panel" data-panel="escanear">
+    <ul class="eo-help">
+      <li>Pon el cursor en el recuadro y escanea. Cada lectura suma las <b>unidades por lectura</b> a esa referencia (1 = contar unidad por unidad).</li>
+      <li>Si ya sabes cuántas trae una referencia, cambia las unidades antes de escanearla, o corrígela en la tabla.</li>
+      <li>Lo escaneado se guarda en este equipo hasta que lo confirmes, aunque se cierre la página.</li>
+    </ul>
+    <div class="eo-row">
+      <label style="display:flex;gap:6px;align-items:center;font-size:13px;font-weight:600">Unidades por lectura <input type="number" id="sc-q" min="1" value="1" style="width:90px"></label>
+    </div>
+    <input id="sc-in" class="eo-scan" autocomplete="off" inputmode="numeric" placeholder="Escanea aquí…" aria-label="Escanear EAN">
+    <div id="sc-msg" class="eo-scanmsg" aria-live="polite"></div>
+    <div class="table-wrap flat eo-scroll"><table class="eo-scanlist"><thead><tr><th>EAN</th><th class="num">Unidades</th><th></th></tr></thead><tbody id="sc-body"></tbody>
+      <tfoot><tr><td><b id="sc-refs">0</b> referencias</td><td class="num"><b id="sc-units">0</b></td><td></td></tr></tfoot></table></div>
+    <form method="post" id="sc-form" class="eo-row">{% csrf_token %}<input type="hidden" name="action" value="preview_text"><input type="hidden" name="source" value="escaneo"><textarea name="text" id="sc-text" hidden></textarea>
+      <button class="btn" type="submit" id="sc-go" disabled>Revisar lo escaneado</button>
+      <button class="sbtn" type="button" id="sc-clear">Vaciar</button>
+    </form>
+  </div>
+
+  <form method="post" class="eo-panel" data-panel="copiar">{% csrf_token %}<input type="hidden" name="action" value="copy">
+    {% if copy_sources %}
+    <ul class="eo-help"><li>Trae las referencias de un pedido parecido; luego puedes ajustar las cantidades antes de guardar. Primero salen los del mismo cliente y producto.</li></ul>
+    <select name="from" required>{% for s in copy_sources %}<option value="{{ s.pk }}">{{ s.number }} · {{ s.customer.name|default:"Sin cliente" }} · {{ s.product.sku }} · {{ s.n_eans }} EAN{% if s.ean_sheet.loaded_at %} · {{ s.ean_sheet.loaded_at|date:"d/m/Y" }}{% endif %}</option>{% endfor %}</select>
+    <div class="eo-row"><button class="btn">Traer sus EAN</button></div>
+    {% else %}<p class="muted" style="margin:0">Aún no hay otros pedidos con EAN cargados.</p>{% endif %}
+  </form>
+
+  {% if status != "no_aplica" %}
+  <form method="post" class="eo-panel" data-panel="noaplica">{% csrf_token %}<input type="hidden" name="action" value="not_apply">
+    <ul class="eo-help"><li>Para pedidos sin código de barras: apoyos, procesos internos, inventarios… En planta no se pedirá escanear.{% if lines %} <b>Se quitarán los {{ lines|length }} EAN cargados.</b>{% endif %}</li></ul>
+    <input name="note" maxlength="255" placeholder="Nota{% if in_production and lines %} (obligatoria: el pedido ya está en producción){% else %} (opcional){% endif %}" {% if in_production and lines %}required{% endif %}>
+    <div class="eo-row"><button class="sbtn">Marcar «No aplica EAN»</button></div>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if logs %}
+<div class="card">
+  <div class="card-h"><h2>Historial</h2><span class="sub">Quién cargó o cambió los EAN</span></div>
+  {% for g in logs %}<div class="eo-log">
+    <div><b>{{ g.action }}</b> · {{ g.at|date:"D d/m/Y H:i" }}{% if g.user %} · {{ g.user.get_full_name|default:g.user.username }}{% endif %}</div>
+    {% if g.reason %}<div>Motivo: {{ g.reason }}</div>{% endif %}
+    {% if g.detail %}<pre>{{ g.detail }}</pre>{% endif %}
+  </div>{% endfor %}
+</div>
+{% endif %}
+</div>
+
+{% if can_edit and not cancelled %}
+<script>
+(function () {
+  // ---- pestañas
+  var start = "{{ tab|escapejs }}" || "pegar";
+  var tabs = document.querySelectorAll(".eo-tabs [data-tab]"), panels = document.querySelectorAll("[data-panel]");
+  function show(name) {
+    tabs.forEach(function (b) { b.classList.toggle("on", b.dataset.tab === name); b.setAttribute("aria-selected", b.dataset.tab === name); });
+    panels.forEach(function (p) { p.hidden = p.dataset.panel !== name; });
+    if (name === "escanear") setTimeout(function () { var i = document.getElementById("sc-in"); if (i) i.focus(); }, 30);
+  }
+  tabs.forEach(function (b) { b.addEventListener("click", function () { show(b.dataset.tab); }); });
+  show(start);
+
+  // ---- escaneo
+  var KEY = "{{ scan_key }}", list = [];
+  try { list = JSON.parse(localStorage.getItem(KEY) || "[]") || []; } catch (e) { list = []; }
+  var inp = document.getElementById("sc-in"), qIn = document.getElementById("sc-q"), body = document.getElementById("sc-body"),
+      msg = document.getElementById("sc-msg"), go = document.getElementById("sc-go"), ctx = null;
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(list)); } catch (e) {} }
+  function beep(ok) {
+    try {
+      ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.value = ok ? 1200 : 220; o.type = ok ? "sine" : "square";
+      g.gain.value = 0.15; o.connect(g); g.connect(ctx.destination);
+      o.start(); o.stop(ctx.currentTime + (ok ? 0.08 : 0.35));
+    } catch (e) {}
+  }
+  function checkOk(code) {
+    var d = code.split("").map(Number), c = d.pop(), s = 0;
+    d.reverse().forEach(function (v, i) { s += v * (i % 2 === 0 ? 3 : 1); });
+    return (10 - s % 10) % 10 === c;
+  }
+  function norm(raw) {
+    var c = String(raw || "").replace(/\D/g, "");
+    if (c.length === 14 && c[0] === "0") c = c.slice(1);
+    if (c.length === 12) c = "0" + c;
+    if (c.length < 6 || c.length > 14) return { err: "«" + (c || raw) + "» no parece un EAN (" + c.length + " dígitos)." };
+    if ([8, 13, 14].indexOf(c.length) >= 0 && !checkOk(c)) return { err: "«" + c + "»: el dígito de control no cuadra. Vuelve a escanear." };
+    return { ean: c };
+  }
+  function render(hit) {
+    body.innerHTML = "";
+    var units = 0;
+    list.forEach(function (it, i) {
+      units += it.q;
+      var tr = document.createElement("tr");
+      if (it.e === hit) tr.className = "hit";
+      tr.innerHTML = '<td class="mono"></td><td class="num"><input type="number" min="1"></td><td><button type="button" class="sbtn sm">Quitar</button></td>';
+      tr.children[0].textContent = it.e;
+      var q = tr.querySelector("input"); q.value = it.q;
+      q.addEventListener("change", function () { var v = parseInt(q.value, 10); if (v > 0) { it.q = v; save(); render(); } else { q.value = it.q; } });
+      tr.querySelector("button").addEventListener("click", function () { list.splice(i, 1); save(); render(); inp.focus(); });
+      body.appendChild(tr);
+    });
+    document.getElementById("sc-refs").textContent = list.length;
+    document.getElementById("sc-units").textContent = units.toLocaleString("es-CO");
+    go.disabled = !list.length;
+  }
+  inp.addEventListener("keydown", function (ev) {
+    if (ev.key !== "Enter") return;
+    ev.preventDefault();
+    var raw = inp.value.trim(); inp.value = "";
+    if (!raw) return;
+    var r = norm(raw);
+    if (r.err) { msg.textContent = r.err; msg.className = "eo-scanmsg bad"; beep(false); return; }
+    var add = Math.max(1, parseInt(qIn.value, 10) || 1), it = list.find(function (x) { return x.e === r.ean; });
+    if (it) it.q += add; else { it = { e: r.ean, q: add }; list.unshift(it); }
+    save(); render(r.ean); beep(true);
+    msg.textContent = "✔ " + r.ean + " → " + it.q.toLocaleString("es-CO") + " unidades"; msg.className = "eo-scanmsg ok";
+  });
+  document.getElementById("sc-clear").addEventListener("click", function () {
+    if (list.length && !confirm("¿Vaciar las " + list.length + " referencias escaneadas?")) return;
+    list = []; save(); render(); inp.focus();
+  });
+  document.getElementById("sc-form").addEventListener("submit", function () {
+    document.getElementById("sc-text").value = list.map(function (x) { return x.e + "\t" + x.q; }).join("\n");
+  });
+  var apply = document.getElementById("eo-apply");
+  if (apply && apply.querySelector("[name=source]").value === "escaneo") {
+    apply.addEventListener("submit", function () { try { localStorage.removeItem(KEY); } catch (e) {} });
+  }
+  render();
+  {% if review %}var rv = document.getElementById("revision"); if (rv) rv.scrollIntoView({ block: "start" });{% endif %}
+})();
+</script>
+{% endif %}
+{% endblock %}

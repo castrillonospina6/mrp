@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% load mes_assets %}
+{% block title %}¿Quién está dónde?{% endblock %}
+{% block crumbs %}<span>Personal</span><span class="sep">/</span><b>¿Quién está dónde?</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/workforce.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Personal · {% if is_now %}ahora{% else %}{{ at|date:"l d/m/Y H:i" }}{% endif %}</div>
+    <h1>¿Quién está dónde?</h1>
+    <p>Cada persona según, en este orden: la cuadrilla en la que está asignada en ese momento, el último traslado vigente
+      o su bodega habitual. Selecciona personas para moverlas a otra bodega o línea, por unas horas o hasta nuevo aviso.</p>
+  </div>
+  <form method="get" class="tools">
+    <input type="datetime-local" name="en" value="{{ at_value }}" aria-label="Momento" onchange="this.form.submit()">
+    <a class="sbtn sm" href="?">Ahora</a>
+    <input type="search" name="q" value="{{ q }}" placeholder="Buscar nombre o documento" aria-label="Buscar" id="wf-q">
+    {% if perms.mes_core.view_staffallocation %}<a class="sbtn sm" href="{% url 'mes_core:staff_split' %}">Reparto</a>{% endif %}
+  </form>
+</div>
+
+<div class="grid wf-kpis">
+  <div class="kpi"><div class="k-h">Personal total</div><div class="k-v">{{ pool }}</div><div class="k-s">bolsa global</div></div>
+  <div class="kpi"><div class="k-h">Ubicados</div><div class="k-v">{{ placed }}</div><div class="k-s">en alguna bodega</div></div>
+  <div class="kpi"><div class="k-h">Sin ubicar</div><div class="k-v {% if unplaced %}warn{% endif %}">{{ unplaced|length }}</div><div class="k-s">sin bodega habitual ni traslado</div></div>
+  <div class="kpi"><div class="k-h">Ausentes</div><div class="k-v">{{ n_absent }}</div><div class="k-s">{{ day|date:"D d/m" }}</div></div>
+</div>
+
+{% if can_move %}
+<form method="post" class="wf-movebar card" id="move-form">{% csrf_token %}
+  <input type="hidden" name="en" value="{{ at_value }}">
+  <div class="wf-sel"><b id="sel-n">0</b> seleccionada(s) <button type="button" class="sbtn sm" id="sel-clear">Quitar selección</button></div>
+  <label>Mover a<select name="site" id="mv-site" required>{% for s in sites %}<option value="{{ s.pk }}">{{ s.code }} · {{ s.name }}</option>{% endfor %}</select></label>
+  <label>Línea<select name="line" id="mv-line"><option value="">Cualquiera</option></select></label>
+  <label>Desde<input type="datetime-local" name="start" value="{{ at_value }}" required></label>
+  <label>Hasta<span class="wf-until">
+    <select name="until" id="mv-until"><option value="hora">Hasta…</option><option value="nuevo">Nuevo aviso</option></select>
+    <input type="datetime-local" name="end" id="mv-end" value="{{ end_default }}"></span></label>
+  <label class="grow">Nota<input type="text" name="note" maxlength="200" placeholder="Opcional: p. ej. apoyo picking"></label>
+  <div class="wf-actions">
+    <button class="btn" type="submit" name="action" value="move" id="mv-go" disabled>Mover</button>
+    <button class="sbtn" type="submit" name="action" value="back" id="mv-back" disabled formnovalidate
+      title="Termina el traslado vigente: vuelven a donde estaban">Devolver</button>
+  </div>
+</form>
+{% endif %}
+
+<div class="wf-board">
+  {% for c in columns %}
+  <section class="wf-col card" data-site="{{ c.site.pk }}">
+    <header>
+      <div><b>{{ c.site.code }}</b> <span class="muted">{{ c.site.name }}</span></div>
+      <div class="wf-count"><b>{{ c.here }}</b>{% if c.quota is not None %} <span class="muted">/ {{ c.quota }} del reparto</span>{% endif %}</div>
+      <div class="wf-meta">
+        <span class="muted">{{ c.slot|default:"Sin turnos" }}</span>
+        {% if c.gap is not None and c.gap < 0 %}<span class="pill bad">faltan {{ c.gap|stringformat:"d"|slice:"1:" }}</span>
+        {% elif c.gap %}<span class="pill warn">sobran {{ c.gap }}</span>
+        {% elif c.gap == 0 %}<span class="pill ok">completo</span>{% endif %}
+      </div>
+      {% if c.here %}<div class="wf-src">{% if c.by_source.cuadrilla %}<span>{{ c.by_source.cuadrilla }} en cuadrilla</span>{% endif %}{% if c.by_source.traslado %}<span>{{ c.by_source.traslado }} trasladados</span>{% endif %}{% if c.by_source.habitual %}<span>{{ c.by_source.habitual }} habituales</span>{% endif %}</div>{% endif %}
+      {% if can_move and c.here %}<button type="button" class="sbtn sm wf-all">Seleccionar todos</button>{% endif %}
+    </header>
+    <ul class="wf-people">
+      {% for r in c.people %}{% include "mes_core/_wf_person.html" %}{% empty %}<li class="muted wf-none">Nadie {% if q %}con «{{ q }}» {% endif %}aquí.</li>{% endfor %}
+    </ul>
+  </section>
+  {% endfor %}
+  <section class="wf-col card wf-unplaced">
+    <header><div><b>Sin ubicar</b></div><div class="wf-count"><b>{{ unplaced|length }}</b></div>
+      <div class="wf-meta muted">Sin bodega habitual ni traslado: muévelos a una bodega.</div>
+      {% if can_move and unplaced %}<button type="button" class="sbtn sm wf-all">Seleccionar todos</button>{% endif %}</header>
+    <ul class="wf-people">{% for r in unplaced %}{% include "mes_core/_wf_person.html" %}{% empty %}<li class="muted wf-none">Todos están ubicados.</li>{% endfor %}</ul>
+  </section>
+  {% if away %}<section class="wf-col card wf-away">
+    <header><div><b>Ausentes</b> <span class="muted">{{ day|date:"D d/m" }}</span></div><div class="wf-count"><b>{{ away|length }}</b></div></header>
+    <ul class="wf-people">{% for r in away %}<li class="wf-p"><span class="n">{{ r.e.display_name }}</span><span class="pill warn">{{ r.absent }}</span></li>{% endfor %}</ul>
+  </section>{% endif %}
+</div>
+{{ lines_json|json_script:"wf-lines" }}
+<script>
+(() => {
+  const form = document.getElementById("move-form");
+  if (!form) return;
+  const boxes = () => [...document.querySelectorAll('input[form="move-form"][name="emp"]')];
+  const go = document.getElementById("mv-go"), back = document.getElementById("mv-back"), n = document.getElementById("sel-n");
+  const sync = () => {
+    const k = boxes().filter((b) => b.checked).length;
+    n.textContent = k;
+    go.disabled = back.disabled = !k;
+    form.classList.toggle("on", k > 0);
+  };
+  document.addEventListener("change", (e) => { if (e.target.matches('input[name="emp"]')) sync(); });
+  document.querySelectorAll(".wf-all").forEach((b) => b.addEventListener("click", () => {
+    const col = b.closest(".wf-col").querySelectorAll('input[name="emp"]');
+    const all = [...col].every((x) => x.checked);
+    col.forEach((x) => (x.checked = !all));
+    sync();
+  }));
+  document.getElementById("sel-clear").addEventListener("click", () => { boxes().forEach((b) => (b.checked = false)); sync(); });
+  const lines = JSON.parse(document.getElementById("wf-lines").textContent);
+  const site = document.getElementById("mv-site"), line = document.getElementById("mv-line");
+  const fill = () => {
+    line.innerHTML = '<option value="">Cualquiera</option>' + lines.filter((l) => String(l.site) === site.value)
+      .map((l) => `<option value="${l.id}">${l.label.replace(/[<>&]/g, "")}</option>`).join("");
+  };
+  site.addEventListener("change", fill);
+  fill();
+  const until = document.getElementById("mv-until"), end = document.getElementById("mv-end");
+  until.addEventListener("change", () => { end.hidden = until.value === "nuevo"; });
+  sync();
+})();
+</script>
+{% endblock %}

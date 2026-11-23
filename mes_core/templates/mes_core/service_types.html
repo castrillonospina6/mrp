@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Tipos de servicio{% endblock %}
+{% block crumbs %}<span>Configuración</span><span class="sep">/</span><b>Tipos de servicio</b>{% endblock %}
+{% block content %}
+<style>
+  .sw { position: relative; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 500; }
+  .sw input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .sw .track { width: 38px; height: 22px; border-radius: 999px; background: var(--border-strong); position: relative; transition: background .15s; flex: none; }
+  .sw .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); box-shadow: var(--shadow-sm); transition: transform .15s; }
+  .sw input:checked + .track { background: var(--success); }
+  .sw input:checked + .track::after { transform: translateX(16px); }
+  .sw input:focus-visible + .track { box-shadow: var(--focus); }
+  .sw .txt { font-size: 12.5px; color: var(--muted); min-width: 58px; }
+  tr.off td { color: var(--muted); }
+  tr.off input[type=text] { color: var(--muted); }
+  .st-name-in { width: 100%; min-width: 220px; }
+  .add-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 14px 18px; border-top: 1px solid var(--border); }
+  .add-row input { width: 280px; }
+  .save-bar { display: flex; gap: 10px; align-items: center; justify-content: flex-end; padding: 12px 18px; border-top: 1px solid var(--border); }
+  .save-bar .muted { margin-right: auto; font-size: 13px; }
+</style>
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Configuración</div>
+    <h1>Tipos de servicio</h1>
+    <p>Lo que aparece en la lista de «Nuevo pedido». Activa o desactiva cada uno, cámbiale el nombre o crea los tuyos.
+      Desactivar no borra nada: los pedidos que ya lo usan lo conservan. También se crean solos cuando alguien escribe
+      un tipo nuevo en el pedido.</p>
+  </div>
+  <div class="tools"><a class="sbtn" href="{% url 'mes_core:order_create' %}"><svg class="ico sm"><use href="#i-plus-sq"/></svg> Nuevo pedido</a></div>
+</div>
+
+<div class="card">
+  <div class="card-h"><h2>{{ n_active }} activo{{ n_active|pluralize }} de {{ rows|length }}</h2>
+    {% if no_type %}<span class="sub">{{ no_type }} pedido{{ no_type|pluralize }} sin tipo de servicio</span>{% endif %}</div>
+  <form method="post" id="st-form">{% csrf_token %}<input type="hidden" name="action" value="save">
+    <div class="table-wrap flat"><table>
+      <thead><tr><th>Activo</th><th>Nombre (como sale en la lista)</th><th>Origen</th><th class="num">Pedidos</th><th></th></tr></thead>
+      <tbody>
+      {% for r in rows %}{% with st=r.st %}
+        <tr class="{% if not st.active %}off{% endif %}">
+          <td><input type="hidden" name="st" value="{{ st.pk }}">
+            <label class="sw"><input type="checkbox" name="active_{{ st.pk }}" {% if st.active %}checked{% endif %} {% if not can_edit %}disabled{% endif %}
+                aria-label="{{ st.name }} activo"><span class="track"></span><span class="txt">{% if st.active %}Activo{% else %}Inactivo{% endif %}</span></label></td>
+          <td>{% if can_edit %}<input type="text" class="st-name-in" name="name_{{ st.pk }}" value="{{ st.name }}" maxlength="80" aria-label="Nombre">
+              {% else %}<b>{{ st.name }}</b>{% endif %}
+            <div class="muted" style="font-size:12px;margin-top:3px">clave <code>{{ st.key }}</code></div></td>
+          <td>{% if st.plugin %}<span class="pill info" title="Trae ruta estándar de etapas para planeación">Módulo {{ st.plugin }}</span>
+              {% if not st.has_route %}<span class="pill warn" title="El módulo no está cargado">módulo desactivado</span>{% endif %}
+            {% else %}<span class="pill">Manual</span>{% endif %}</td>
+          <td class="num">{{ r.orders }}</td>
+          <td>{% if can_delete and st.is_manual and not r.orders %}
+            <button class="sbtn sm soft-danger" type="submit" form="del-{{ st.pk }}" onclick="return confirm('¿Borrar «{{ st.name|escapejs }}»?')">Borrar</button>{% endif %}</td>
+        </tr>
+      {% endwith %}{% empty %}
+        <tr class="empty-row"><td colspan="5">No hay tipos de servicio. Crea el primero abajo.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% if can_edit and rows %}
+    <div class="save-bar"><span class="muted" id="st-dirty">Cambia lo que necesites y guarda.</span>
+      <button class="btn" type="submit">Guardar cambios</button></div>
+    {% endif %}
+  </form>
+  {% for r in rows %}{% if r.st.is_manual and not r.orders %}<form method="post" id="del-{{ r.st.pk }}" hidden>{% csrf_token %}
+    <input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{{ r.st.pk }}"></form>{% endif %}{% endfor %}
+  {% if can_add %}
+  <form method="post" class="add-row">{% csrf_token %}<input type="hidden" name="action" value="add">
+    <input name="name" maxlength="80" placeholder="Nuevo tipo de servicio (p. ej. Maquila de empaque)" required aria-label="Nuevo tipo de servicio">
+    <button class="sbtn" type="submit"><svg class="ico sm"><use href="#i-plus"/></svg> Agregar</button>
+    <span class="muted" style="font-size:12.5px">Los tipos manuales no traen etapas estándar: planeación las define al planear el pedido.</span>
+  </form>
+  {% endif %}
+</div>
+<script>
+(() => {
+  const form = document.getElementById("st-form");
+  if (!form) return;
+  form.addEventListener("change", (e) => {
+    const box = e.target.closest(".sw input");
+    if (box) {
+      box.closest(".sw").querySelector(".txt").textContent = box.checked ? "Activo" : "Inactivo";
+      box.closest("tr").classList.toggle("off", !box.checked);
+    }
+    const dirty = document.getElementById("st-dirty");
+    if (dirty) { dirty.textContent = "Hay cambios sin guardar."; dirty.style.color = "var(--warning)"; }
+  });
+})();
+</script>
+{% endblock %}

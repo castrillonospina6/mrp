@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% load mes_assets %}
+{% block title %}Gantt{% endblock %}
+{% block crumbs %}<span>Planeación</span><span class="sep">/</span><b>Diagrama de Gantt</b>{% endblock %}
+{% block main_class %}full{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/gantt.css' %}">{% endblock %}
+{% block content %}
+{% csrf_token %}
+<div class="gt" id="gt"
+     data-api="{% url 'mes_core:api_board' %}"
+     data-edit="{% url 'mes_core:api_edit' %}"
+     data-resize="{% url 'mes_core:api_resize' %}"
+     data-unschedule="{% url 'mes_core:api_unschedule' %}"
+     data-auto="{% url 'mes_core:api_auto' %}"
+     data-split="{% url 'mes_core:api_split' %}"
+     data-merge="{% url 'mes_core:api_merge' %}"
+     data-stage-link="{% url 'mes_core:api_stage_link' %}"
+     data-scheduler="{% url 'mes_core:scheduler' %}"
+     data-site="{{ site.pk|default:'' }}"
+     data-can-plan="{{ can_plan|yesno:'1,0' }}">
+
+  <div class="page-head">
+    <div class="titles">
+      <h1>Diagrama de Gantt</h1>
+      <p id="gt-sub">Secuencia de operaciones en el tiempo, por línea o por pedido.</p>
+    </div>
+    <div class="tools">
+      {% if sites|length > 1 %}
+      <select class="sselect" id="gt-site" aria-label="Planta">
+        {% for s in sites %}<option value="{{ s.pk }}" {% if s.pk == site.pk %}selected{% endif %}>{{ s.code }} · {{ s.name }}</option>{% endfor %}
+      </select>
+      {% endif %}
+      {% if can_plan %}<button class="sbtn" id="gt-auto" type="button"><svg class="ico sm"><use href="#i-trend"/></svg> Plan automático</button>{% endif %}
+    </div>
+  </div>
+
+  {% if not site %}
+  <div class="callout">No hay plantas activas. Crea una en Administración.</div>
+  {% else %}
+  <div class="card gt-card">
+    <div class="gt-toolbar">
+      <div class="gt-nav">
+        <button class="sbtn icon" id="gt-prev" type="button" aria-label="Periodo anterior" title="Periodo anterior"><svg class="ico sm"><use href="#i-left"/></svg></button>
+        <button class="sbtn" id="gt-today" type="button">Hoy</button>
+        <button class="sbtn icon" id="gt-next" type="button" aria-label="Periodo siguiente" title="Periodo siguiente"><svg class="ico sm"><use href="#i-right"/></svg></button>
+        <span class="gt-range" id="gt-range">—</span>
+      </div>
+      <div class="segmented" id="gt-view" role="tablist" aria-label="Escala">
+        <button type="button" data-view="dia">Día</button>
+        <button type="button" data-view="semana">Semana</button>
+        <button type="button" data-view="mes">Mes</button>
+      </div>
+      <div class="segmented" id="gt-group" role="tablist" aria-label="Agrupar">
+        <button type="button" data-group="linea">Por línea</button>
+        <button type="button" data-group="orden">Por pedido</button>
+      </div>
+      <label class="gt-search"><svg class="ico sm"><use href="#i-search"/></svg>
+        <input id="gt-q" type="search" placeholder="Buscar pedido, producto o cliente" autocomplete="off"></label>
+      <div class="gt-zoom" role="group" aria-label="Zoom">
+        <button class="sbtn icon" id="gt-zout" type="button" aria-label="Alejar" title="Alejar">−</button>
+        <span id="gt-zlbl">100%</span>
+        <button class="sbtn icon" id="gt-zin" type="button" aria-label="Acercar" title="Acercar">+</button>
+      </div>
+    </div>
+
+    <div class="gt-legend">
+      <span><i class="lg planned"></i>Planificada</span>
+      <span><i class="lg released"></i>Liberada</span>
+      <span><i class="lg running"></i>En proceso</span>
+      <span><i class="lg done"></i>Terminada</span>
+      <span><i class="lg conflict"></i>Conflicto</span>
+      <span><i class="lg maint"></i>Mantenimiento</span>
+      <span><i class="lg off"></i>Fuera de turno</span>
+      <span><i class="lg due"></i>Compromiso</span>
+      <span><i class="lg frozen"></i>Plan congelado</span>
+      {% if can_plan %}<span class="gt-tip">Arrastra una barra para moverla · estira su borde derecho · clic para ver y editar</span>
+      {% else %}<span class="gt-tip">Clic en una barra para ver el detalle</span>{% endif %}
+    </div>
+
+    <div class="gt-wrap" id="gt-wrap" tabindex="0" aria-label="Diagrama de Gantt">
+      <div class="gt-loading">Cargando diagrama…</div>
+    </div>
+  </div>
+  {% endif %}
+
+  <aside class="gt-panel" id="gt-panel" aria-hidden="true" aria-labelledby="gp-title">
+    <div class="gp-head">
+      <div>
+        <div class="gp-eyebrow" id="gp-eyebrow"></div>
+        <h2 id="gp-title"></h2>
+      </div>
+      <button class="icon-btn" type="button" id="gp-close" aria-label="Cerrar">×</button>
+    </div>
+    <div class="gp-body" id="gp-body"></div>
+    <form class="gp-form" id="gp-form" novalidate hidden>
+      <label>Línea<select id="gp-line"></select></label>
+      <div class="gp-two">
+        <label>Inicio<input type="datetime-local" id="gp-start" step="300" required></label>
+        <label>Fin<input type="datetime-local" id="gp-end" step="300" required></label>
+      </div>
+      <p class="gp-dur" id="gp-dur"></p>
+      <div class="gp-err callout bad" id="gp-err" hidden></div>
+      <div class="gp-actions">
+        <button class="btn" type="submit" id="gp-save">Guardar cambios</button>
+        <button class="sbtn soft-danger" type="button" id="gp-unsched">Devolver al backlog</button>
+      </div>
+    </form>
+    <div class="gp-extra">
+      <button class="sbtn sm" type="button" id="gp-split" hidden><svg class="ico sm"><use href="#i-split"/></svg> Dividir entre líneas</button>
+      <button class="sbtn sm" type="button" id="gp-merge" hidden>Unir partes</button>
+      <button class="sbtn sm" type="button" id="gp-link" hidden>Relación con la etapa anterior</button>
+      <form id="gp-link-form" class="gp-split" hidden>
+        <p class="gp-dur">¿Esta etapa espera a que termine la anterior o trabaja a la par?</p>
+        <label>Relación<select id="gp-link-sel"></select></label>
+        <label id="gp-lag-row">Arranca cuando la anterior lleve (unidades)<input type="number" id="gp-lag" min="0" step="any" placeholder="1"></label>
+        <label class="gp-check"><input type="checkbox" id="gp-resched" checked> Reprogramar la orden con la nueva relación</label>
+        <p class="gp-dur" id="gp-link-msg"></p>
+        <button class="btn sm" type="submit">Guardar relación</button>
+      </form>
+      <form id="gp-split-form" class="gp-split" hidden>
+        <p class="gp-dur">Reparte la cantidad entre líneas del mismo tipo que trabajan en paralelo.</p>
+        <div id="gp-split-lines"></div>
+        <p class="gp-dur" id="gp-split-msg"></p>
+        <button class="btn sm" type="submit">Dividir</button>
+      </form>
+    </div>
+    <div class="gp-links" id="gp-links"></div>
+  </aside>
+  <div class="gt-tooltip" id="gt-tip" role="tooltip" hidden></div>
+  <div class="gt-toast" id="gt-toast" role="status" aria-live="polite"></div>
+</div>
+
+<dialog class="dlg" id="gt-confirm">
+  <div class="dlg-h">Plan automático</div>
+  <div class="dlg-b">Se programarán las operaciones pendientes del backlog en las líneas disponibles, respetando turnos,
+    mantenimientos y lo que ya está programado. ¿Continuar?</div>
+  <div class="dlg-f"><button class="sbtn" type="button" value="no" id="gt-confirm-no">Cancelar</button>
+    <button class="btn" type="button" id="gt-confirm-yes">Programar backlog</button></div>
+</dialog>
+<script src="{% asset 'mes_core/gantt.js' %}"></script>
+{% endblock %}

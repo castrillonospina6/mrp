@@ -1,0 +1,17 @@
+{# Lista de horarios de un descanso. Variables: prefix (nombre base de los campos), rows [(desde, hasta)], label, empty #}
+<div class="brk" data-prefix="{{ prefix }}" data-label="{{ label }}">
+  <div class="brk-list">
+    {% for a, b in rows %}<div class="brk-row"><input type="time" name="{{ prefix }}_start" value="{{ a }}" aria-label="{{ label }} desde">
+      <span class="muted">a</span><input type="time" name="{{ prefix }}_end" value="{{ b }}" aria-label="{{ label }} hasta">
+      <button type="button" class="brk-del" aria-label="Quitar horario">×</button></div>{% endfor %}
+  </div>
+  <p class="brk-empty muted" {% if rows %}hidden{% endif %}>{{ empty }}</p>
+  <div class="brk-tools">
+    <button type="button" class="sbtn sm brk-add">+ Horario de {{ label }}</button>
+    <span class="brk-gen"><span class="muted">o genera</span>
+      <input type="number" min="2" max="12" value="3" class="pl-mini g-n" aria-label="Número de grupos"> <span class="muted">grupos de</span>
+      <input type="number" min="5" max="120" step="5" value="20" class="pl-mini g-len" aria-label="Minutos por grupo"> <span class="muted">min desde</span>
+      <input type="time" class="g-from" aria-label="Primer grupo desde">
+      <button type="button" class="sbtn sm brk-gen-go">Generar</button></span>
+  </div>
+</div>

@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% load mes_assets staff_tags mes_sites %}
+{% block title %}Asignar supervisores{% endblock %}
+{% block crumbs %}<span>Personal</span><span class="sep">/</span><b>Asignar supervisores</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/staff.css' %}">{% endblock %}
+{% block content %}
+{% if no_site %}<div class="callout">No hay plantas activas.</div>{% else %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Planeación · {% if site %}{{ site.name }}{% else %}todas las bodegas{% endif %} · {{ d_from|date:"d/m" }} – {{ d_to|date:"d/m/Y" }}</div>
+    <h1>Asignar supervisores responsables</h1>
+    <p>Cada operación programada trae los operarios que calculó planeación. Asígnale un supervisor: él confirma la asistencia
+      y escoge a las personas desde «Mi turno».</p>
+  </div>
+  <div class="tools">
+    <a class="sbtn" href="{% url 'mes_core:employee_list' %}"><svg class="ico sm"><use href="#i-users"/></svg> Operarios</a>
+  </div>
+</div>
+<div style="margin:-6px 0 14px">{% site_chips %}</div>
+
+{% if not sup_choices %}
+<div class="callout warn" style="margin-bottom:18px">No hay usuarios con el rol <b>Supervisor</b>. Créalos en Administración → Usuarios y agrégalos al grupo «Supervisor».</div>
+{% endif %}
+
+<div class="sa-layout">
+  <div class="card">
+    <form method="get" class="st-toolbar">
+      <input type="hidden" name="site" value="{{ site_param }}">
+      <label class="chk-inline">Desde <input type="date" name="desde" value="{{ d_from|date:'Y-m-d' }}"></label>
+      <label class="chk-inline">Hasta <input type="date" name="hasta" value="{{ d_to|date:'Y-m-d' }}"></label>
+      <select name="sup" aria-label="Supervisor"><option value="">Todos los supervisores</option>
+        {% for pk, label in sup_choices %}<option value="{{ pk }}" {% if sup_f == pk|stringformat:'s' %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+      <input name="q" value="{{ q }}" placeholder="Pedido, cliente, producto, línea…" aria-label="Buscar">
+      <label class="chk-inline"><input type="checkbox" name="sin" value="1" {% if missing %}checked{% endif %}> Solo sin supervisor</label>
+      <label class="chk-inline"><input type="checkbox" name="sinprog" value="1" {% if unscheduled %}checked{% endif %}> Incluir sin programar</label>
+      <button class="sbtn" type="submit">Filtrar</button>
+    </form>
+
+    <form method="post" id="sa-form">{% csrf_token %}
+      <input type="hidden" name="site" value="{{ site_param }}"><input type="hidden" name="qs" value="{{ qs }}">
+      <div class="table-wrap flat"><table class="sa-table">
+        <thead><tr><th>Operación</th><th>Línea</th><th>Programada</th><th class="num">Operarios</th><th>Cuadrilla</th><th>Supervisor</th></tr></thead>
+        <tbody>
+        {% for g in groups %}
+          <tr class="sa-order" data-order="{{ g.order.pk }}">
+            <td colspan="5"><div class="ord"><b class="mono">{{ g.order.number }}</b>
+              {% if g.order.customer %}<span><span class="tdot t-{{ g.order.customer.tier }}"></span> {{ g.order.customer.name }}</span>{% endif %}
+              <span class="muted">{{ g.order.product.sku }} · {{ g.order.quantity|floatformat:"-2" }} {{ g.order.product.unit }}</span>
+              {% if g.order.due_date %}<span class="muted">compromiso {{ g.order.due_date|date:"D d/m H:i" }}</span>{% endif %}
+              {% if g.missing %}<span class="pill warn">{{ g.missing }} sin supervisor</span>{% endif %}</div></td>
+            <td>{% if g.ops|length > 1 %}<select data-all="{{ g.order.pk }}" aria-label="Asignar todas las operaciones de {{ g.order.number }}">
+              <option value="">Asignar todas a…</option>
+              {% for pk, label in sup_choices %}<option value="{{ pk }}">{{ label }}</option>{% endfor %}</select>{% endif %}</td>
+          </tr>
+          {% for op in g.ops %}
+          <tr>
+            <td class="op"><input type="hidden" name="op" value="{{ op.pk }}">{{ op.sequence }}. {{ op.name }}</td>
+            <td>{{ op.work_center.code|default:"—" }}</td>
+            <td>{% if op.planned_start %}{{ op.planned_start|date:"D d/m H:i" }} – {{ op.planned_end|date:"H:i" }}{% else %}<span class="muted">Sin programar</span>{% endif %}</td>
+            <td class="num"><b>{{ op.crew }}</b></td>
+            <td><span class="crew"><span class="bar {{ op.n_crew|crew_state:op.crew }}"><i style="width:{{ op.n_crew|crew_pct:op.crew }}%"></i></span><b>{{ op.n_crew }}/{{ op.crew }}</b></span></td>
+            <td><select name="sup_{{ op.pk }}" data-order="{{ g.order.pk }}" class="{% if not op.supervisor_id %}unset{% endif %}" aria-label="Supervisor de {{ op.name }}">
+              <option value="">— Sin supervisor —</option>
+              {% for pk, label in sup_choices %}<option value="{{ pk }}" {% if op.supervisor_id == pk %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select></td>
+          </tr>
+          {% endfor %}
+        {% empty %}
+          <tr><td colspan="6" class="st-empty">No hay operaciones {% if missing %}sin supervisor {% endif %}programadas entre el {{ d_from|date:"d/m" }} y el {{ d_to|date:"d/m" }}.
+            Las operaciones se crean en Planeación y se ubican en el Programador.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table></div>
+      {% if groups %}
+      <div class="sa-save">
+        <span class="st-sub">{{ n_ops }} operación{{ n_ops|pluralize:"es" }}{% if n_missing %} · <b>{{ n_missing }}</b> sin supervisor{% endif %}{% if truncated %} · se muestran las primeras 600, acota las fechas{% endif %}</span>
+        <span class="st-sub" id="sa-dirty" hidden></span>
+        <button class="btn" type="submit">Guardar asignaciones</button>
+      </div>
+      {% endif %}
+    </form>
+  </div>
+
+  <aside class="card">
+    <div class="card-h"><h2>Carga por supervisor</h2><span class="sub">en el rango</span></div>
+    <ul class="load-list">
+      {% for s in supervisors %}
+        <li><div class="top"><b>{{ s.label }}</b><span class="muted">{{ s.ops }} op. · {{ s.crew }} operarios</span></div>
+          <div class="bar {{ s.staffed|crew_state:s.crew }}" title="Cuadrillas armadas: {{ s.staffed }} de {{ s.crew }}"><i style="width:{{ s.staffed|crew_pct:s.crew }}%"></i></div>
+          <span class="st-sub">{% if s.crew %}{{ s.staffed }} de {{ s.crew }} personas asignadas{% else %}Sin operaciones asignadas{% endif %}</span></li>
+      {% empty %}<li class="muted">Sin supervisores.</li>{% endfor %}
+    </ul>
+  </aside>
+</div>
+<script>
+(() => {
+  const form = document.getElementById("sa-form");
+  if (!form) return;
+  const dirtyEl = document.getElementById("sa-dirty");
+  const selects = [...form.querySelectorAll("select[name^=sup_]")];
+  const mark = () => {
+    let n = 0;
+    selects.forEach((s) => {
+      const orig = [...s.options].find((o) => o.defaultSelected)?.value ?? "";
+      const dirty = s.value !== orig;
+      s.classList.toggle("dirty", dirty);
+      s.classList.toggle("unset", !s.value);
+      n += dirty;
+    });
+    if (dirtyEl) { dirtyEl.hidden = !n; dirtyEl.textContent = `${n} cambio${n === 1 ? "" : "s"} sin guardar`; }
+  };
+  form.addEventListener("change", (e) => {
+    const all = e.target.closest("select[data-all]");
+    if (all && all.value) {
+      selects.filter((s) => s.dataset.order === all.dataset.all).forEach((s) => { s.value = all.value; });
+      all.value = "";
+    }
+    mark();
+  });
+  window.addEventListener("beforeunload", (e) => {
+    if (selects.some((s) => s.classList.contains("dirty")) && !form.dataset.submitting) e.preventDefault();
+  });
+  form.addEventListener("submit", () => { form.dataset.submitting = "1"; });
+})();
+</script>
+{% endif %}
+{% endblock %}

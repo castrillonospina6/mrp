@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Seguimiento {{ o.number }}{% endblock %}
+{% block crumbs %}<a href="{% url 'registros:tracking' %}">Seguimiento de pedidos</a><span class="sep">/</span><b>{{ o.number }}</b>{% endblock %}
+{% block extra_head %}
+<style>
+  .td-k { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .td-k div { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px 14px; }
+  .td-k b { display: block; font-size: 22px; }
+  .td-k small { color: var(--muted); }
+  .td-t td, .td-t th { white-space: nowrap; font-size: 13px; }
+  .td-cell small { display: block; color: var(--muted); }
+  .td-form { display: grid; gap: 10px; }
+  .td-form label { display: grid; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--text-2); }
+  .td-form input { height: 38px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+  td.num, th.num { text-align: right; }
+  .grid-gap { display: grid; gap: 14px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles"><div class="eyebrow">Seguimiento · {{ o.site.name }}</div>
+    <h1>{{ o.number }} <span class="pill {% if t.state == 'Cumple' %}ok{% elif t.state == 'No cumple' %}bad{% elif t.state == 'En proceso' %}warn{% endif %}" style="vertical-align:middle;font-size:14px">{{ t.state }}</span></h1>
+    <p><b>{{ o.product.name }}</b> <span class="mono muted">{{ o.product.sku }}</span> · {{ o.customer.name|default:"Sin cliente" }} · {{ o.quantity|floatformat:"-2g" }} {{ o.product.unit }}{% if o.external_op %} · OP {{ o.external_op }}{% endif %}</p></div>
+  <div class="tools"><a class="sbtn" href="{% url 'mes_core:order_detail' o.pk %}">Ver pedido</a><a class="sbtn" href="{% url 'registros:records' %}?pedido={{ o.number|urlencode }}&desde=2000-01-01&estado=todos">Todos sus registros</a></div>
+</div>
+
+<div class="grid-gap">
+<div class="td-k">
+  <div><b>{{ t.processed|floatformat:"-2g" }}</b><small>Procesadas (última etapa)</small></div>
+  <div><b>{% if t.state == "Cumple" %}0{% else %}{{ t.pending|floatformat:"-2g" }}{% endif %}</b><small>{% if t.state == "No cumple" %}Faltante justificado{% else %}Pendientes{% endif %}</small></div>
+  <div><b>{{ t.hours }}</b><small>Horas netas</small></div>
+  <div><b>{% if t.eff is not None %}{{ t.eff }} %{% else %}—{% endif %}</b><small>Eficiencia</small></div>
+  <div><b>{{ t.people }}</b><small>Personas</small></div>
+</div>
+
+{% if t.closure %}
+<div class="callout bad"><b>Cerrado con faltante</b> de {{ t.closure.total|floatformat:"-2g" }} unidades · {{ t.closure.closed_at|date:"d/m/Y H:i" }} · justificó <b>{{ t.closure.justified_by }}</b>: {{ t.closure.reason }}
+  {% if can_fix %}<details style="margin-top:8px"><summary class="sbtn sm" style="display:inline-flex">Deshacer el cierre</summary>
+    <form method="post" action="{% url 'registros:undo_close' o.pk %}" class="td-form" style="margin-top:8px;max-width:420px">{% csrf_token %}
+      <label>¿Por qué se reabre?<input name="reason" required maxlength="255" placeholder="Ej.: llegó la mercancía que faltaba"></label><button class="sbtn">Reabrir el pedido</button></form></details>{% endif %}
+</div>
+{% endif %}
+
+<div class="card"><div class="card-h"><h2>Etapas</h2></div><div class="table-wrap flat"><table class="td-t">
+  <thead><tr><th>Etapa</th><th>Línea</th><th class="num">Programadas</th><th class="num">Buenas</th><th class="num">Sobrantes</th><th class="num">Merma</th><th class="num">Faltan</th><th>Estado</th></tr></thead>
+  <tbody>{% for op in ops %}<tr><td>{{ op.sequence }}. {{ op.name }}</td><td>{{ op.work_center.name|default:"—" }}</td><td class="num">{{ op.qty|floatformat:"-2g" }}</td><td class="num"><b>{{ op.qty_good|floatformat:"-2g" }}</b></td><td class="num">{{ op.qty_leftover|floatformat:"-2g" }}</td><td class="num">{{ op.qty_scrap|floatformat:"-2g" }}</td><td class="num">{{ op.qty_pending|floatformat:"-2g" }}</td><td><span class="badge {{ op.status }}">{{ op.get_status_display }}</span></td></tr>{% endfor %}</tbody>
+</table></div></div>
+
+{% if m.rows %}
+<div class="card"><div class="card-h"><h2>Avance por referencia (EAN)</h2><span class="sub">Lo hecho de cada referencia en cada etapa · buenas + sobrantes + justificado</span></div>
+<div class="table-wrap flat"><table class="td-t">
+  <thead><tr><th>EAN</th><th>Descripción</th><th class="num">Meta</th>{% for s in m.stages %}<th>{{ s }}</th>{% endfor %}</tr></thead>
+  <tbody>{% for row in m.rows %}<tr><td class="mono">{{ row.ean }}</td><td>{{ row.desc|truncatechars:36 }}</td><td class="num">{% if row.qty is None %}sin límite{% else %}{{ row.qty|floatformat:"0g" }}{% endif %}</td>
+    {% for c in row.cells %}<td class="td-cell"><span class="pill {% if c.status == 'Completado' %}ok{% elif c.status == 'En proceso' %}warn{% elif c.status == 'Sin límite' %}info{% endif %}">{{ c.done|floatformat:"-2g" }}{% if c.qty is not None %} / {{ c.qty|floatformat:"0g" }}{% endif %}</span>
+      <small>{{ c.status }}{% if c.left %} · {{ c.left|floatformat:"-2g" }} sobr.{% endif %}{% if c.just %} · {{ c.just|floatformat:"-2g" }} justif.{% endif %}</small></td>{% endfor %}</tr>{% endfor %}</tbody>
+</table></div></div>
+{% elif m.mode == "pending" %}<div class="callout warn">Este pedido aún no tiene sus EAN cargados (<a href="{% url 'eanes:order' o.pk %}">Validación EAN</a>).</div>{% endif %}
+
+{% if preview and can_fix and not t.closure %}
+<div class="card"><div class="card-h"><h2>Cerrar con faltante justificado</h2><span class="sub">Cuando no se puede completar (llegó menos mercancía, daños…)</span></div><div class="card-b">
+  <p style="margin-top:0">Quedaría justificado <b>{{ preview_total|floatformat:"-2g" }}</b> unidades y el pedido pasaría a <b>Terminado · No cumple</b>:</p>
+  <div class="table-wrap flat" style="margin-bottom:12px"><table class="td-t"><thead><tr><th>Etapa</th><th>Referencia</th><th class="num">Faltante</th></tr></thead><tbody>
+    {% for p in preview %}{% for l in p.lines %}<tr><td>{{ p.op.sequence }}. {{ p.op.name }}</td><td class="mono">{{ l.ean|default:"—" }}</td><td class="num">{{ l.qty|floatformat:"-2g" }}</td></tr>{% empty %}<tr><td>{{ p.op.sequence }}. {{ p.op.name }}</td><td colspan="2" class="muted">Completa: se cierra sin faltante</td></tr>{% endfor %}{% endfor %}
+  </tbody></table></div>
+  <form method="post" action="{% url 'registros:close_short' o.pk %}" class="td-form" style="max-width:560px" onsubmit="return confirm('¿Cerrar {{ o.number }} con faltante de {{ preview_total|floatformat:'-2g' }} unidades? Queda «No cumple».')">{% csrf_token %}
+    <input type="hidden" name="expected" value="{{ preview_total|stringformat:'s' }}">
+    <label>Motivo del faltante<input name="reason" required maxlength="255" placeholder="Ej.: el cliente envió 240 unidades menos"></label>
+    <label>Justificado por<input name="justified_by" required maxlength="120" value="{{ me }}"></label>
+    <div><button class="btn danger">Cerrar con faltante</button></div>
+  </form>
+</div></div>
+{% endif %}
+
+<div class="card"><div class="card-h"><h2>Registros</h2><span class="sub">los últimos 400 reportes, por persona</span></div><div class="table-wrap flat"><table class="td-t">
+  <thead><tr><th>Fecha</th><th>Inicio–fin</th><th>Proceso</th><th>EAN</th><th>Operario</th><th>Supernumerario</th><th class="num">Unid.</th><th class="num">Sobr.</th><th class="num">Horas</th><th class="num">Efic.</th>{% if can_fix %}<th></th>{% endif %}</tr></thead>
+  <tbody>{% for r in rows %}<tr><td>{{ r.fecha|date:"d/m/Y" }}</td><td>{% if r.inicio and r.fin and r.inicio != r.fin %}{{ r.inicio|time:"H:i" }}–{{ r.fin|time:"H:i" }}{% else %}{{ r.fin|time:"H:i" }}{% endif %}</td><td>{{ r.proceso }}</td><td class="mono">{{ r.ean|default:"—" }}</td><td>{{ r.operario }}</td><td>{{ r.supernumerario|default:"—" }}</td>
+    <td class="num"><b>{{ r.unidades|floatformat:"-2g" }}</b></td><td class="num">{{ r.sobrantes|floatformat:"-2g" }}</td><td class="num">{{ r.horas|default_if_none:"—" }}</td><td class="num">{% if r.eficiencia is not None %}{{ r.eficiencia }} %{% else %}—{% endif %}</td>
+    {% if can_fix %}<td>{% ifchanged r.id %}<a class="sbtn sm" href="{% url 'registros:edit' r.id %}?next={{ request.get_full_path|urlencode }}">Editar</a>{% endifchanged %}</td>{% endif %}</tr>
+  {% empty %}<tr class="empty-row"><td colspan="11">Sin reportes todavía.</td></tr>{% endfor %}</tbody>
+</table></div></div>
+
+{% if voided %}
+<div class="card"><div class="card-h"><h2>Anulados</h2><span class="sub">fuera de las sumas · se pueden reactivar</span></div><div class="table-wrap flat"><table class="td-t">
+  <thead><tr><th>#</th><th>Reportado</th><th>Operación</th><th>EAN</th><th>Quién</th><th class="num">Buenas</th><th>Anulado</th><th></th></tr></thead>
+  <tbody>{% for v in voided %}<tr><td>{{ v.original_id }}</td><td>{{ v.reported_at|date:"d/m H:i" }}</td><td>{{ v.operation_name }}</td><td class="mono">{{ v.ean|default:"—" }}</td><td>{{ v.who }}</td><td class="num">{{ v.qty_good|floatformat:"-2g" }}</td>
+    <td style="white-space:normal"><small>{{ v.voided_at|date:"d/m H:i" }} · {{ v.voided_by.get_full_name|default:v.voided_by.username|default:"—" }} · {{ v.reason }}</small></td>
+    <td style="white-space:nowrap">{% if can_fix %}<form method="post" action="{% url 'registros:reactivate' v.pk %}" style="display:inline-flex;gap:6px">{% csrf_token %}<input name="reason" required maxlength="255" placeholder="Motivo" style="height:32px;width:140px;padding:0 8px;border:1px solid var(--border-strong);border-radius:var(--radius)"><input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="sbtn sm">Reactivar</button></form>{% endif %}
+      {% if can_purge %}<form method="post" action="{% url 'registros:purge' v.pk %}" style="display:inline" onsubmit="return confirm('¿Eliminar definitivamente el reporte anulado #{{ v.original_id }}?')">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="sbtn sm danger">Eliminar</button></form>{% endif %}</td></tr>{% endfor %}</tbody>
+</table></div></div>
+{% endif %}
+</div>
+{% endblock %}

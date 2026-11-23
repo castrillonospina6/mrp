@@ -1,0 +1,184 @@
+/* Personal: operarios, polivalencia, supervisores, asistencia y cuadrillas */
+.st-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.st-toolbar input[type=search], .st-toolbar input[name=q] { width: 240px; }
+.st-toolbar select { min-width: 0; max-width: 220px; }
+.st-toolbar .grow { flex: 1; }
+.st-toolbar label.chk-inline { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
+.st-sub { color: var(--muted); font-size: 12.5px; }
+.st-name { font-weight: 600; color: var(--text); }
+.st-doc { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+td .st-name + .st-doc { display: block; }
+.st-chips { display: flex; flex-wrap: wrap; gap: 4px; white-space: normal; max-width: 420px; }
+.st-empty { padding: 28px; text-align: center; color: var(--muted); }
+.st-pager { display: flex; gap: 8px; align-items: center; justify-content: flex-end; padding: 10px 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+
+/* Nivel de competencia */
+.lv { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  white-space: nowrap; background: var(--surface-3); color: var(--text-2); }
+.lv i { font-style: normal; font-weight: 700; font-size: 11px; opacity: .8; }
+.lv.l1 { background: var(--warning-soft); color: var(--warning); }
+.lv.l2 { background: var(--info-soft); color: var(--info); }
+.lv.l3 { background: var(--success-soft); color: var(--success); }
+.lv-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 12.5px; color: var(--muted); }
+
+/* Barra de acciones masivas */
+.st-bulk { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 16px; background: var(--primary-soft); border-bottom: 1px solid var(--border); }
+.st-bulk b { color: var(--primary-ink); }
+.st-bulk select { max-width: 200px; }
+
+/* Carga masiva */
+.st-drop { border: 1.5px dashed var(--border-strong); border-radius: var(--radius); padding: 18px; text-align: center; background: var(--surface-2);
+  display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.st-drop.over { border-color: var(--primary); background: var(--primary-soft); }
+.st-drop input[type=file] { max-width: 100%; }
+.st-steps { margin: 0; padding-left: 18px; color: var(--text-2); font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+.st-errors { margin: 0; padding: 0; list-style: none; max-height: 320px; overflow: auto; font-size: 13px; }
+.st-errors li { padding: 7px 16px; border-bottom: 1px solid var(--border); }
+.st-errors li:last-child { border-bottom: 0; }
+.st-form { display: flex; flex-direction: column; gap: 14px; }
+.st-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px 16px; }
+.st-form-grid .wide { grid-column: 1 / -1; }
+.st-form label { display: flex; flex-direction: column; gap: 5px; }
+.st-form input:not([type=checkbox]), .st-form select, .st-form textarea { width: 100%; }
+.st-form .helptext, .st-form .pl-help { color: var(--muted); font-size: 12px; font-weight: 400; }
+.st-form .chk-inline { flex-direction: row; align-items: center; gap: 8px; }
+.st-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 18px; align-items: start; }
+.st-skill-row { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.st-skill-row:last-child { border-bottom: 0; }
+.st-mini-list { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.st-mini-list li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 18px; border-bottom: 1px solid var(--border); }
+.st-mini-list li:last-child { border-bottom: 0; }
+
+/* Matriz de polivalencia */
+.mx-wrap { overflow: auto; max-height: calc(100vh - 260px); }
+.mx { border-collapse: separate; border-spacing: 0; }
+.mx th, .mx td { padding: 6px 8px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); }
+.mx thead th { position: sticky; top: 0; z-index: 2; vertical-align: bottom; }
+.mx .sk { min-width: 108px; max-width: 140px; white-space: normal; text-align: center; line-height: 1.25; }
+.mx .sk b { display: block; color: var(--text); font-size: 12.5px; text-transform: capitalize; }
+.mx .cov { display: flex; gap: 3px; justify-content: center; margin-top: 4px; }
+.mx .cov span { font-size: 10.5px; font-weight: 700; border-radius: 4px; padding: 0 4px; }
+.mx .cov .c1 { background: var(--warning-soft); color: var(--warning); }
+.mx .cov .c2 { background: var(--info-soft); color: var(--info); }
+.mx .cov .c3 { background: var(--success-soft); color: var(--success); }
+.mx .who { position: sticky; left: 0; z-index: 1; background: var(--surface); min-width: 220px; }
+.mx thead .who { z-index: 3; background: var(--surface-2); }
+.mx tbody tr:hover .who { background: var(--surface-2); }
+.mx td.cell { text-align: center; padding: 4px; }
+.mx select.lvsel { height: 30px; width: 100%; min-width: 96px; padding: 0 6px; font-size: 12.5px; font-weight: 600; border-color: transparent;
+  background: transparent; color: var(--faint); cursor: pointer; text-align: center; }
+.mx select.lvsel:hover { border-color: var(--border-strong); }
+.mx select.lvsel.l1 { background: var(--warning-soft); color: var(--warning); }
+.mx select.lvsel.l2 { background: var(--info-soft); color: var(--info); }
+.mx select.lvsel.l3 { background: var(--success-soft); color: var(--success); }
+.mx select.lvsel.saving { opacity: .55; }
+.mx select.lvsel.err { box-shadow: 0 0 0 2px var(--danger); }
+.mx .n { color: var(--muted); font-size: 12px; text-align: center; }
+.mx-add { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.mx-add input { width: 220px; }
+
+/* Asignar supervisores (planeación) */
+.sa-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
+.sa-order td { background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.sa-order .ord { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; white-space: normal; }
+.sa-order select { height: 32px; }
+.sa-table select { min-width: 190px; height: 32px; }
+.sa-table select.unset { border-color: color-mix(in srgb, var(--warning) 55%, var(--border-strong)); background: var(--warning-soft); }
+.sa-table select.dirty { border-color: var(--primary); box-shadow: var(--focus); }
+.sa-table td.op { white-space: normal; min-width: 200px; }
+.sa-save { position: sticky; bottom: 0; display: flex; gap: 10px; align-items: center; justify-content: flex-end; padding: 12px 16px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(6px); border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+.sa-save .st-sub { margin-right: auto; }
+.load-list { list-style: none; margin: 0; padding: 0; }
+.load-list li { padding: 10px 16px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 5px; }
+.load-list li:last-child { border-bottom: 0; }
+.load-list .top { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.bar { height: 6px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--success); border-radius: inherit; }
+.bar.warn > i { background: var(--warning); }
+.bar.bad > i { background: var(--danger); }
+
+/* Cuadrilla: 7 / 20 */
+.crew { display: inline-flex; align-items: center; gap: 8px; }
+.crew .bar { width: 70px; }
+.crew b { min-width: 46px; font-variant-numeric: tabular-nums; }
+
+/* Mi turno: asistencia */
+.sv-layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.day-nav { display: inline-flex; align-items: center; gap: 6px; }
+.day-nav input[type=date] { width: 150px; }
+.att-row td { vertical-align: middle; }
+.att-seg { display: inline-flex; flex-wrap: wrap; gap: 3px; padding: 3px; border-radius: 9px; background: var(--surface-3); }
+.att-seg label { position: relative; margin: 0; }
+.att-seg input { position: absolute; opacity: 0; pointer-events: none; }
+.att-seg span { display: inline-flex; align-items: center; height: 28px; padding: 0 9px; border-radius: 7px; font-size: 12.5px; font-weight: 600;
+  color: var(--muted); cursor: pointer; white-space: nowrap; }
+.att-seg span:hover { color: var(--text); }
+.att-seg input:focus-visible + span { box-shadow: var(--focus); }
+.att-seg input:checked + span { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(16,24,40,.08), 0 0 0 1px var(--border); }
+.att-seg input[value=presente]:checked + span { background: var(--success); color: #fff; box-shadow: none; }
+.att-seg input[value=tarde]:checked + span { background: var(--warning-soft); color: var(--warning); box-shadow: 0 0 0 1px color-mix(in srgb, var(--warning) 40%, transparent); }
+.att-seg input[value=ausente]:checked + span { background: var(--danger); color: #fff; box-shadow: none; }
+.att-seg input[value=permiso]:checked + span, .att-seg input[value=incapacidad]:checked + span,
+.att-seg input[value=vacaciones]:checked + span { background: var(--violet-soft); color: var(--violet); box-shadow: 0 0 0 1px color-mix(in srgb, var(--violet) 35%, transparent); }
+:root[data-theme="dark"] .att-seg input[value=presente]:checked + span,
+:root[data-theme="dark"] .att-seg input[value=ausente]:checked + span { color: var(--on-primary); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .att-seg input[value=presente]:checked + span,
+  :root:not([data-theme="light"]) .att-seg input[value=ausente]:checked + span { color: var(--on-primary); }
+}
+.att-seg .more { display: none; }
+.att-row.changed td:first-child { box-shadow: inset 3px 0 0 var(--primary); }
+.att-notes { width: 160px; height: 30px !important; font-size: 12.5px; }
+.att-who { font-size: 11.5px; color: var(--faint); }
+.att-save { position: sticky; bottom: 0; display: flex; gap: 10px; align-items: center; padding: 12px 16px; flex-wrap: wrap;
+  background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(6px); border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+.att-save .st-sub { margin-right: auto; }
+.op-list { list-style: none; margin: 0; padding: 0; }
+.op-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); align-items: center; }
+.op-list li:last-child { border-bottom: 0; }
+.op-list .t { font-weight: 600; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.op-list .m { color: var(--muted); font-size: 12.5px; grid-column: 1; }
+.op-list .a { grid-row: 1 / span 2; grid-column: 2; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+
+/* Armar cuadrilla */
+.cw-head { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px 18px; padding: 16px 18px; }
+.cw-head .l { color: var(--muted); font-size: 12px; }
+.cw-head .v { font-weight: 600; }
+.cw-counter { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+.cw-counter .big { font-size: 26px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.cw-counter .bar { width: 160px; height: 8px; }
+.cw-table tr.sel td { background: color-mix(in srgb, var(--primary) 7%, var(--surface)); }
+.cw-table tr.blocked td { color: var(--faint); }
+.cw-table tr.blocked .st-name { color: var(--muted); }
+.cw-table td.ck { width: 36px; }
+.cw-table input[type=checkbox] { width: 17px; height: 17px; }
+.cw-table td.sk { white-space: normal; }
+
+@media (max-width: 1100px) {
+  .st-layout, .sa-layout, .sv-layout { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  /* Asistencia como tarjetas en el celular del supervisor */
+  .att-table thead { display: none; }
+  .att-table, .att-table tbody, .att-table tr, .att-table td { display: block; width: 100%; }
+  .att-table tr { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .att-table td { border: 0; padding: 3px 0; white-space: normal; }
+  .att-notes { width: 100%; }
+  .st-toolbar input[name=q] { width: 100%; }
+  .cw-table td.sk, .cw-table th.sk, .cw-table td.tn, .cw-table th.tn { display: none; }
+}
+
+/* «¿Requiere patinador?» (lo agrega el control de piso) */
+.cw-mover { margin: 14px 16px 0; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
+.cw-mover-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.cw-mover-h h3 { margin: 0; font-size: 14.5px; }
+.cw-mover .seg label { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 7px; font-size: 13px; font-weight: 550; color: var(--muted); cursor: pointer; }
+.cw-mover .seg label:has(input:checked) { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+.cw-mover .seg input { accent-color: var(--primary); margin: 0; }
+.cw-mover-b { margin-top: 10px; display: grid; gap: 8px; }
+.cw-mover-pick { display: grid; gap: 4px; font-size: 13px; color: var(--muted); max-width: 420px; }
+.cw-mover-pick select { height: 36px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); padding: 0 8px; font: inherit; }
+.cw-mover .st-sub { margin: 0; }

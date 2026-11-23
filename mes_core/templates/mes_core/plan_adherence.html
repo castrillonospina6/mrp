@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% load mes_assets mes_sites %}
+{% block title %}Plan vs. real{% endblock %}
+{% block crumbs %}<span>Control</span><span class="sep">/</span><b>Plan vs. real</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/planner.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <h1>Plan vs. real</h1>
+    <p>Lo que se planeó producir en el periodo frente a lo que se reportó. Se compara contra {{ label }}.</p>
+  </div>
+  <form class="tools" method="get">
+    {% site_chips %}<input type="hidden" name="site" value="{{ site.pk }}">
+    <a class="sbtn icon" href="?site={{ site.pk }}&day={{ prev_day|date:'Y-m-d' }}&shift={{ shift.pk|default:'' }}" aria-label="Día anterior"><svg class="ico sm"><use href="#i-left"/></svg></a>
+    <input type="date" name="day" value="{{ day|date:'Y-m-d' }}" class="sselect" style="width:150px" onchange="this.form.submit()" aria-label="Día">
+    <a class="sbtn icon" href="?site={{ site.pk }}&day={{ next_day|date:'Y-m-d' }}&shift={{ shift.pk|default:'' }}" aria-label="Día siguiente"><svg class="ico sm"><use href="#i-right"/></svg></a>
+    <select class="sselect" name="shift" onchange="this.form.submit()" aria-label="Turno">
+      <option value="">Todo el día</option>
+      {% for s in shifts %}<option value="{{ s.pk }}" {% if shift and shift.pk == s.pk %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+    </select>
+    <select class="sselect" name="version" onchange="this.form.submit()" aria-label="Plan de referencia">
+      <option value="">Referencia automática</option>
+      {% for v in all_versions %}<option value="{{ v.pk }}" {% if sel_version and sel_version.pk == v.pk %}selected{% endif %}>v{{ v.number }} · {{ v.get_status_display }} · {{ v.created_at|date:"d/m H:i" }}</option>{% endfor %}
+    </select>
+  </form>
+</div>
+
+<div class="kpis">
+  <div class="kpi"><div class="k-h">Adherencia al plan</div>
+    <div class="k-v {% if adherence is not None and adherence < 85 %}late{% endif %}">{% if adherence is None %}—{% else %}{{ adherence }}%{% endif %}</div>
+    <div class="k-s">Producido dentro de lo planeado ÷ planeado</div></div>
+  <div class="kpi"><div class="k-h">Planeado en el periodo</div><div class="k-v">{{ planned|floatformat:"0g" }}</div><div class="k-s">unidades</div></div>
+  <div class="kpi"><div class="k-h">Reportado</div><div class="k-v">{{ real|floatformat:"0g" }}</div><div class="k-s">unidades buenas + merma</div></div>
+  <div class="kpi"><div class="k-h">Operaciones</div><div class="k-v">{{ counts.cumplida }}<small> / {{ items|length }}</small></div>
+    <div class="k-s"><span class="pill ok">{{ counts.cumplida }} cumplidas</span><span class="pill warn">{{ counts.parcial }} parciales</span><span class="pill bad">{{ counts.no_iniciada }} sin iniciar</span></div></div>
+  <div class="kpi"><div class="k-h">Arranques a tiempo</div><div class="k-v">{{ on_time_starts }}<small> / {{ started }}</small></div><div class="k-s">Con máximo 15 min de retraso</div></div>
+</div>
+
+<div class="pv-layout">
+  <section class="card">
+    <div class="card-h"><h2>Por línea</h2></div>
+    <div class="table-wrap flat"><table>
+      <thead><tr><th>Línea</th><th class="num">Ops.</th><th class="num">Planeado</th><th class="num">Cumplido</th><th>Adherencia</th></tr></thead>
+      <tbody>{% for l in lines %}
+        <tr><td><b>{{ l.line }}</b></td><td class="num">{{ l.n }}</td><td class="num">{{ l.planned|floatformat:"0g" }}</td><td class="num">{{ l.real|floatformat:"0g" }}</td>
+          <td><div class="adh"><i class="{% if l.pct is not None and l.pct < 85 %}low{% endif %}" style="width:{{ l.pct|default:0 }}%"></i></div><span class="small">{% if l.pct is None %}—{% else %}{{ l.pct }}%{% endif %}</span></td></tr>
+      {% empty %}<tr class="empty-row"><td colspan="5">No había nada planeado en este periodo.</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+  <section class="card">
+    <div class="card-h"><h2>Producción fuera del plan</h2><span class="sub">Reportes de operaciones que no estaban planeadas en el periodo</span></div>
+    <div class="table-wrap flat"><table>
+      <thead><tr><th>Operación</th><th>Línea</th><th class="num">Reportado</th></tr></thead>
+      <tbody>{% for u in unplanned %}
+        <tr><td><a href="{{ u.op.order.get_absolute_url }}"><b>{{ u.op.order.number }}</b></a> {{ u.op.name }}</td><td>{{ u.op.work_center.code|default:"—" }}</td><td class="num">{{ u.real|floatformat:"0g" }}</td></tr>
+      {% empty %}<tr class="empty-row"><td colspan="3">Todo lo reportado estaba en el plan.</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+</div>
+
+<section class="card" style="margin-top:20px">
+  <div class="card-h"><h2>Detalle por operación</h2><span class="sub">{{ start|date:"D d/m H:i" }} → {{ end|date:"D d/m H:i" }}</span></div>
+  <div class="table-wrap flat"><table>
+    <thead><tr><th>Operación</th><th>Línea</th><th>Inicio planeado</th><th class="num">Retraso al iniciar</th><th class="num">Planeado</th><th class="num">Real</th><th>Estado</th></tr></thead>
+    <tbody>{% for i in items %}
+      <tr><td><b>{{ i.row.order }}</b> {{ i.row.op|truncatechars:28 }}</td><td>{{ i.row.line|default:"—" }}</td><td>{{ i.row.start|slice:"5:16" }}</td>
+        <td class="num {% if i.delay and i.delay > 15 %}late{% endif %}">{% if i.delay is None %}—{% else %}{{ i.delay }} min{% endif %}</td>
+        <td class="num">{{ i.planned|floatformat:"0g" }}</td><td class="num">{{ i.real|floatformat:"0g" }}</td>
+        <td>{% if i.state == 'cumplida' %}<span class="pill ok">Cumplida</span>{% elif i.state == 'parcial' %}<span class="pill warn">Parcial {{ i.pct|default:0 }}%</span>{% else %}<span class="pill bad">Sin iniciar</span>{% endif %}</td></tr>
+    {% empty %}<tr class="empty-row"><td colspan="7">No había operaciones planeadas en este periodo.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endblock %}

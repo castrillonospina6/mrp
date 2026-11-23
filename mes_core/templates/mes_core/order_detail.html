@@ -1,0 +1,344 @@
+{% extends "base.html" %}
+{% load staff_tags %}
+{% block title %}{{ order.number }}{% endblock %}
+{% block crumbs %}<a href="{% url 'mes_core:order_list' %}">Pedidos</a><span class="sep">/</span><b>{{ order.number }}</b>{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow"><span class="badge {{ order.status }}">{{ order.get_status_display }}</span><span>{{ order.process_label }} · {{ order.site }}</span></div>
+    <h1>{{ order.number }} · {{ order.product.name }}</h1>
+    <p>{% if order.customer %}<span class="tdot t-{{ order.customer.tier }}" style="vertical-align:middle"></span> {{ order.customer.name }} · {% endif %}{{ order.product.sku }}</p>
+  </div>
+  <div class="tools">
+    {% if perms.mes_core.plan_workorder %}<a class="{% if order.status == 'por_planear' %}btn{% else %}sbtn{% endif %}" href="{% url 'mes_core:planning_detail' order.pk %}"><svg class="ico sm"><use href="#i-layers"/></svg> {% if order.status == 'por_planear' %}Planear etapas{% else %}Planeación{% endif %}</a>{% endif %}
+    {% for a in plugin_actions %}<a class="sbtn" href="{{ a.url }}">{{ a.label }}</a>{% endfor %}
+    {% if can_send_supplies %}
+      <form method="post" action="{% url 'mes_core:order_send_supplies' order.pk %}">{% csrf_token %}<button class="btn" title="El equipo de insumos confirma, entrega y libera a planta">Enviar a insumos</button></form>
+    {% endif %}
+    {% if can_release_supplies %}<a class="btn" href="{% url 'mes_core:supply_order' order.pk %}">Revisar insumos y liberar</a>{% endif %}
+    {% if can_fix %}<a class="sbtn" href="{% url 'mes_core:order_edit' order.pk %}">Editar</a>{% endif %}
+    {% if can_cancel %}
+      <form method="post" action="{% url 'mes_core:order_cancel' order.pk %}" onsubmit="return confirm('¿Cancelar el pedido {{ order.number }}? Esta acción no se puede deshacer.')">{% csrf_token %}<button class="btn danger">Cancelar</button></form>
+    {% endif %}
+  </div>
+</div>
+
+{% if needs_approval %}<div class="callout" style="margin-bottom:16px">Esta planta trabaja con plan aprobado.
+  <a href="{% url 'mes_core:plan_versions' %}?site={{ order.site_id }}">Guarda y propone una versión del plan</a>: al aprobarla el jefe de planta, el pedido pasa a insumos.</div>{% endif %}
+{% if order.status == 'insumos' %}<div class="callout" style="margin-bottom:16px"><b>En insumos:</b> pasa a planta solo cuando insumos y logística liberan.
+  Insumos: {% if order.supplies_released_at %}<b>liberado</b>{% else %}<b>pendiente</b>{% endif %} ·
+  Logística: {% if order.goods_status == 'mercado' %}<b>mercado</b>{% else %}<b>por mercar</b>{% endif %}.
+  {% if order.sent_to_supplies_at %}Enviado el {{ order.sent_to_supplies_at|date:"d/m H:i" }}.{% endif %}</div>
+{% elif order.supplies_note %}<div class="callout warn" style="margin-bottom:16px">{{ order.supplies_note }}</div>{% endif %}
+{% if order.status == 'por_planear' %}<div class="callout warn" style="margin-bottom:16px">Este pedido aún no tiene etapas: el equipo de planeación debe definirlas.</div>{% endif %}
+{% for r in risks %}<div class="callout {% if r.overdue %}bad{% else %}warn{% endif %}" style="margin-bottom:12px"><b>{{ r.label }}: {{ r.op.name }}</b>
+  — reportado {{ r.actual|floatformat:"-2g" }} de {{ r.expected|floatformat:"0g" }} que debía llevar a esta hora ({{ r.behind_pct }} % abajo).
+  <ul style="margin:6px 0 0;padding-left:18px">{% for s in r.suggestions %}<li>{{ s }}</li>{% endfor %}</ul></div>{% endfor %}
+
+<div class="kpis">
+  <div class="kpi"><div class="k-h">Cantidad</div><div class="k-v">{{ order.quantity|floatformat:"-2g" }} <small>{{ order.product.unit }}</small></div>
+    <div class="k-s">Terminado {{ order.quantity_done|floatformat:"-2g" }} · {{ order.progress }}%{% if order_extra %} · <span class="pill warn" title="Unidades producidas por encima de lo pedido">+{{ order_extra|floatformat:"-2g" }} de más</span>{% endif %}</div>
+    <div class="progress" style="width:100%;margin-top:8px"><span style="width: {{ order.progress }}%"></span></div></div>
+  <div class="kpi"><div class="k-h">Compromiso</div><div class="k-v" style="font-size:20px">{{ order.due_date|date:"D d/m/Y"|default:"—" }}</div>
+    <div class="k-s">{{ order.due_date|date:"H:i" }}{% if order.dispatch_date %} · despacho {{ order.dispatch_date|date:"d/m/Y" }}{% endif %}</div></div>
+  <div class="kpi"><div class="k-h">Plan</div><div class="k-v {% if order.is_late %}late{% endif %}" style="font-size:20px">{{ order.planned_end|date:"D d/m H:i"|default:"Sin programar" }}</div>
+    <div class="k-s">{% if order.planned_start %}Inicia {{ order.planned_start|date:"d/m H:i" }}{% endif %}{% if order.is_late %} · <span class="pill bad">Termina tarde</span>{% endif %}</div></div>
+  <div class="kpi"><div class="k-h">Prioridad</div><div class="k-v">{{ order.priority }}</div><div class="k-s">1 = más urgente</div></div>
+</div>
+
+<div class="card" style="margin-bottom:20px">
+  <div class="card-h"><h2>Datos del pedido</h2></div>
+  <div class="card-b od-facts">
+    <div><span>Referencia</span><b>{{ order.reference|default:"—" }}</b></div>
+    <div><span>OC</span><b>{{ order.purchase_order|default:"—" }}</b></div>
+    <div><span>Número de OP</span><b>{{ order.external_op|default:"—" }}</b></div>
+    <div><span>Embarque</span><b>{{ order.shipment|default:"—" }}</b></div>
+    <div><span>Recibido</span><b>{{ order.received_on|date:"d/m/Y"|default:"—" }}</b></div>
+    <div><span>Entrega en cliente</span><b>{{ order.delivery_date|date:"d/m/Y"|default:"—" }}</b></div>
+    <div><span>Tránsito</span><b>{{ order.transit_days }} día{{ order.transit_days|pluralize }}</b></div>
+    <div><span>Mercancía / insumos</span><b>{{ order.goods_pct }}% / {{ order.supplies_pct }}%</b></div>
+    {% if order.description %}<div class="wide"><span>Descripción</span><b style="font-weight:500">{{ order.description|linebreaksbr }}</b></div>{% endif %}
+    {% if order.notes %}<div class="wide"><span>Observaciones</span><b style="font-weight:500">{{ order.notes }}</b></div>{% endif %}
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:20px">
+  <div class="card-h"><h2>Operaciones</h2><span class="sub">{{ operations|length }} etapa{{ operations|length|pluralize }}</span></div>
+  <div class="table-wrap flat">
+  <table>
+    <thead><tr><th>#</th><th>Operación</th><th>Línea</th><th class="num">Unidades</th><th class="num">Operarios</th><th class="num">Min. estimados</th><th>Inicio</th><th>Fin</th><th class="num">Buenas</th><th class="num">Faltan</th>{% if has_extra %}<th class="num">De más</th>{% endif %}<th class="num">Merma</th><th>Estado</th></tr></thead>
+    <tbody>
+    {% for op in operations %}
+      <tr>
+        <td>{{ op.sequence }}</td>
+        <td><b>{{ op.name }}</b></td>
+        <td>{% if op.work_center %}{{ op.work_center.code }} <span class="muted">{{ op.work_center.name }}</span>{% else %}<span class="muted">Sin línea ({{ op.work_center_kind }})</span>{% endif %}</td>
+        <td class="num">{{ op.qty|floatformat:"-2g" }}</td>
+        <td class="num">{{ op.crew }}</td>
+        <td class="num">{{ op.planned_minutes|floatformat:"0g" }}</td>
+        <td>{{ op.planned_start|date:"d/m H:i"|default:"—" }}</td>
+        <td>{{ op.planned_end|date:"d/m H:i"|default:"—" }}</td>
+        <td class="num">{{ op.qty_good|floatformat:"-2g" }}</td>
+        <td class="num">{% if op.qty_pending %}{{ op.qty_pending|floatformat:"-2g" }}{% else %}<span class="pill ok">Completa</span>{% endif %}</td>
+        {% if has_extra %}<td class="num">{% if op.qty_extra %}<span class="pill warn">+{{ op.qty_extra|floatformat:"-2g" }}</span>{% else %}—{% endif %}</td>{% endif %}
+        <td class="num">{{ op.qty_scrap|floatformat:"-2g" }}</td>
+        <td><span class="badge {{ op.status }}">{{ op.get_status_display }}</span></td>
+      </tr>
+    {% empty %}<tr class="empty-row"><td colspan="13">Sin operaciones todavía.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+{% if can_view_supplies or supply_lines %}
+<div class="card" style="margin-bottom:20px">
+  <div class="card-h"><h2>Insumos</h2>
+    <span class="sub">{% if supply_lines %}{{ supplies_pct }} % entregado{% else %}sin insumos registrados{% endif %}
+      {% if order.supplies_released_at %} · insumos liberados el {{ order.supplies_released_at|date:"d/m H:i" }}{% if order.supplies_released_by %} por {{ order.supplies_released_by|uname }}{% endif %}{% endif %}</span>
+    {% if can_view_supplies %}<div class="tools"><a class="sbtn sm" href="{% url 'mes_core:supply_order' order.pk %}">Ver insumos del pedido</a></div>{% endif %}</div>
+  {% if supply_lines %}
+  <div class="table-wrap flat"><table>
+    <thead><tr><th>Insumo</th><th>Etapa</th><th class="num">Requerido</th><th class="num">Entregado</th><th class="num">Falta</th><th>Entregado a</th></tr></thead>
+    <tbody>{% for ln in supply_lines %}
+      <tr><td><b>{{ ln.stock.product.name }}</b> <span class="muted">{{ ln.stock.product.sku }}</span></td>
+        <td>{{ ln.operation.name|default:"Todo el pedido" }}</td>
+        <td class="num">{{ ln.qty_required|floatformat:"-3g" }} {{ ln.stock.product.unit }}</td>
+        <td class="num">{{ ln.qty_released|floatformat:"-3g" }}</td>
+        <td class="num">{% if ln.qty_pending %}<span class="pill warn">{{ ln.qty_pending|floatformat:"-3g" }}</span>{% else %}<span class="pill ok">Completo</span>{% endif %}</td>
+        <td>{{ ln.deliver_to|uname }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="card" style="margin-bottom:20px">
+  <div class="card-h"><h2>Mercancía (logística)</h2>
+    <span class="sub">{% if order.goods_status == 'mercado' %}<span class="pill ok">Mercado</span>{% if order.goods_marked_at %} el {{ order.goods_marked_at|date:"d/m H:i" }}{% endif %}{% if order.goods_marked_by %} · registró {{ order.goods_marked_by|uname }}{% endif %}
+      {% else %}<span class="pill warn">Por mercar</span>{% endif %}</span>
+    {% if perms.mes_core.mark_goods %}<div class="tools"><a class="sbtn sm" href="{% url 'mes_core:goods_queue' %}?site={{ order.site_id }}&tab={% if order.goods_status == 'mercado' %}mercados{% else %}mercar{% endif %}&q={{ order.number|urlencode }}">Abrir en logística</a></div>{% endif %}</div>
+  {% if order.goods_status == 'mercado' %}
+  <dl class="kv" style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;padding:12px 16px">
+    <dt class="muted">Ubicación</dt><dd style="margin:0"><b>{{ order.goods_location }}</b></dd>
+    <dt class="muted">Mercó</dt><dd style="margin:0">{{ order.goods_picked_by }}</dd>
+    {% if order.goods_note %}<dt class="muted">Observaciones</dt><dd style="margin:0;white-space:pre-line">{{ order.goods_note }}</dd>{% endif %}
+  </dl>
+  {% elif order.goods_note %}<p class="muted" style="margin:0;padding:12px 16px;white-space:pre-line">{{ order.goods_note }}</p>{% endif %}
+</div>
+
+<div class="od-two">
+  {% if can_report %}
+  <div class="card">
+    <div class="card-h"><h2>Reportar producción</h2></div>
+    <div class="card-b">
+      <form class="stack od-report" method="post" id="report-form">{% csrf_token %}
+        {% if report_form.non_field_errors %}<div class="callout bad" style="margin-bottom:12px">{{ report_form.non_field_errors|join:" " }}</div>{% endif %}
+        {% with f=report_form %}
+        <p>{{ f.operation.label_tag }} {{ f.operation }} {{ f.operation.errors }}</p>
+        <p>{{ f.qty_good.label_tag }} {{ f.qty_good }} {{ f.qty_good.errors }}
+          <span class="od-hint" id="qty-hint"></span></p>
+        <p>{{ f.qty_scrap.label_tag }} {{ f.qty_scrap }} {{ f.qty_scrap.errors }}</p>
+        <div id="ref-box" hidden>
+          <p>{{ f.ean.label_tag }} {{ f.ean }} {{ f.ean.errors }} <span class="od-hint" id="ref-hint"></span></p>
+          <datalist id="order-eans"></datalist>
+          <p>{{ f.qty_leftover.label_tag }} {{ f.qty_leftover }} <span class="helptext">{{ f.qty_leftover.help_text }}</span></p>
+        </div>
+        <p id="ref-pending" class="od-hint" hidden></p>
+        <div class="od-extra" id="extra-box">
+          <label class="od-chk">{{ f.allow_extra }} <span>{{ f.allow_extra.label }}</span></label>
+          <span class="helptext">{{ f.allow_extra.help_text }}</span>
+          <p id="extra-reason" {% if not f.allow_extra.value %}hidden{% endif %}>{{ f.extra_reason.label_tag }} {{ f.extra_reason }} {{ f.extra_reason.errors }}</p>
+        </div>
+        <p>{{ f.finished.label_tag }} {{ f.finished }} {{ f.finished.errors }}</p>
+        <p>{{ f.comment.label_tag }} {{ f.comment }} {{ f.comment.errors }}</p>
+        {% endwith %}
+        <button class="btn" type="submit" id="report-btn">Registrar reporte</button>
+      </form>
+      {{ pending_json|json_script:"op-pending" }}
+      {{ refs|json_script:"op-refs" }}
+      <script>
+        // Referencias (EAN) de la etapa elegida: lista para escoger y lo que falta de cada una
+        (function () {
+          const refs = JSON.parse(document.getElementById("op-refs").textContent || "{}");
+          const sel = document.querySelector("#report-form [name=operation]"), box = document.getElementById("ref-box"),
+                dl = document.getElementById("order-eans"), inp = document.querySelector("#report-form [name=ean]"),
+                hint = document.getElementById("ref-hint"), pend = document.getElementById("ref-pending");
+          if (!sel) return;
+          const fmt = (n) => (n == null ? "sin límite" : Number(n).toLocaleString("es-CO"));
+          function cur() { return refs[sel.value] || {mode: "off", items: []}; }
+          function paint() {
+            const r = cur();
+            box.hidden = r.mode !== "on";
+            pend.hidden = r.mode !== "pending";
+            pend.textContent = "Este pedido aún no tiene sus EAN cargados (Validación EAN): se reporta sin referencia.";
+            dl.innerHTML = (r.items || []).map((i) => `<option value="${i.ean}">${(i.desc || "").replace(/</g, "&lt;")} · faltan ${fmt(i.left)}</option>`).join("");
+            showHint();
+          }
+          function showHint() {
+            const r = cur(), v = (inp.value || "").replace(/\D/g, ""), code = v.length === 12 ? "0" + v : v;
+            const it = (r.items || []).find((i) => i.ean === code);
+            hint.textContent = !v ? `${(r.items || []).length} referencias en esta etapa` : it ? `${it.desc ? it.desc + " · " : ""}faltan ${fmt(it.left)} de ${fmt(it.qty)}` : "Ese EAN no es de este pedido";
+            hint.style.color = v && !it ? "var(--danger)" : "";
+          }
+          sel.addEventListener("change", paint); inp.addEventListener("input", showHint);
+          paint();
+        })();
+      </script>
+    </div>
+  </div>
+  {% endif %}
+  <div class="od-col">
+  {% if stage_summary %}
+  <div class="card" id="resumen-etapas">
+    <div class="card-h"><h2>Resumen por etapa</h2><span class="sub">Suma de todos los reportes de cada etapa (y de sus lotes)</span></div>
+    <div class="table-wrap flat">
+    <table class="od-sum">
+      <thead><tr><th>Etapa</th><th class="num">Programadas</th><th class="num">Buenas</th><th class="num">Faltan</th><th class="num">Merma</th><th>Avance</th><th class="num">Reportes</th></tr></thead>
+      <tbody>
+      {% for s in stage_summary %}
+        <tr>
+          <td><b>{{ s.name }}</b>{% if s.line %} <span class="muted">· {{ s.line }}</span>{% endif %}{% if s.parts > 1 %}<br><small class="muted">{{ s.parts }} partes / lotes{% if s.done_parts %} · {{ s.done_parts }} terminadas{% endif %}</small>{% endif %}</td>
+          <td class="num">{{ s.planned|floatformat:"-2g" }}</td>
+          <td class="num"><b>{{ s.good|floatformat:"-2g" }}</b>{% if s.extra %} <span class="pill warn" title="Unidades de más">+{{ s.extra|floatformat:"-2g" }}</span>{% endif %}</td>
+          <td class="num">{% if s.pending %}{{ s.pending|floatformat:"-2g" }}{% else %}<span class="pill ok">0</span>{% endif %}</td>
+          <td class="num">{{ s.scrap|floatformat:"-2g" }}</td>
+          <td style="min-width:120px"><div class="progress" style="width:100%"><span style="width: {{ s.pct }}%"></span></div>
+            <small class="{% if s.done %}od-ok{% else %}muted{% endif %}">{% if s.done %}✔ Terminada{% else %}{{ s.pct }} %{% endif %}</small></td>
+          <td class="num">{{ s.reports }}{% if s.last %}<br><small class="muted">últ. {{ s.last|date:"d/m H:i" }}</small>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+  {% endif %}
+  <div class="card" id="reportes">
+    <div class="card-h"><h2>Historial de reportes</h2>
+      <div class="tools">
+        {% if compliance %}<span class="pill {% if compliance == 'Cumple' %}ok{% else %}bad{% endif %}" title="{% if closure %}Cerrado con faltante: {{ closure.reason }}{% endif %}">{{ compliance }}</span>{% endif %}
+        {% url 'registros:tracking_detail' order.pk as voided_u %}{% if voided_count and voided_u %}<a class="sbtn sm" href="{{ voided_u }}">Anulados · {{ voided_count }}</a>{% endif %}
+        {% if can_fix and reports %}<details class="od-pop"><summary class="sbtn sm danger">Anular todo lo reportado</summary>
+          <form method="post" action="{% url 'mes_core:report_delete_all' order.pk %}" onsubmit="return confirm('¿Anular TODOS los reportes de {{ order.number }}? Salen de las sumas; se pueden reactivar desde «Anulados».')">{% csrf_token %}
+          <input name="reason" required maxlength="255" placeholder="Motivo de la anulación"><button class="sbtn sm danger" type="submit">Anular todo</button></form></details>{% endif %}
+      </div></div>
+    <div class="table-wrap flat">
+    <table>
+      <thead><tr><th>Fecha</th><th>Operación</th><th>EAN</th><th class="num">Buenas</th><th class="num">De más</th><th class="num">Sobr.</th><th class="num">Merma</th><th>Cierra</th><th>Usuario</th><th>Comentario</th>{% if can_fix %}<th></th>{% endif %}</tr></thead>
+      <tbody>
+      {% for r in reports %}
+        <tr><td>{{ r.reported_at|date:"d/m H:i" }}</td><td>{{ r.operation.name }}</td><td class="mono">{{ r.ean|default:"—" }}</td>
+          <td class="num">{{ r.qty_good|floatformat:"-2g" }}</td>
+          <td class="num">{% if r.qty_extra %}<span class="pill warn" title="{{ r.extra_reason }}">+{{ r.qty_extra|floatformat:"-2g" }}</span>{% else %}—{% endif %}</td>
+          <td class="num">{{ r.qty_leftover|floatformat:"-2g" }}</td>
+          <td class="num">{{ r.qty_scrap|floatformat:"-2g" }}</td>
+          <td>{{ r.finished|yesno:"Sí,No" }}</td><td>{% if r.source == "piso" %}<span class="pill info" title="Marcaciones de la tablet de piso">Piso</span> {% if r.employee %}{{ r.employee.display_name }}{% else %}Tablet de línea{% endif %}{% else %}{{ r.reported_by|default:"—" }}{% endif %}</td>
+          <td style="white-space:normal">{% if r.qty_extra %}<b>Unidades de más:</b> {{ r.extra_reason }}{% if r.comment %}<br>{% endif %}{% endif %}{{ r.comment }}{% if r.edited_at %}<br><small class="muted">Editado {{ r.edited_at|date:"d/m H:i" }} · {{ r.edited_by|default:"—" }} · {{ r.edit_reason }}</small>{% endif %}</td>
+          {% if can_fix %}<td style="white-space:nowrap;text-align:right">
+            <button class="sbtn sm" type="button" data-rep-edit="{{ r.pk }}">Editar</button>
+            <button class="sbtn sm danger" type="button" data-rep-void="{{ r.pk }}">Anular</button></td>{% endif %}</tr>
+        {% if can_fix %}<tr id="rep-edit-{{ r.pk }}" hidden><td colspan="11">
+          <form method="post" action="{% url 'mes_core:report_edit' r.pk %}" class="od-repedit">{% csrf_token %}
+            <label>Buenas<input type="number" name="qty_good" min="0" step="any" value="{{ r.good_total|stringformat:'s' }}"></label>
+            <label>Merma<input type="number" name="qty_scrap" min="0" step="any" value="{{ r.qty_scrap|stringformat:'s' }}"></label>
+            <label>Sobrantes<input type="number" name="qty_leftover" min="0" step="any" value="{{ r.qty_leftover|stringformat:'s' }}"></label>
+            <label>EAN<input name="ean" value="{{ r.ean }}" inputmode="numeric" list="order-eans" style="width:150px"></label>
+            <label class="chk"><input type="checkbox" name="finished" {% if r.finished %}checked{% endif %}> Cierra la operación</label>
+            <label class="grow">Comentario<input name="comment" maxlength="255" value="{{ r.comment }}"></label>
+            <label class="grow">Motivo de la edición<input name="reason" required maxlength="255" placeholder="Obligatorio"></label>
+            <button class="btn" type="submit">Guardar</button>
+            {% url 'registros:edit' r.pk as more_u %}{% if more_u %}<a class="sbtn" href="{{ more_u }}?next={{ request.get_full_path|urlencode }}%23reportes" title="Cambiar operario, fecha u operación">Más cambios…</a>{% endif %}
+            <button class="sbtn" type="button" data-rep-edit="{{ r.pk }}">Cancelar</button>
+          </form></td></tr>
+        <tr id="rep-void-{{ r.pk }}" hidden><td colspan="11">
+          <form method="post" action="{% url 'mes_core:report_delete' r.pk %}" class="od-repedit">{% csrf_token %}
+            <label class="grow">Motivo de la anulación de este reporte ({{ r.good_total|floatformat:'-2g' }} buenas de «{{ r.operation.name }}»)<input name="reason" required maxlength="255"></label>
+            <button class="btn danger" type="submit">Anular</button><button class="sbtn" type="button" data-rep-void="{{ r.pk }}">Cancelar</button>
+            <small class="muted" style="flex-basis:100%">Sale de las sumas y queda en «Anulados»: se puede reactivar. Solo lo anulado se puede eliminar.</small>
+          </form></td></tr>{% endif %}
+      {% empty %}<tr class="empty-row"><td colspan="11">Sin reportes todavía.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+  </div>
+</div>
+<script>
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-rep-edit], [data-rep-void]");
+    if (!b) return;
+    const row = document.getElementById(b.dataset.repEdit ? "rep-edit-" + b.dataset.repEdit : "rep-void-" + b.dataset.repVoid);
+    if (row) { row.hidden = !row.hidden; if (!row.hidden) row.querySelector("input")?.focus(); }
+  });
+</script>
+<style>
+  .od-repedit { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; padding: 6px 0; }
+  .od-pop { position: relative; }
+  .od-pop > summary { list-style: none; }
+  .od-pop > summary::-webkit-details-marker { display: none; }
+  .od-pop form { position: absolute; right: 0; top: 38px; z-index: 5; display: grid; gap: 8px; width: 280px; padding: 12px; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-lg); box-shadow: 0 8px 24px rgba(0,0,0,.15); }
+  .od-pop input { height: 34px; padding: 0 8px; border: 1px solid var(--border-strong); border-radius: var(--radius); }
+  .od-repedit label { display: grid; gap: 4px; font-size: 12.5px; color: var(--muted); }
+  .od-repedit input[type=number] { width: 110px; }
+  .od-repedit .grow { flex: 1 1 220px; } .od-repedit .grow input { width: 100%; }
+  .od-repedit .chk { display: flex; align-items: center; gap: 6px; color: var(--text); padding-bottom: 8px; }
+  .od-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px 20px; }
+  .od-facts div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .od-facts .wide { grid-column: 1 / -1; }
+  .od-facts span { color: var(--muted); font-size: 12.5px; }
+  .od-facts b { font-weight: 600; overflow-wrap: anywhere; }
+  .od-two { display: grid; grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .od-two > .card:only-child, .od-two > .od-col:only-child { grid-column: 1 / -1; }
+  .od-col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+  .od-sum td { vertical-align: top; } .od-ok { color: var(--success); font-weight: 600; }
+  .od-report select, .od-report input:not([type=checkbox]) { width: 100%; }
+  .od-report p:has(input[type=checkbox]) { flex-direction: row; align-items: center; gap: 8px; }
+  .od-hint { font-size: 12.5px; color: var(--muted); }
+  .od-hint.over { color: var(--danger); font-weight: 600; }
+  .od-hint.ok { color: var(--success); }
+  .od-extra { border: 1px dashed var(--border-strong); border-radius: var(--radius); padding: 10px 12px; margin: 0 0 14px; display: flex; flex-direction: column; gap: 6px; }
+  .od-extra.need { border-color: var(--danger); background: var(--danger-soft); }
+  .od-extra.on { border-style: solid; border-color: color-mix(in srgb, var(--warning) 50%, var(--border)); background: var(--warning-soft); }
+  .od-extra p { margin: 4px 0 0 !important; }
+  .od-chk { display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
+  .od-chk input { width: 16px; height: 16px; }
+  @media (max-width: 900px) { .od-two { grid-template-columns: 1fr; } }
+</style>
+<script>
+(() => {
+  const form = document.getElementById("report-form");
+  if (!form) return;
+  const pending = JSON.parse(document.getElementById("op-pending").textContent);
+  const op = form.querySelector("[name=operation]"), qty = form.querySelector("[name=qty_good]");
+  const allow = form.querySelector("[name=allow_extra]"), reasonBox = document.getElementById("extra-reason");
+  const reason = form.querySelector("[name=extra_reason]");
+  const hint = document.getElementById("qty-hint"), box = document.getElementById("extra-box"), btn = document.getElementById("report-btn");
+  const num = (n) => n.toLocaleString("es", { maximumFractionDigits: 3 });
+  function update() {
+    const p = pending[op.value];
+    const q = parseFloat((qty.value || "0").replace(",", ".")) || 0;
+    reasonBox.hidden = !allow.checked;
+    reason.required = allow.checked;
+    box.classList.toggle("on", allow.checked);
+    if (!p) { hint.textContent = ""; box.classList.remove("need"); btn.disabled = false; return; }
+    const [planned, done] = p, left = Math.max(0, planned - done), extra = q - left;
+    hint.className = "od-hint";
+    if (extra > 1e-9) {
+      hint.classList.add("over");
+      hint.textContent = allow.checked
+        ? `Faltan ${num(left)}: ${num(left)} cuentan para lo programado y ${num(extra)} quedan como unidades de más.`
+        : `Faltan solo ${num(left)} de ${num(planned)}: estás reportando ${num(extra)} de más. Si de verdad se produjeron, marca «Reportar unidades de más».`;
+      box.classList.toggle("need", !allow.checked);
+      btn.disabled = !allow.checked;
+    } else {
+      hint.textContent = `Faltan ${num(left)} de ${num(planned)}` + (q && Math.abs(extra) < 1e-9 ? " · con esto se completa." : ".");
+      if (q && Math.abs(extra) < 1e-9) hint.classList.add("ok");
+      box.classList.remove("need");
+      btn.disabled = false;
+    }
+  }
+  form.addEventListener("input", update);
+  form.addEventListener("change", update);
+  update();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% load static mes_assets mes_sites %}
+{% block title %}Tablero de planta{% endblock %}
+{% block crumbs %}<span>Operación</span><span class="sep">/</span><b>Tablero de planta</b>{% endblock %}
+{% block body_class %}scheduler-page{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/scheduler.css' %}"><link rel="stylesheet" href="{% asset 'mes_core/plant_board.css' %}">{% endblock %}
+{% block content %}
+<div class="pb" id="pb" data-api="{% url 'mes_core:api_plant_board' %}" data-scheduler="{% url 'mes_core:scheduler' %}" data-site="{{ scope.param }}">
+  <div class="page-head pb-pagehead">
+    <div class="titles">
+      <h1>Tablero de planta</h1>
+      <p>Estado de cada línea en este momento{% if scope.all %}, en todas las bodegas{% endif %}. Se actualiza cada 30 segundos.</p>
+    </div>
+    <div class="tools">
+      {% site_chips %}
+      <button type="button" class="sbtn" id="pb-full"><svg class="ico sm"><use href="#i-expand"/></svg> <span>Pantalla completa</span></button>
+    </div>
+  </div>
+
+  <div class="pb-bar-top">
+    <div class="pb-shift"><b id="pb-shift">Cargando…</b> <span id="pb-shift-time"></span>
+      <span class="pb-live" id="pb-live"><i></i>En vivo</span></div>
+    <div class="pb-stats">
+      <span>Paros en este turno: <b id="pb-down">—</b></span>
+      <span>Estaciones: <b id="pb-stations">—</b></span>
+      <span id="pb-ops-wrap" hidden>Operarios: <b id="pb-ops">—</b></span>
+      <span class="pb-clock"><span id="pb-date"></span> <b id="pb-time">--:--:--</b></span>
+    </div>
+  </div>
+
+  <div class="pb-legend" id="pb-legend" role="group" aria-label="Filtrar por estado"></div>
+  <div class="pb-error" id="pb-error" hidden></div>
+  <div class="pb-grid" id="pb-grid"><div class="sch-loading">Cargando líneas…</div></div>
+</div>
+<script src="{% asset 'mes_core/plant_board.js' %}"></script>
+{% endblock %}

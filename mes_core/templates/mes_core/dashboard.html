@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+{% load static mes_assets mes_sites %}
+{% block title %}Capacidad de planta{% endblock %}
+{% block crumbs %}<span>Operación</span><span class="sep">/</span><b>Capacidad de planta</b>{% endblock %}
+{% block body_class %}scheduler-page{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/scheduler.css' %}"><link rel="stylesheet" href="{% asset 'mes_core/capacity.css' %}">{% endblock %}
+{% block content %}
+<div class="cap">
+{% if no_site %}
+  <p class="cap-empty">No hay plantas activas. Crea una en <a href="{% url 'admin:index' %}">Administración</a>.</p>
+{% else %}
+  <div class="cap-head">
+    <div class="cap-title">
+      <h1>Capacidad de planta</h1>
+      <div class="sub">{% if all_sites %}Todas las bodegas · {{ day_label }} · cada bodega en su turno{% else %}{{ day_label|default:"Sin turnos" }}{% if shift %} · Turno {{ shift.name }} {{ shift.start_time|time:"H:i" }}–{{ shift.end_time|time:"H:i" }} · {{ site.name }}{% endif %}{% endif %}</div>
+    </div>
+    <div class="cap-sites">{% site_chips %}</div>
+    {% if all_sites %}
+    <form method="get" class="cap-filter" id="cap-filter">
+      <input type="hidden" name="site" value="todas">
+      <a class="sbtn sm" href="?site=todas&day={{ prev_day|date:'Y-m-d' }}" aria-label="Día anterior">‹</a>
+      <input type="date" name="day" value="{{ day|date:'Y-m-d' }}" class="sselect cap-date" aria-label="Día">
+      <a class="sbtn sm" href="?site=todas&day={{ next_day|date:'Y-m-d' }}" aria-label="Día siguiente">›</a>
+      <a class="sbtn sm" href="?site=todas">Ahora</a>
+    </form>
+    {% else %}
+    <form method="get" class="cap-filter" id="cap-filter">
+      <input type="hidden" name="site" value="{{ site.pk }}">
+      {% if shifts %}
+      <a class="sbtn sm" href="?site={{ site.pk }}&day={{ prev_day|date:'Y-m-d' }}&shift={{ shift.pk }}" aria-label="Día anterior">‹</a>
+      <input type="date" name="day" value="{{ day|date:'Y-m-d' }}" class="sselect cap-date" aria-label="Día">
+      <a class="sbtn sm" href="?site={{ site.pk }}&day={{ next_day|date:'Y-m-d' }}&shift={{ shift.pk }}" aria-label="Día siguiente">›</a>
+      <select name="shift" class="sselect" aria-label="Turno">
+        {% for s in shifts %}<option value="{{ s.pk }}" {% if s.pk == shift.pk %}selected{% endif %}>{{ s.name }} {{ s.start_time|time:"H:i" }}–{{ s.end_time|time:"H:i" }}</option>{% endfor %}
+      </select>
+      <a class="sbtn sm" href="?site={{ site.pk }}">Ahora</a>
+      {% endif %}
+      <noscript><button class="sbtn sm">Ver</button></noscript>
+    </form>
+    {% endif %}
+  </div>
+
+  {% if all_sites %}
+    {% include "mes_core/_capacity_all.html" %}
+  {% elif no_shifts %}
+    <p class="cap-empty">Esta planta no tiene turnos. Configúralos en <a href="{% url 'mes_core:shift_settings' %}?site={{ site.pk }}">Turnos</a> para calcular la capacidad.</p>
+  {% else %}
+  <div class="cap-layout">
+    <div class="cap-col">
+      {% if sel.off %}<div class="callout warn">Este día el turno {{ shift.name }} no trabaja: <b>{{ sel.off }}</b>.{% if sel.ot_hours %} Hay {{ sel.ot_hours|floatformat:"-1" }} h extra programadas.{% endif %}
+        <a href="{% url 'mes_core:work_calendar' %}?site={{ site.pk }}&month={{ day|date:'Y-m' }}">Ver calendario laboral</a></div>{% endif %}
+      <section class="cap-kpis">
+        <div class="cap-kpi green">
+          <span class="k-ico"><svg class="ico"><use href="#i-users"/></svg></span>
+          <h3>Personal disponible</h3>
+          <b>{% if sel.unlimited %}—{% else %}{{ sel.available }}{% endif %}</b>
+          <p>{% if sel.unlimited %}Sin total configurado · <a href="{% url 'mes_core:shift_settings' %}?site={{ site.pk }}">Turnos</a>{% else %}De {{ sel.scheduled }} programados{% endif %}</p>
+        </div>
+        <div class="cap-kpi red {% if sel.absent %}has{% endif %}">
+          <span class="k-ico"><svg class="ico"><use href="#i-alert"/></svg></span>
+          <h3>Ausencias</h3>
+          <b>{{ sel.absent }}</b>
+          <p>{% if sel.absent %}Por cubrir o redistribuir{% else %}Sin ausencias registradas{% endif %}{% if sel.notes %} · {{ sel.notes }}{% endif %}</p>
+          {% if can_plan %}
+          <details class="cap-att">
+            <summary>Registrar ausencias</summary>
+            <form method="post" action="{% url 'mes_core:save_attendance' %}">
+              {% csrf_token %}
+              <input type="hidden" name="shift" value="{{ shift.pk }}"><input type="hidden" name="day" value="{{ day|date:'Y-m-d' }}">
+              <label>Ausencias<input type="number" name="absent" min="0" step="1" value="{{ sel.absent }}" required></label>
+              <label>Programados<input type="number" name="scheduled" min="0" step="1" placeholder="{{ shift.operators|default:site.operators_total }}" value="{{ sel.override|default_if_none:'' }}"></label>
+              <label class="wide">Observaciones<input type="text" name="notes" maxlength="255" value="{{ sel.notes }}" placeholder="Incapacidades, vacaciones…"></label>
+              <button class="sbtn accent sm">Guardar</button>
+            </form>
+          </details>
+          {% endif %}
+        </div>
+        <div class="cap-kpi blue">
+          <span class="k-ico"><svg class="ico"><use href="#i-clock"/></svg></span>
+          <h3>Capacidad disponible</h3>
+          <b>{% if sel.unlimited %}—{% else %}{{ sel.capacity_h|floatformat:"0g" }} h{% endif %}</b>
+          <p>Horas productivas · {{ sel.eff_hours|floatformat:"-2" }} h hábiles por persona</p>
+        </div>
+        <div class="cap-kpi sand {% if sel.level == 'over' %}over{% endif %}">
+          <span class="k-ico"><svg class="ico"><use href="#i-timer"/></svg></span>
+          <h3>Horas requeridas</h3>
+          <b>{{ sel.required_h|floatformat:"0g" }} h</b>
+          <p>Carga programada en el turno</p>
+        </div>
+      </section>
+
+      <section class="cap-card">
+        <h2>Disponibilidad para producir</h2>
+        <div class="cap-occ"><span>Capacidad ocupada</span><b>{% if sel.occ_pct is None %}—{% else %}{{ sel.occ_pct }}%{% endif %}</b></div>
+        <div class="cap-bar lv-{{ sel.level }}"><i style="width:{{ bar_pct }}%"></i></div>
+        {% if sel.unlimited %}
+          <span class="cap-pill na">Configura el personal en Turnos para medir la ocupación</span>
+        {% elif sel.balance_h < -0.05 %}
+          <span class="cap-pill over">Sobrecarga de {{ balance_txt }}</span>
+        {% else %}
+          <span class="cap-pill {% if sel.level == 'tight' %}tight{% else %}ok{% endif %}">Holgura de {{ balance_txt }}</span>
+        {% endif %}
+      </section>
+
+      <section class="cap-card" id="recursos">
+        <h2>Estado de recursos</h2>
+        <div class="cap-res">
+          <div class="cap-res-item goods">
+            <span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg> Mercancía</span>
+            <b>{% if goods_pct is None %}—{% else %}{{ goods_pct }}%{% endif %}</b>
+            <div class="cap-bar thin"><i style="width:{{ goods_pct|default:0 }}%"></i></div>
+          </div>
+          <div class="cap-res-item supplies">
+            <span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="8" height="8" rx="1"/><rect x="13" y="11" width="8" height="8" rx="1"/><rect x="8" y="3" width="8" height="8" rx="1"/></svg> Insumos</span>
+            <b>{% if supplies_pct is None %}—{% else %}{{ supplies_pct }}%{% endif %}</b>
+            <div class="cap-bar thin"><i style="width:{{ supplies_pct|default:0 }}%"></i></div>
+          </div>
+        </div>
+        {% if resource_rows %}
+        <p class="cap-help">Porcentaje ponderado por las horas de cada orden en este turno.</p>
+        <div class="cap-table-wrap">
+        <table class="cap-table">
+          <thead><tr><th>Orden</th><th class="num">Horas en turno</th><th class="num">Mercancía %</th><th class="num">Insumos %</th>{% if can_plan %}<th></th>{% endif %}</tr></thead>
+          <tbody>
+          {% for r in resource_rows %}{% with o=r.order %}
+            <tr class="{% if o.goods_pct >= 100 and o.supplies_pct >= 100 %}ready{% endif %}">
+              <td><a href="{{ o.get_absolute_url }}" class="mono">{{ o.number }}</a> · {{ o.product.name }}{% if o.customer %}<small> · {{ o.customer.name }}</small>{% endif %}</td>
+              <td class="num" data-label="Horas en turno">{{ r.hours|floatformat:1 }}</td>
+              {% if can_plan %}
+              <td class="num" data-label="Mercancía %"><input form="res-{{ o.pk }}" type="number" name="goods_pct" min="0" max="100" value="{{ o.goods_pct }}" aria-label="Mercancía % de {{ o.number }}"></td>
+              {% if perms.mes_core.release_to_plant %}<td class="num" data-label="Insumos %"><input form="res-{{ o.pk }}" type="number" name="supplies_pct" min="0" max="100" value="{{ o.supplies_pct }}" aria-label="Insumos % de {{ o.number }}"></td>
+              {% else %}<td class="num {% if o.supplies_pct < 100 %}warn{% endif %}" data-label="Insumos %" title="Lo actualiza el equipo de insumos con sus entregas">{{ o.supplies_pct }}%</td>{% endif %}
+              <td class="act">
+                <form method="post" id="res-{{ o.pk }}" action="{% url 'mes_core:save_resources' o.pk %}">{% csrf_token %}
+                  <input type="hidden" name="day" value="{{ day|date:'Y-m-d' }}"><input type="hidden" name="shift" value="{{ shift.pk }}">
+                  <button class="sbtn sm">Guardar</button>
+                  {% if o.goods_pct < 100 or o.supplies_pct < 100 %}<button class="sbtn sm" name="all" value="1" title="Marcar 100 % mercancía e insumos">Todo listo</button>{% endif %}
+                </form>
+              </td>
+              {% else %}
+              <td class="num {% if o.goods_pct < 100 %}warn{% endif %}" data-label="Mercancía %">{{ o.goods_pct }}%</td>
+              <td class="num {% if o.supplies_pct < 100 %}warn{% endif %}" data-label="Insumos %">{{ o.supplies_pct }}%</td>
+              {% endif %}
+            </tr>
+          {% endwith %}{% endfor %}
+          </tbody>
+        </table>
+        </div>
+        {% else %}
+        <p class="cap-help">No hay órdenes programadas en este turno.</p>
+        {% endif %}
+      </section>
+
+      <section class="cap-card">
+        <div class="cap-card-h"><h2>Próximos 7 días</h2>
+          <span class="cap-help">Semana: {{ week_req|floatformat:"0g" }} h requeridas de {{ week_cap|floatformat:"0g" }} h{% if week_pct is not None %} · {{ week_pct }}%{% endif %}</span></div>
+        <div class="cap-table-wrap">
+        <table class="cap-week">
+          <thead><tr><th>Turno</th>{% for d in days %}<th class="{% if d.today %}today{% endif %}">{{ d.label }}</th>{% endfor %}</tr></thead>
+          <tbody>
+          {% for row in grid %}
+            <tr><th><i style="background:{{ row.shift.color }}"></i>{% if row.extra %}Turnos adicionales{% else %}{{ row.shift.name }}{% endif %}</th>
+            {% for c in row.cells %}
+              {% if not c %}<td><span class="cell lv-na empty">—</span></td>
+              {% elif c.off and not c.ot_hours %}<td><span class="cell lv-off" title="{{ c.off }}"><b>—</b><small>{{ c.off|truncatechars:22 }}</small></span></td>
+              {% elif row.extra %}<td><span class="cell lv-{{ c.level }}" title="{{ c.shift.name }} · {{ c.required_h|floatformat:1 }} h requeridas de {{ c.capacity_h|floatformat:1 }} h">
+                <b>{% if c.occ_pct is None %}—{% else %}{{ c.occ_pct }}%{% endif %}</b>
+                <small>{{ c.required_h|floatformat:"0g" }}/{{ c.capacity_h|floatformat:"0g" }} h</small></span></td>
+              {% else %}
+              <td><a class="cell lv-{{ c.level }} {% if c.shift.pk == shift.pk and c.day == day %}sel{% endif %}"
+                     href="?site={{ site.pk }}&day={{ c.day|date:'Y-m-d' }}&shift={{ c.shift.pk }}"
+                     title="{{ c.required_h|floatformat:1 }} h requeridas de {{ c.capacity_h|floatformat:1 }} h · {{ c.available }} personas{% if c.absent %} ({{ c.absent }} ausencias){% endif %}{% if c.ot_hours %} · {{ c.ot_hours|floatformat:'-1' }} h extra{% endif %}">
+                <b>{% if c.occ_pct is None %}—{% else %}{{ c.occ_pct }}%{% endif %}</b>
+                <small>{{ c.required_h|floatformat:"0g" }}/{{ c.capacity_h|floatformat:"0g" }} h{% if c.absent %} · −{{ c.absent }}{% endif %}{% if c.ot_hours %} · +{{ c.ot_hours|floatformat:"-1" }}h{% endif %}</small>
+              </a></td>
+              {% endif %}
+            {% endfor %}</tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        </div>
+        <div class="cap-legend"><span class="lv-ok">&lt; 85 % libre</span><span class="lv-tight">85–100 % justo</span><span class="lv-over">&gt; 100 % sobrecarga</span></div>
+      </section>
+
+      <section class="cap-card">
+        <h2>Carga por línea · turno {{ shift.name }}</h2>
+        <p class="cap-help">Ocupación = horas de trabajo programadas ÷ (estaciones × horas hábiles del turno). La más alta es el cuello de botella.</p>
+        <ul class="cap-lines">
+        {% for l in lines %}
+          <li class="{% if not l.works %}off{% endif %}">
+            <span class="name"><b>{{ l.wc.code }}</b> {{ l.wc.name }}</span>
+            <span class="val">{% if not l.works %}No trabaja este turno{% elif l.occ_pct is None %}—{% else %}{{ l.occ_pct }}% · {{ l.hh|floatformat:1 }} HH{% endif %}</span>
+            <div class="cap-bar thin lv-{{ l.level }}"><i style="width:{{ l.bar }}%"></i></div>
+          </li>
+        {% endfor %}
+        </ul>
+      </section>
+    </div>
+
+    <aside class="cap-col side">
+      <section class="cap-card">
+        <h2>Para decidir</h2>
+        {% if suggestions %}
+          <ul class="cap-sug">{% for s in suggestions %}<li>{{ s }}</li>{% endfor %}</ul>
+        {% else %}
+          <p class="cap-help">Turno con holgura y recursos completos. Sin alertas.</p>
+        {% endif %}
+        <div class="cap-links">
+          {% if can_plan %}<a class="sbtn sm" href="{% url 'mes_core:overtime_suggestions' %}?site={{ site.pk }}">Horas extra sugeridas</a>{% endif %}
+          <a class="sbtn sm" href="{% url 'mes_core:scheduler' %}?site={{ site.pk }}">Abrir programador</a>
+          {% if can_plan %}<a class="sbtn sm" href="{% url 'mes_core:planning_list' %}">Planeación</a>{% endif %}
+          <a class="sbtn sm" href="{% url 'mes_core:plant_board' %}">Tablero de planta</a>
+        </div>
+      </section>
+
+      <section class="cap-card">
+        <h2>Pedidos</h2>
+        <div class="cap-stats">
+          <a href="{% url 'mes_core:planning_list' %}"><b>{{ to_plan }}</b><span>Por planear</span></a>
+          <a href="{% url 'mes_core:scheduler' %}?site={{ site.pk }}"><b>{{ unscheduled_ops }}</b><span>Operaciones sin programar · {{ unscheduled_hh|floatformat:"0g" }} HH</span></a>
+          <a href="{% url 'mes_core:order_list' %}?site={{ site.pk }}" class="{% if late %}bad{% endif %}"><b>{{ late }}</b><span>Atrasados</span></a>
+          <a href="{% url 'mes_core:order_list' %}?site={{ site.pk }}" class="{% if at_risk %}warn{% endif %}"><b>{{ at_risk }}</b><span>En riesgo (el plan termina después del compromiso)</span></a>
+          <div><b>{% if on_time_pct is None %}—{% else %}{{ on_time_pct }}%{% endif %}</b><span>Cumplimiento a tiempo · 30 días ({{ done_30 }} terminados)</span></div>
+          <div><b>{{ open_count }}</b><span>Pedidos abiertos</span></div>
+        </div>
+      </section>
+
+      <section class="cap-card">
+        <h2>Producción de hoy</h2>
+        <div class="cap-stats">
+          <div><b>{{ today_good|floatformat:"-1g" }}</b><span>Unidades buenas</span></div>
+          <div class="{% if today_scrap %}warn{% endif %}"><b>{{ today_scrap|floatformat:"-1g" }}</b><span>Merma / rechazo</span></div>
+          <div><b>{% if today_quality is None %}—{% else %}{{ today_quality }}%{% endif %}</b><span>Calidad</span></div>
+        </div>
+      </section>
+    </aside>
+  </div>
+  {% endif %}
+{% endif %}
+</div>
+<script>
+  // Cambiar planta, día o turno aplica el filtro de inmediato
+  document.getElementById("cap-filter")?.addEventListener("change", (e) => e.currentTarget.requestSubmit());
+</script>
+{% endblock %}

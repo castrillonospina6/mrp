@@ -1,0 +1,1 @@
+<ol class="in-list">{% for r in rows %}<li title="{{ r.over }} de {{ r.n }} pausas se pasaron · {{ r.avg|floatformat:0 }} min de más en promedio"><span>{{ r.name }}</span><small class="muted">{{ r.over }}/{{ r.n }}</small><b>{{ r.minutes|floatformat:0 }} min</b></li>{% empty %}<li class="muted">—</li>{% endfor %}</ol>

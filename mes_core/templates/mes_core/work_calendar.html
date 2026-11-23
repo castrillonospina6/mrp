@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% load mes_assets mes_sites %}
+{% block title %}Calendario laboral{% endblock %}
+{% block crumbs %}<span>Planeación</span><span class="sep">/</span><b>Calendario laboral</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/planner.css' %}">{% endblock %}
+{% block content %}
+{% if no_site %}<div class="callout">No hay plantas activas.</div>{% else %}
+<div class="page-head">
+  <div class="titles">
+    <h1>Calendario laboral</h1>
+    <p>Festivos, horas extra, turnos adicionales y cierres por fecha. Todo el sistema (programador, Gantt, plan automático,
+      capacidad) trabaja con este calendario. Los días laborables de cada turno se configuran en
+      <a href="{% url 'mes_core:shift_settings' %}?site={{ site.pk }}#dias">Turnos y personal</a>.</p>
+  </div>
+  <div class="tools">
+    {% site_chips %}
+    {% if can_edit %}
+    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="holidays"><input type="hidden" name="site" value="{{ site.pk }}">
+      <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="month" value="{{ month }}">
+      <button class="sbtn" type="submit" title="Carga los festivos nacionales de Colombia de {{ year }} (Ley Emiliani incluida)">
+        <svg class="ico sm"><use href="#i-calendar"/></svg> Cargar festivos de Colombia {{ year }}{% if holidays_loaded %} ({{ holidays_loaded }}){% endif %}</button></form>
+    <button class="btn" type="button" data-new><svg class="ico sm"><use href="#i-plus"/></svg> Nueva excepción</button>
+    {% endif %}
+  </div>
+</div>
+
+<div class="pc-layout">
+  <div class="card">
+    <div class="card-h">
+      <a class="sbtn icon" href="?site={{ site.pk }}&month={{ prev }}" aria-label="Mes anterior"><svg class="ico sm"><use href="#i-left"/></svg></a>
+      <h2 style="min-width:150px;text-align:center">{{ month_label }}</h2>
+      <a class="sbtn icon" href="?site={{ site.pk }}&month={{ next }}" aria-label="Mes siguiente"><svg class="ico sm"><use href="#i-right"/></svg></a>
+      <a class="sbtn sm" href="?site={{ site.pk }}">Hoy</a>
+      <span class="sub" style="margin-left:auto">{{ month_hours|floatformat:"0g" }} h laborables en el mes (planta)</span>
+    </div>
+    <div class="wc-legend">
+      <span><i class="lg hol"></i>Festivo</span><span><i class="lg off"></i>No laboral</span>
+      <span><i class="lg ot"></i>Horas extra</span><span><i class="lg ex"></i>Turno adicional</span><span><i class="lg cl"></i>Cierre</span>
+    </div>
+    <div class="wc-grid">
+      {% for d in dow %}<div class="wc-dow">{{ d }}</div>{% endfor %}
+      {% for week in weeks %}{% for c in week %}
+        <div class="wc-day {% if not c.in_month %}out{% endif %} {% if c.today %}today{% endif %} {% if c.holiday %}hol{% elif c.off_all %}off{% endif %}"
+             {% if can_edit %}data-day="{{ c.date|date:'Y-m-d' }}" tabindex="0" role="button" aria-label="Agregar excepción el {{ c.date|date:'d/m/Y' }}"{% endif %}>
+          <div class="wc-top"><span class="n">{{ c.date.day }}</span>
+            <span class="h" title="Horas laborables de la planta ese día">{% if c.hours %}{{ c.hours|floatformat:"-1" }} h{% else %}—{% endif %}</span></div>
+          {% if c.holiday %}<div class="chip hol" title="Festivo">{{ c.holiday }}</div>
+          {% elif c.off_all %}<div class="chip off">No laboral</div>{% endif %}
+          {% for e in c.exceptions %}
+            <div class="chip {% if e.kind == 'horas_extra' %}ot{% elif e.kind == 'turno_adicional' %}ex{% else %}cl{% endif %}" title="{{ e.get_kind_display }} · {{ e.summary }}">
+              <span>{{ e.summary }}</span>
+              {% if can_edit %}<form method="post" class="x" onsubmit="return confirm('¿Eliminar «{{ e.summary|escapejs }}»{% if e.date_to %} (todo el rango){% endif %}?')">{% csrf_token %}
+                <input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{{ e.pk }}">
+                <input type="hidden" name="site" value="{{ site.pk }}"><input type="hidden" name="month" value="{{ month }}">
+                <button type="submit" aria-label="Eliminar">×</button></form>{% endif %}
+            </div>
+          {% endfor %}
+          {% if c.off_shifts %}<div class="wc-note">Sin {{ c.off_shifts|join:", " }}</div>{% endif %}
+        </div>
+      {% endfor %}{% endfor %}
+    </div>
+  </div>
+
+  <aside class="card">
+    <div class="card-h"><h2>Próximos 90 días</h2></div>
+    <div class="card-b flush">
+      <ul class="wc-list">
+      {% for e in upcoming %}
+        <li><span class="pill {% if e.kind == 'festivo' %}bad{% elif e.kind == 'horas_extra' %}info{% elif e.kind == 'turno_adicional' %}ok{% else %}warn{% endif %}">{{ e.get_kind_display }}</span>
+          <b>{{ e.date|date:"D d/m" }}{% if e.date_to %} – {{ e.date_to|date:"D d/m" }}{% endif %}</b>
+          <span>{{ e.summary }}{% with lines=e.work_centers.all %}{% if lines %} · {{ lines|join:", " }}{% endif %}{% endwith %}</span></li>
+      {% empty %}
+        <li class="muted">Sin excepciones. {% if can_edit %}Carga los festivos o agrega horas extra con «Nueva excepción».{% endif %}</li>
+      {% endfor %}
+      </ul>
+    </div>
+  </aside>
+</div>
+
+{% if can_edit %}
+<dialog class="dlg pc-dlg" id="exc-dlg">
+  <form method="post" id="exc-form">{% csrf_token %}
+    <input type="hidden" name="action" value="create"><input type="hidden" name="site" value="{{ site.pk }}">
+    <input type="hidden" name="month" value="{{ month }}">
+    <div class="dlg-h">Nueva excepción de calendario</div>
+    <div class="dlg-b pc-form">
+      <div class="segmented pc-kinds" role="radiogroup" aria-label="Tipo">
+        {% for value, label in kinds %}<label><input type="radio" name="kind" value="{{ value }}" {% if forloop.first %}checked{% endif %}><span>{{ label }}</span></label>{% endfor %}
+      </div>
+      <p class="pc-help" data-help="festivo">La planta no trabaja ese día (o ese rango). Lo ya programado ahí queda en conflicto; usa «Plan automático» para reubicarlo.</p>
+      <p class="pc-help" data-help="horas_extra" hidden>Un turno se extiende ese día. Ej.: Tarde de 22:00 a 00:00 con 30 operarios.</p>
+      <p class="pc-help" data-help="turno_adicional" hidden>Una franja de trabajo que normalmente no existe. Ej.: sábado 06:00–14:00 con 40 operarios.</p>
+      <p class="pc-help" data-help="cierre" hidden>Un turno o todo el día no se trabaja (capacitación, inventario, mantenimiento general), en todas o algunas líneas.</p>
+      <div class="pc-row">
+        <label>Fecha<input type="date" name="date" required></label>
+        <label>Hasta (opcional)<input type="date" name="date_to"></label>
+      </div>
+      <label data-for="festivo turno_adicional cierre">Nombre o motivo<input type="text" name="name" maxlength="120" placeholder="Ej.: Inventario anual"></label>
+      <label data-for="horas_extra cierre">Turno<select name="shift" id="exc-shift">
+        <option value="" data-only="cierre">Todo el día</option>
+        {% for s in shifts %}<option value="{{ s.pk }}" data-end="{{ s.end_time|time:'H:i' }}" data-start="{{ s.start_time|time:'H:i' }}" {% if s.crosses_midnight %}data-night="1"{% endif %}>{{ s.name }} {{ s.start_time|time:"H:i" }}–{{ s.end_time|time:"H:i" }}</option>{% endfor %}
+      </select></label>
+      <div class="pc-row" data-for="horas_extra turno_adicional">
+        <label>Desde<input type="time" name="start_time"></label>
+        <label>Hasta<input type="time" name="end_time"></label>
+        <label>Operarios<input type="number" name="operators" min="0" step="1" placeholder="0 = los del turno"></label>
+      </div>
+      <fieldset class="pc-lines" data-for="horas_extra turno_adicional cierre">
+        <legend>Líneas <small class="muted">(ninguna marcada = todas)</small></legend>
+        {% for l in lines %}<label><input type="checkbox" name="lines" value="{{ l.pk }}"> {{ l.code }}</label>{% endfor %}
+      </fieldset>
+    </div>
+    <div class="dlg-f"><button class="sbtn" type="button" data-close>Cancelar</button><button class="btn" type="submit">Guardar</button></div>
+  </form>
+</dialog>
+<script>
+(() => {
+  const dlg = document.getElementById("exc-dlg"), form = document.getElementById("exc-form");
+  const kind = () => form.querySelector("input[name=kind]:checked").value;
+  function sync() {
+    const k = kind();
+    form.querySelectorAll("[data-for]").forEach((el) => { el.hidden = !el.dataset.for.split(" ").includes(k); });
+    form.querySelectorAll("[data-help]").forEach((el) => { el.hidden = el.dataset.help !== k; });
+    form.querySelector("[data-only=cierre]").hidden = k !== "cierre";
+    const sh = form.querySelector("#exc-shift");
+    if (k === "horas_extra" && !sh.value) {
+      const day = [...sh.options].findIndex((o) => o.value && !o.dataset.night);
+      sh.selectedIndex = day > 0 ? day : 1;
+    }
+    if (k === "horas_extra") prefill();
+    if (k === "turno_adicional" && !form.start_time.value) {
+      const first = [...sh.options].find((o) => o.value && !o.dataset.night) || sh.options[1];
+      if (first) { form.start_time.value = first.dataset.start; form.end_time.value = first.dataset.end; }
+    }
+  }
+  function prefill() {
+    const o = form.querySelector("#exc-shift").selectedOptions[0];
+    if (o && o.dataset.end) {
+      form.start_time.value = o.dataset.end;
+      const [h, m] = o.dataset.end.split(":").map(Number);
+      form.end_time.value = `${String((h + 2) % 24).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    }
+  }
+  form.addEventListener("change", (e) => {
+    if (e.target.name === "kind") { form.start_time.value = ""; form.end_time.value = ""; sync(); }
+    if (e.target.id === "exc-shift" && kind() === "horas_extra") prefill();
+  });
+  function open(day) {
+    form.reset();
+    if (day) form.date.value = day;
+    sync();
+    dlg.showModal();
+    form.date.focus();
+  }
+  document.querySelector("[data-new]")?.addEventListener("click", () => open(""));
+  document.querySelectorAll(".wc-day[data-day]").forEach((el) => {
+    const go = (e) => { if (e.target.closest("form.x")) return; open(el.dataset.day); };
+    el.addEventListener("click", go);
+    el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(e); } });
+  });
+  dlg.querySelector("[data-close]").addEventListener("click", () => dlg.close());
+})();
+</script>
+{% endif %}
+{% endif %}
+{% endblock %}

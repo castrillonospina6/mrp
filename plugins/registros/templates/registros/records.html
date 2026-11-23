@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Registros de producción{% endblock %}
+{% block crumbs %}<span>Informes</span><span class="sep">/</span><b>Registros de producción</b>{% endblock %}
+{% block extra_head %}
+<style>
+  .rg-f { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr)); gap: 10px; align-items: end; }
+  .rg-f label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; color: var(--text-2); }
+  .rg-f input, .rg-f select { height: 36px; padding: 0 8px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; min-width: 0; width: 100%; box-sizing: border-box; }
+  .rg-k { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin: 14px 0; }
+  .rg-k div { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; }
+  .rg-k b { display: block; font-size: 20px; }
+  .rg-k small { color: var(--muted); }
+  .rg-t td, .rg-t th { white-space: nowrap; font-size: 13px; }
+  .rg-t td.wrap { white-space: normal; min-width: 160px; }
+  .rg-t tr.void td { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--danger) 60%, transparent); }
+  .rg-t tr.void td.act, .rg-t tr.void td.act * { text-decoration: none; }
+  .rg-act { display: flex; gap: 6px; justify-content: flex-end; align-items: flex-start; }
+  .rg-act details { position: relative; }
+  .rg-act details > summary { list-style: none; }
+  .rg-act details > summary::-webkit-details-marker { display: none; }
+  .rg-pop { position: absolute; right: 0; top: 38px; z-index: 5; width: min(320px, 80vw); display: grid; gap: 8px; padding: 12px; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-lg); box-shadow: var(--shadow-md, 0 8px 24px rgba(0,0,0,.15)); white-space: normal; }
+  .rg-pop input { height: 34px; padding: 0 8px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+  td.num, th.num { text-align: right; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Informes</div>
+    <h1>Registros de producción</h1>
+    <p>Una fila por persona y por reporte, como la hoja «Registros». Busca con cualquier filtro; corrige con motivo, anula (sale de las sumas y se puede reactivar) y elimina solo lo anulado.</p>
+  </div>
+  <div class="tools"><a class="sbtn" href="{% url 'registros:export' %}?desde={{ f.d_from|date:'Y-m-d' }}&hasta={{ f.d_to|date:'Y-m-d' }}">Exportar a Excel</a></div>
+</div>
+
+<form method="get" class="card" style="margin-bottom:14px"><div class="card-b">
+  <div class="rg-f">
+    <label>Desde<input type="date" name="desde" value="{{ f.d_from|date:'Y-m-d' }}"></label>
+    <label>Hasta<input type="date" name="hasta" value="{{ f.d_to|date:'Y-m-d' }}"></label>
+    <label>Pedido / OP / OC<input name="pedido" value="{{ f.pedido }}" placeholder="OP-000123"></label>
+    <label>Operario (nombre o documento)<input name="operario" value="{{ f.operario }}"></label>
+    <label>EAN<input name="ean" value="{{ f.ean }}" inputmode="numeric"></label>
+    <label>Proceso / etapa<input name="proceso" value="{{ f.proceso }}"></label>
+    <label>Cliente<input name="cliente" value="{{ f.cliente }}"></label>
+    <label>Coordinador (supervisor)<select name="coord"><option value="">Todos</option>{% for u in coords %}<option value="{{ u.pk }}" {% if f.coordinador == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></label>
+    <label>Supernumerario<select name="sup"><option value="">Todos</option>{% for e in sups %}<option value="{{ e.pk }}" {% if f.supernumerario == e.pk|stringformat:"s" %}selected{% endif %}>{{ e.display_name }}</option>{% endfor %}</select></label>
+    <label>Línea<select name="linea"><option value="">Todas</option>{% for l in lines %}<option value="{{ l.pk }}" {% if f.linea == l.pk|stringformat:"s" %}selected{% endif %}>{{ l.code }} · {{ l.name }}</option>{% endfor %}</select></label>
+    <label>Estado<select name="estado"><option value="activos" {% if f.estado == "activos" %}selected{% endif %}>Activos</option><option value="anulados" {% if f.estado == "anulados" %}selected{% endif %}>Anulados</option><option value="todos" {% if f.estado == "todos" %}selected{% endif %}>Todos</option></select></label>
+    <div style="display:flex;gap:8px"><button class="btn" type="submit">Buscar</button><a class="sbtn" href="{% url 'registros:records' %}">Limpiar</a></div>
+  </div>
+</div></form>
+
+<div class="rg-k">
+  <div><b>{{ totals.rows }}</b><small>filas{% if totals.voided %} · {{ totals.voided }} anuladas{% endif %}</small></div>
+  <div><b>{{ totals.units|floatformat:"-2g" }}</b><small>unidades</small></div>
+  <div><b>{{ totals.left|floatformat:"-2g" }}</b><small>sobrantes</small></div>
+  <div><b>{{ totals.scrap|floatformat:"-2g" }}</b><small>merma</small></div>
+  <div><b>{{ totals.hours }}</b><small>horas netas</small></div>
+  <div><b>{% if totals.eff is not None %}{{ totals.eff }} %{% else %}—{% endif %}</b><small>eficiencia</small></div>
+</div>
+{% if cut %}<div class="callout warn" style="margin-bottom:12px">Se muestran los 500 reportes más recientes. Acota la búsqueda o usa «Exportar a Excel» para verlos todos.</div>{% endif %}
+
+<div class="card"><div class="table-wrap flat">
+<table class="rg-t">
+  <thead><tr><th>Fecha</th><th>Inicio–fin</th><th>Pedido</th><th>Proceso</th><th>EAN</th><th>Operario</th><th>Coordinador</th><th>Supernumerario</th>
+    <th class="num">Unid.</th><th class="num">Sobr.</th><th class="num">Merma</th><th class="num">Horas</th><th class="num">Efic.</th><th>Observación / última acción</th><th></th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr class="{% if r.estado == 'Anulado' %}void{% endif %}">
+      <td>{{ r.fecha|date:"d/m/Y" }}</td>
+      <td>{% if r.inicio and r.fin and r.inicio != r.fin %}{{ r.inicio|time:"H:i" }}–{{ r.fin|time:"H:i" }}{% else %}{{ r.fin|time:"H:i" }}{% endif %}</td>
+      <td><a href="{% url 'registros:tracking_detail' r.order_id %}">{{ r.pedido }}</a>{% if r.op_cliente %}<br><small class="muted">{{ r.op_cliente }}</small>{% endif %}</td>
+      <td class="wrap">{{ r.proceso }}{% if r.linea %}<br><small class="muted">{{ r.linea }}</small>{% endif %}</td>
+      <td class="mono">{{ r.ean|default:"—" }}{% if r.ean_desc %}<br><small class="muted">{{ r.ean_desc|truncatechars:28 }}</small>{% endif %}</td>
+      <td>{{ r.operario }}{% if r.cedula %}<br><small class="muted">{{ r.cedula }}</small>{% endif %}</td>
+      <td>{{ r.coordinador|default:"—" }}</td><td>{{ r.supernumerario|default:"—" }}</td>
+      <td class="num"><b>{{ r.unidades|floatformat:"-2g" }}</b>{% if r.total_envio != r.unidades %}<br><small class="muted">de {{ r.total_envio|floatformat:"-2g" }}</small>{% endif %}</td>
+      <td class="num">{{ r.sobrantes|floatformat:"-2g" }}</td><td class="num">{{ r.merma|floatformat:"-2g" }}</td>
+      <td class="num">{% if r.horas is not None %}{{ r.horas }}{% else %}—{% endif %}</td>
+      <td class="num">{% if r.eficiencia is not None %}<span class="pill {% if r.eficiencia >= 100 %}ok{% elif r.eficiencia >= 80 %}info{% else %}warn{% endif %}">{{ r.eficiencia }} %</span>{% else %}—{% endif %}</td>
+      <td class="wrap"><small>{{ r.observacion }}{% if r.ultima_accion %}{% if r.observacion %}<br>{% endif %}<span class="{% if r.estado == 'Anulado' %}bad{% else %}muted{% endif %}">{{ r.ultima_accion }}</span>{% endif %}</small></td>
+      <td class="act">{% ifchanged r.id r.estado %}<div class="rg-act">
+        {% if r.estado == "Anulado" %}
+          {% if can_fix %}<details><summary class="sbtn sm">Reactivar</summary><form method="post" action="{% url 'registros:reactivate' r.voided_pk %}" class="rg-pop">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <small>Vuelve a las sumas si todavía cabe en lo que falta de la operación y de la referencia.</small><input name="reason" required maxlength="255" placeholder="Motivo de la reactivación"><button class="btn sm">Reactivar</button></form></details>{% endif %}
+          {% if can_purge %}<form method="post" action="{% url 'registros:purge' r.voided_pk %}" onsubmit="return confirm('¿Eliminar definitivamente el reporte anulado #{{ r.id }}? No se puede deshacer.')">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="sbtn sm danger">Eliminar</button></form>{% endif %}
+        {% elif can_fix %}
+          <a class="sbtn sm" href="{% url 'registros:edit' r.id %}?next={{ request.get_full_path|urlencode }}">Editar</a>
+          <details><summary class="sbtn sm danger">Anular</summary><form method="post" action="{% url 'registros:void' r.id %}" class="rg-pop">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <small>Reporte #{{ r.id }} · {{ r.total_envio|floatformat:"-2g" }} unidades. Sale de las sumas; queda en «Anulados».</small><input name="reason" required maxlength="255" placeholder="Motivo de la anulación"><button class="btn sm danger">Anular</button></form></details>
+        {% endif %}</div>{% endifchanged %}</td>
+    </tr>
+  {% empty %}<tr class="empty-row"><td colspan="15">No hay registros con esos filtros.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div></div>
+<script>
+  // Solo un formulario abierto a la vez
+  document.addEventListener("toggle", (e) => {
+    if (e.target.tagName === "DETAILS" && e.target.open) document.querySelectorAll(".rg-act details[open]").forEach((d) => { if (d !== e.target) d.open = false; });
+  }, true);
+</script>
+{% endblock %}

@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% load static mes_assets %}
+{% block title %}Planear {{ order.number }}{% endblock %}
+{% block crumbs %}<a href="{% url 'mes_core:planning_list' %}">Planeación</a><span class="sep">/</span><b>{{ order.number }}</b>{% endblock %}
+{% block body_class %}scheduler-page{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/scheduler.css' %}"><link rel="stylesheet" href="{% asset 'mes_core/planning.css' %}">{% endblock %}
+{% block content %}
+{% csrf_token %}
+<div class="pl-head pl-head-row">
+  <div>
+    <div class="sch-eyebrow"><a href="{% url 'mes_core:planning_list' %}">Planeación</a> · {{ order.number }} · <span class="badge {{ order.status }}">{{ order.get_status_display }}</span></div>
+    <h1 class="sch-title">{{ order.product.name }} · {{ order.quantity|floatformat:"-2" }} {{ order.product.unit }}</h1>
+    <p class="pl-lead">{{ order.process_label }}{% if order.customer %} · <span class="tdot t-{{ order.customer.tier }}"></span> {{ order.customer.name }}{% endif %}{% if order.reference %} · {{ order.reference }}{% endif %}</p>
+  </div>
+  <div class="pl-head-actions">
+    <a class="sbtn" href="{{ order.get_absolute_url }}">Abrir orden</a>
+  </div>
+</div>
+
+<div class="pl-facts">
+  {% if order.purchase_order %}<div><span>OC</span><b>{{ order.purchase_order }}</b></div>{% endif %}
+  {% if order.external_op %}<div><span>Número de OP</span><b>{{ order.external_op }}</b></div>{% endif %}
+  {% if order.shipment %}<div><span>Embarque</span><b>{{ order.shipment }}</b></div>{% endif %}
+  <div><span>Recibido</span><b>{{ order.received_on|date:"D d/m/Y"|default:"—" }}</b></div>
+  <div><span>Entrega en cliente</span><b>{{ order.delivery_date|date:"D d/m/Y"|default:"—" }}</b></div>
+  <div><span>Tránsito</span><b>{{ order.transit_days }} día{{ order.transit_days|pluralize }}</b></div>
+  <div><span>Despacho</span><b>{{ order.dispatch_date|date:"D d/m/Y"|default:"—" }}</b></div>
+  <div><span>Listo antes de (compromiso)</span><b>{{ order.due_date|date:"D d/m H:i"|default:"—" }}</b></div>
+  <div><span>Turnos de la planta</span><b>{% for s in shifts %}{{ s.name }} {{ s.start_time|time:"H:i" }}–{{ s.end_time|time:"H:i" }}{% if s.operators %} ({{ s.operators }} op.){% endif %}{% if not forloop.last %} · {% endif %}{% empty %}24 h <a href="{% url 'mes_core:shift_settings' %}?site={{ order.site_id }}">configurar</a>{% endfor %}</b></div>
+</div>
+{% if order.description %}<p class="pl-note">Descripción: {{ order.description|linebreaksbr }}</p>{% endif %}
+{% if order.notes %}<p class="pl-note">Observaciones de ventas: {{ order.notes }}</p>{% endif %}
+
+<div class="pl-locked" id="locked" hidden>
+  <span id="locked-ro">{% if order.status == "cancelada" %}Esta orden está <b>cancelada</b>: puedes cambiar <b>todo</b>.{% else %}Esta orden ya empezó a producirse o está terminada: puedes cambiar <b>todo</b> (etapas, unidades,
+    líneas, tiempos) y volver a programarla.{% endif %}</span>
+  <span id="locked-replan" hidden><span>Esta orden ya empezó: puedes cambiar <b>todo</b>, o volver a programar <b>solo lo
+    pendiente</b> conservando lo terminado y lo que está en proceso.</span></span>
+  <span class="segmented" role="group" aria-label="Qué re-planear">
+    <button type="button" id="reopen-toggle">Editar todo</button>
+    <button type="button" id="replan-toggle" hidden>Re-planear lo pendiente</button>
+  </span>
+  <span id="reopen-note" class="pl-help" style="display:block;width:100%" hidden></span>
+  <a class="sbtn sm" href="{% url 'mes_core:order_edit' order.pk %}">Editar datos del pedido</a>
+</div>
+
+<div class="pl-layout">
+  <div>
+    <section class="pl-approach pl-card" id="approach">
+      <h2>¿Cómo quieres planear?</h2>
+      <div class="pl-choices">
+        <label class="pl-choice"><input type="radio" name="approach" value="tiempo">
+          <span class="pl-choice-t">Calcular operarios</span>
+          <span class="pl-choice-d">Yo pongo el plazo (1 turno, N días o el compromiso) → el sistema dice cuántas personas necesito.</span></label>
+        <label class="pl-choice"><input type="radio" name="approach" value="operarios">
+          <span class="pl-choice-t">Calcular tiempo</span>
+          <span class="pl-choice-d">Yo pongo cuántos operarios tengo → el sistema dice cuánto tarda y a qué hora termina.</span></label>
+      </div>
+      <div class="pl-allcrew" id="allcrew" hidden>
+        <label for="all-crew">Operarios para todas las etapas</label>
+        <input type="number" id="all-crew" min="1" step="1" placeholder="p. ej. 10">
+        <button type="button" class="sbtn sm" id="all-free" disabled>Usar libres</button>
+      </div>
+      <p class="pl-help" id="approach-mixed" hidden>Hay etapas con enfoques distintos. Elige una opción para aplicarla a todas, o cambia cada etapa abajo.</p>
+    </section>
+    <div class="pl-stages" id="stages"></div>
+    <button class="sbtn" type="button" id="add-stage">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg> Agregar etapa</button>
+  </div>
+
+  <aside class="pl-summary pl-card" id="summary">
+    <h2>Resumen</h2>
+    <label class="pl-field"><span class="pl-lbl">Iniciar producción desde</span><input type="datetime-local" id="start"></label>
+    <dl class="pl-sum">
+      <dt>Horas hábiles hasta el compromiso</dt><dd id="s-avail">—</dd>
+      <dt>Horas-hombre totales</dt><dd id="s-hh">—</dd>
+      <dt>Máximo de operarios a la vez</dt><dd id="s-crew">—</dd>
+      <dt>Inicio</dt><dd id="s-start">—</dd>
+      <dt>Fin estimado</dt><dd id="s-end">—</dd>
+      <dt>Compromiso</dt><dd id="s-due">—</dd>
+    </dl>
+    <div class="pl-verdict" id="s-verdict"></div>
+
+    <div class="pl-takt" id="takt">
+      <h3>Takt time</h3>
+      <p class="pl-help" id="tk-none" hidden></p>
+      <div id="tk-body">
+        <div class="pl-takt-big"><div><span>Takt</span><b id="tk-takt">—</b><small id="tk-takt-s"></small></div>
+          <div><span>Ciclo del proceso</span><b id="tk-ct">—</b><small id="tk-ct-s"></small></div></div>
+        <div class="pl-takt-verdict" id="tk-verdict"></div>
+        <dl class="pl-sum">
+          <dt>Demanda</dt><dd id="tk-demand">—</dd>
+          <dt>Tiempo disponible</dt><dd id="tk-avail">—</dd>
+          <dt>Tiempo estándar de 1 pieza</dt><dd id="tk-std">—</dd>
+          <dt>Tiempo real de 1 pieza</dt><dd id="tk-real">—</dd>
+          <dt>Piezas por hora necesarias</dt><dd id="tk-pph">—</dd>
+          <dt>Operarios mínimos (balanceado)</dt><dd id="tk-ops">—</dd>
+        </dl>
+        <h4>Ciclo por etapa frente al takt</h4>
+        <ul class="pl-takt-bars" id="tk-bars"></ul>
+        <p class="pl-note">Takt = minutos hábiles hasta el compromiso ÷ unidades. Ciclo de una etapa = minutos reales por unidad
+          (estándar ÷ rendimiento) ÷ operarios: cada cuánto sale una pieza. Si una etapa supera el takt, es el cuello de botella.
+          <span id="tk-setup"></span></p>
+      </div>
+    </div>
+
+    <div class="pl-otbox" id="otbox">
+      <h3>Horas extra</h3>
+      <p class="pl-help" id="ot-total">Este plan no usa horas extra.</p>
+      <button class="sbtn block" type="button" id="ot-suggest">Sugerir horas extra para cumplir</button>
+      <div id="ot-options"></div>
+      <p class="pl-note">Las horas extra se guardan en el <a href="{% url 'mes_core:work_calendar' %}?site={{ order.site_id }}">Calendario laboral</a>
+        solo para la línea de la etapa, al «Guardar y programar». Rendimiento por defecto y de horas extra:
+        <a href="{{ config.rules_url }}">Reglas de planeación</a>.</p>
+    </div>
+
+    <div class="pl-ops" id="ops" hidden>
+      <h3>Operarios</h3>
+      <div class="pl-ops-big"><b id="o-free">—</b><span>libres al iniciar <small id="o-at"></small></span></div>
+      <dl class="pl-sum">
+        <dt>Disponibles en ese turno</dt><dd id="o-avail">—</dd>
+        <dt>Ocupados por otras órdenes</dt><dd id="o-used">—</dd>
+        <dt>Esta planeación usa a la vez</dt><dd id="o-max">—</dd>
+      </dl>
+      <h4>Se liberan</h4>
+      <ul class="pl-rel" id="o-rel"></ul>
+    </div>
+    <p class="pl-note" id="ops-none" hidden>Sin límite de operarios. Configura el total de la planta en
+      <a href="{{ config.shifts_url }}">Turnos</a> para que se descuenten al programar.</p>
+    <label class="pl-check"><input type="checkbox" id="respect" checked>
+      <span>Esperar a que haya operarios libres <small>(si no alcanzan, la etapa arranca cuando se liberen)</small></span></label>
+
+    <div class="pl-error" id="errors" hidden></div>
+    <button class="sbtn accent block" type="button" id="save">Guardar y programar</button>
+    <p class="pl-note">Al guardar se crean las operaciones (una por lote) en las líneas elegidas y aparecen en el programador. Reemplaza la planeación anterior de esta orden.</p>
+  </aside>
+</div>
+
+{{ config|json_script:"plan-config" }}
+<script src="{% asset 'mes_core/planning.js' %}"></script>
+{% endblock %}

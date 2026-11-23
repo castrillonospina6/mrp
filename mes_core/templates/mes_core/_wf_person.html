@@ -1,0 +1,7 @@
+<li class="wf-p">
+  {% if can_move %}<input type="checkbox" name="emp" value="{{ r.e.pk }}" form="move-form" aria-label="Seleccionar {{ r.e.display_name }}">{% endif %}
+  <span class="n">{{ r.e.display_name }}{% if r.e.position %} <small class="muted">{{ r.e.position }}</small>{% endif %}</span>
+  {% if r.loc.source == "cuadrilla" %}<span class="src cu" title="En cuadrilla: {{ r.loc.detail }}{% if r.loc.until %} hasta {{ r.loc.until|date:'d/m H:i' }}{% endif %}">{{ r.line.code|default:"cuadrilla" }}</span>
+  {% elif r.loc.source == "traslado" %}<span class="src tr" title="Trasladado{% if r.loc.until %} hasta {{ r.loc.until|date:'d/m H:i' }}{% else %} hasta nuevo aviso{% endif %}{% if r.loc.detail %} · {{ r.loc.detail }}{% endif %}">{% if r.line %}{{ r.line.code }} · {% endif %}{% if r.loc.until %}→{{ r.loc.until|date:'H:i' }}{% else %}traslado{% endif %}</span>
+  {% elif r.loc.source == "habitual" %}<span class="src hb" title="Bodega habitual">habitual</span>{% endif %}
+</li>

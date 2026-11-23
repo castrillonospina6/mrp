@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% load static mes_assets %}
+{% block title %}Programador{% endblock %}
+{% block crumbs %}<span>Planeación</span><span class="sep">/</span><b>Programador</b>{% endblock %}
+{% block body_class %}scheduler-page{% endblock %}
+{% block main_class %}wide{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/scheduler.css' %}">{% endblock %}
+{% block content %}
+{% csrf_token %}
+<div class="sch" id="sch"
+     data-api="{% url 'mes_core:api_board' %}"
+     data-place="{% url 'mes_core:api_place' %}"
+     data-resize="{% url 'mes_core:api_resize' %}"
+     data-edit="{% url 'mes_core:api_edit' %}"
+     data-unschedule="{% url 'mes_core:api_unschedule' %}"
+     data-auto="{% url 'mes_core:api_auto' %}"
+     data-downtime="{% url 'mes_core:api_downtime_create' %}"
+     data-downtime-delete="{% url 'mes_core:api_downtime_delete' 0 %}"
+     data-import="{% url 'mes_core:api_import' %}"
+     data-split="{% url 'mes_core:api_split' %}"
+     data-merge="{% url 'mes_core:api_merge' %}"
+     data-stage-link="{% url 'mes_core:api_stage_link' %}"
+     data-can-plan="{{ can_plan|yesno:'1,0' }}">
+
+  <div class="sch-head">
+    <div>
+      <h1 class="sch-title">Programador de producción</h1>
+      <div class="sch-eyebrow" id="eyebrow">Cargando…</div>
+    </div>
+    <div class="sch-live-pill" id="running-pill"><span class="dot"></span><span id="running-text">Sin producción en curso</span></div>
+  </div>
+
+  <div class="sch-alert" id="alert" hidden>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+    <div id="alert-text"></div>
+  </div>
+
+  <div class="sch-toolbar">
+    <div class="sch-range">
+      <button class="sbtn icon" id="prev" title="Anterior" aria-label="Anterior"><svg class="ico sm"><use href="#i-left"/></svg></button>
+      <span class="lbl" id="range"></span>
+      <button class="sbtn icon" id="next" title="Siguiente" aria-label="Siguiente"><svg class="ico sm"><use href="#i-right"/></svg></button>
+    </div>
+    <button class="sbtn" id="today">Hoy</button>
+    <div class="seg" id="views">
+      <button data-view="semana">Semanal</button>
+      <button data-view="dia">Diaria</button>
+      <button data-view="mes">Mensual</button>
+    </div>
+    <select class="sselect" id="site" title="Planta"></select>
+    <select class="sselect" id="line" title="Líneas"></select>
+  </div>
+
+  <div class="sch-legend">
+    <span><i style="background:var(--s-running)"></i>En proceso</span>
+    <span><i style="background:var(--s-released)"></i>Liberada</span>
+    <span><i style="background:var(--s-planned)"></i>Planificada</span>
+    <span><i style="background:var(--s-blocked)"></i>Conflicto</span>
+    <span><i style="background:var(--pill-border)"></i>Mantenimiento</span>
+    <button class="live on" id="live" title="Actualizar automáticamente cada 30 s"><i></i>En vivo</button>
+    <span class="spacer"></span>
+    {% if can_plan %}
+    <button class="sbtn" id="auto" title="Programa automáticamente el backlog respetando lo que ya está en el tablero">
+      <svg class="ico sm"><use href="#i-trend"/></svg> Plan automático</button>
+    <button class="sbtn" id="maint"><svg class="ico sm"><use href="#i-wrench"/></svg> Mantenimiento</button>
+    {% else %}
+    <span class="sch-ro" title="Solo el equipo de planeación puede mover, editar o desprogramar"><svg class="ico sm"><use href="#i-lock"/></svg> Solo consulta</span>
+    {% endif %}
+  </div>
+
+  <section class="sch-backlog">
+    <div class="sch-bl-head">
+      <div class="seg" id="tabs">
+        <button data-tab="backlog" class="on">Backlog · <span id="bl-count">0</span></button>
+        <button data-tab="changes">Cambios</button>
+      </div>
+      <div class="right">
+        {% if can_import %}
+        <a class="sbtn dark" id="new-order" href="#"><svg class="ico sm"><use href="#i-plus"/></svg> Nueva orden</a>
+        <button class="sbtn" id="import"><svg class="ico sm"><use href="#i-upload"/></svg> Importar CSV</button>
+        <input type="file" id="import-file" accept=".csv,text/csv" hidden>
+        {% endif %}
+      </div>
+    </div>
+    <div class="sch-filters" id="filters">
+      <label class="sch-search"><svg class="ico sm"><use href="#i-search"/></svg>
+        <input id="q" placeholder="Buscar en backlog" autocomplete="off"></label>
+      <button class="chip on" data-prio="all">Todas</button>
+      <button class="chip" data-prio="1">Urgente</button>
+      <button class="chip" data-prio="2">Alta</button>
+      <button class="chip" data-prio="3">Media</button>
+      <button class="chip" data-prio="4">Baja</button>
+      <span class="chip-sep"></span>
+      <button class="chip round on" data-tier="all">Todos los niveles</button>
+      <button class="chip round tier-bronce" data-tier="bronce">Bronce</button>
+      <button class="chip round tier-plata" data-tier="plata">Plata</button>
+      <button class="chip round tier-oro" data-tier="oro">Oro</button>
+      <button class="chip round tier-vip" data-tier="vip">VIP</button>
+    </div>
+    <div class="sch-bl-body" id="bl-body"><div class="sch-loading">Cargando…</div></div>
+  </section>
+
+  <div class="sch-board-wrap" id="board-wrap"><div class="sch-loading">Cargando tablero…</div></div>
+  <div class="sch-hint">
+    {% if can_plan %}
+    Arrastra un bloque para moverlo (entre turnos, días o líneas compatibles) · arrastra su borde derecho para estirarlo ·
+    clic en una celda vacía para asignar desde el backlog · × o soltar en el backlog lo devuelve · clic en un bloque para ver el detalle ·
+    {% else %}
+    Modo consulta: clic en un bloque o en una tarjeta del backlog para ver su detalle. Solo planeación puede programar, mover o editar ·
+    {% endif %}
+    borde rojo = conflicto (solape de capacidad, secuencia o mantenimiento)
+  </div>
+</div>
+
+<dialog class="sdlg" id="dlg"><header><span id="dlg-title"></span><button class="close" data-close>×</button></header>
+  <div class="body" id="dlg-body"></div><div class="foot" id="dlg-foot"></div></dialog>
+<dialog class="sdlg edlg" id="edit-dlg" aria-labelledby="ed-title">
+  <form method="dialog" id="ed-form" novalidate>
+    <div class="ed-head" tabindex="-1" autofocus>
+      <div class="ed-id"><span class="no" id="ed-no"></span><span class="ed-badge" id="ed-badge"></span></div>
+      <button type="button" class="close" data-ed-close aria-label="Cerrar">×</button>
+    </div>
+    <h2 class="ed-title" id="ed-title"></h2>
+    <div class="ed-sub" id="ed-sub"></div>
+    <div class="ed-conf" id="ed-conf" hidden></div>
+
+    <div class="ed-field">
+      <span class="ed-lbl">Inicio planificado</span>
+      <div class="ed-dt"><input type="date" id="ed-sd" required><input type="time" id="ed-st" required><span class="ed-av" id="ed-av-s"></span></div>
+      <span class="ed-hint" id="ed-tz"></span>
+    </div>
+    <div class="ed-field">
+      <span class="ed-lbl">Fin planificado</span>
+      <div class="ed-dt"><input type="date" id="ed-ed" required><input type="time" id="ed-et" required><span class="ed-av" id="ed-av-e"></span></div>
+      <span class="ed-hint" id="ed-dur"></span>
+    </div>
+
+    <div class="ed-grid">
+      <div class="ed-field">
+        <span class="ed-lbl">Línea de producción</span>
+        <select id="ed-line"></select>
+      </div>
+      <div class="ed-field">
+        <span class="ed-lbl">Ruta de la orden</span>
+        <div class="ed-route" id="ed-route"></div>
+      </div>
+      <div class="ed-field">
+        <span class="ed-lbl ed-lbl-row">Fecha compromiso <span class="ed-av" id="ed-av-due"></span></span>
+        <input type="date" id="ed-due">
+        <span class="ed-hint" id="ed-slack"></span>
+      </div>
+      <div class="ed-field">
+        <span class="ed-lbl">Prioridad</span>
+        <select id="ed-prio">
+          <option value="1">1 · Urgente</option><option value="2">2 · Alta</option><option value="3">3 · Media</option>
+          <option value="4">4 · Baja</option><option value="5">5 · Muy baja</option>
+        </select>
+      </div>
+      <div class="ed-field">
+        <span class="ed-lbl">Turno de inicio</span>
+        <select id="ed-sshift"></select>
+      </div>
+      <div class="ed-field">
+        <span class="ed-lbl">Turno final</span>
+        <select id="ed-eshift"></select>
+      </div>
+    </div>
+
+    <div class="ed-err" id="ed-err" hidden></div>
+    <div class="ed-ro" id="ed-ro" hidden><svg class="ico sm"><use href="#i-lock"/></svg> Solo consulta: los cambios de fechas, línea,
+      prioridad y compromiso los hace el equipo de planeación.</div>
+    <div class="ed-more">
+      <button type="button" class="sbtn sm" id="ed-split" hidden><svg class="ico sm"><use href="#i-split"/></svg> Dividir entre líneas</button>
+      <button type="button" class="sbtn sm" id="ed-merge" hidden>Unir partes</button>
+      <button type="button" class="sbtn sm" id="ed-link" hidden>Relación con la etapa anterior</button>
+    </div>
+    <div class="ed-actions">
+      <a class="sbtn dark" id="ed-open" target="_self">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3"/></svg>
+        Abrir orden</a>
+      <button type="submit" class="sbtn accent" id="ed-save">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+        <span>Guardar</span></button>
+      <button type="button" class="sbtn soft-danger" id="ed-unsched">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4M10 13l4 4M14 13l-4 4"/></svg>
+        Desprogramar</button>
+    </div>
+  </form>
+</dialog>
+<div class="stoast" id="toast"></div>
+<style>
+  .sch-ro { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 999px; font-size: 12.5px;
+    font-weight: 600; color: var(--muted); background: var(--surface-3); }
+  .ed-ro { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; padding: 9px 12px; border-radius: var(--radius); font-size: 13px;
+    color: var(--text-2); background: var(--surface-3); }
+  .sch.readonly .blk, .sch.readonly .bl-card { cursor: pointer; }
+  .sch.readonly .sch-cell { cursor: default; }
+</style>
+
+<script src="{% asset 'mes_core/scheduler.js' %}"></script>
+{% endblock %}

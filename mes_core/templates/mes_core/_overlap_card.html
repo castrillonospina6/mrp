@@ -1,0 +1,20 @@
+{# Tarjeta de un turno de traslape. Variable: r = {key, name, start, end, ops, breakfast, lunch, delete} #}
+<div class="ov-card {% if r.delete %}removed{% endif %}" data-key="{{ r.key }}">
+  <input type="hidden" name="ov_key" value="{{ r.key }}">
+  <input type="hidden" name="ov_{{ r.key }}_del" value="{% if r.delete %}1{% endif %}" class="ov-del-flag">
+  <div class="ov-head">
+    <label>Nombre<input name="ov_{{ r.key }}_name" value="{{ r.name }}" maxlength="40" placeholder="Traslape"></label>
+    <label>Desde<input type="time" name="ov_{{ r.key }}_start" value="{{ r.start }}" class="ov-start"></label>
+    <label>Hasta<input type="time" name="ov_{{ r.key }}_end" value="{{ r.end }}" class="ov-end"></label>
+    <label>Operarios<input type="number" min="0" name="ov_{{ r.key }}_ops" value="{{ r.ops }}" placeholder="total" class="pl-mini" title="Vacío = total de la planta"></label>
+    <span class="ov-removed-note muted">Se retirará al guardar.</span>
+    <button type="button" class="sbtn sm soft-danger ov-remove">{% if r.delete %}Deshacer{% else %}Quitar{% endif %}</button>
+  </div>
+  <div class="ov-info muted"></div>
+  <div class="brk-pair">
+    <div><b class="brk-title">Desayuno</b>
+      {% include "mes_core/_break_list.html" with prefix="ov_"|add:r.key|add:"_breakfast" rows=r.breakfast label="desayuno" empty="Sin desayuno (no desayunan en este turno)." %}</div>
+    <div><b class="brk-title">Almuerzo</b>
+      {% include "mes_core/_break_list.html" with prefix="ov_"|add:r.key|add:"_lunch" rows=r.lunch label="almuerzo" empty="Sin almuerzo." %}</div>
+  </div>
+</div>

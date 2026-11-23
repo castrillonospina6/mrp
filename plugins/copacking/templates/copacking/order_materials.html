@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Insumos {{ order.number }}{% endblock %}
+{% block crumbs %}<a href="{{ order.get_absolute_url }}">{{ order.number }}</a><span class="sep">/</span><b>Insumos</b>{% endblock %}
+{% block content %}
+<div class="actions">
+  <h1 style="margin:0; flex:1">Insumos requeridos · {{ order.number }}</h1>
+  <a class="btn secondary" href="{{ order.get_absolute_url }}">Volver a la orden</a>
+</div>
+<p>{{ order.product }} × <b>{{ order.quantity|floatformat:"-2" }}</b> {{ order.product.unit }}</p>
+{% if requirements %}
+<div class="table-wrap"><table>
+  <thead><tr><th>Tipo</th><th>Insumo</th><th>Cantidad (incluye desperdicio)</th></tr></thead>
+  <tbody>{% for r in requirements %}
+    <tr><td>{{ r.kind }}</td><td>{{ r.material }}</td><td class="num">{{ r.quantity|floatformat:0 }} {{ r.material.unit }}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% else %}
+<div class="panel muted">El producto no tiene ficha de acondicionado. <a href="{% url 'admin:copacking_packagingspec_add' %}">Crear ficha</a>.</div>
+{% endif %}
+{% endblock %}

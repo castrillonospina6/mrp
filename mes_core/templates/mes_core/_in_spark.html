@@ -1,0 +1,10 @@
+{% load l10n %}<figure class="in-spark">
+  <figcaption>{{ title }}</figcaption>
+  {% localize off %}<svg viewBox="0 0 {{ sp.w }} {{ sp.h }}" preserveAspectRatio="none" role="img" aria-label="{{ title }}{% for p in sp.points %} · {{ p.label }}: {% if p.v is None %}sin datos{% else %}{{ p.v }} %{% endif %}{% endfor %}">
+    <line class="g100" x1="0" x2="{{ sp.w }}" y1="{{ sp.y100 }}" y2="{{ sp.y100 }}"></line>
+    <line class="g85" x1="0" x2="{{ sp.w }}" y1="{{ sp.y85 }}" y2="{{ sp.y85 }}"></line>
+    {% for d in sp.paths %}<polyline points="{{ d }}"></polyline>{% endfor %}
+    {% for p in sp.points %}{% if p.y is not None %}<g class="pt"><line class="hit" x1="{{ p.x }}" x2="{{ p.x }}" y1="{{ p.y }}" y2="{{ p.y }}"></line><line class="dot" x1="{{ p.x }}" x2="{{ p.x }}" y1="{{ p.y }}" y2="{{ p.y }}"></line><title>{{ p.label }}: {{ p.v }} %</title></g>{% endif %}{% endfor %}
+  </svg>{% endlocalize %}
+  <div class="in-spark-x"><span>{{ sp.points.0.label }}</span><span class="muted">línea punteada: 85 % (clase mundial)</span><span>{% if sp.last %}{{ sp.last.v }} %{% endif %}</span></div>
+</figure>

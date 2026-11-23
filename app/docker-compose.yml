@@ -1,0 +1,15 @@
+name: sammu-os
+services:
+  sammu:
+    build: .
+    image: sammu-os:latest
+    container_name: sammu-os
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      ACCESS_KEY: ${ACCESS_KEY:-}
+    volumes:
+      - sammu-data:/data          # aquí vive la base de datos (persistente)
+volumes:
+  sammu-data:

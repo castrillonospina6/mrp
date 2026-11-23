@@ -1,0 +1,15 @@
+{
+  "name": "procesos-app",
+  "main": "worker.js",
+  "compatibility_date": "2026-01-01",
+    "assets": {
+    "directory": "./",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "BACKEND",
+      "service": "registro-produccion-api"
+    }
+  ]
+}

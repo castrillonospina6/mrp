@@ -1,0 +1,16 @@
+{% extends "admin/change_list.html" %}
+
+{% block object-tools-items %}
+  {% if has_add_permission %}
+  <li><a href="{% url 'admin:mes_core_employee_import' %}">Cargar desde Excel</a></li>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}
+
+{% block result_list %}
+  {% if cl.formset %}
+  <p class="help" style="margin:0 0 10px">Cambia <b>turno</b>, <b>supervisor</b> o <b>activo</b> directo en la lista y pulsa «Guardar» abajo.
+    Para muchos a la vez: marca las casillas y usa las acciones «Asignar supervisor / turno / competencia».</p>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}

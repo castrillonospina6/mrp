@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Tablets y QR{% endblock %}
+{% block crumbs %}<a href="{% url 'piso:live' %}">Piso en vivo</a> / <b>Tablets y QR</b>{% endblock %}
+{% block extra_head %}
+<style>
+  .qr-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  .qr-card { display: grid; gap: 10px; padding: 16px 18px; }
+  .qr-two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; text-align: center; }
+  .qr-two > div { border: 1px dashed var(--border-strong); border-radius: 12px; padding: 10px; display: grid; gap: 6px; justify-items: center; }
+  .qr-two svg { width: 100%; max-width: 160px; height: auto; background: #fff; border-radius: 8px; }
+  .code { font: 700 18px/1.2 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .12em; }
+  .qr-steps { margin: 0; padding-left: 18px; color: var(--text-2); }
+  .qr-steps li { margin: 4px 0; }
+  .qr-steps a { overflow-wrap: anywhere; }
+  .qr-intro { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; align-items: center; }
+  .qr-base { display: grid; gap: 6px; justify-items: center; text-align: center; }
+  .qr-base > div { width: 150px; background: #fff; border-radius: 10px; padding: 6px; border: 1px solid var(--border); }
+  .qr-base svg, .qr-two svg { display: block; width: 100%; height: auto; }
+  .qr-warn { display: block; margin-top: 6px; font-size: 13px; }
+  @media (max-width: 640px) {
+    .qr-intro { grid-template-columns: minmax(0, 1fr); }
+    .qr-base { order: -1; }
+    .qr-two { gap: 8px; }
+    .qr-two > div { padding: 8px 6px; }
+    .qr-two .code { font-size: 15px; letter-spacing: .06em; overflow-wrap: anywhere; }
+  }
+  @media (max-width: 340px) { .qr-two { grid-template-columns: 1fr; } }
+  @media print {
+    .sidebar, .topbar, .page-head .tools, .no-print, .messages { display: none !important; }
+    .main-col { margin: 0 !important; } .content { padding: 0 !important; }
+    .qr-card { break-inside: avoid; } .card { box-shadow: none; }
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Control de piso · configuración</div>
+    <h1>Tablets y QR</h1>
+    <p>La app de piso arranca junto con el MES: no hay que instalar nada en las tablets, solo abrir la dirección en el navegador
+      (misma red Wi-Fi). Los operarios entran con su documento y PIN; la tablet fija de cada línea se vincula con su código.</p>
+  </div>
+  <div class="tools"><button class="btn" type="button" onclick="window.print()">Imprimir códigos</button></div>
+</div>
+<div class="card no-print" style="margin-bottom:16px">
+  <div class="card-b qr-intro">
+    <div style="min-width:0">
+      <ol class="qr-steps">
+        <li><b>Dirección para las tablets:</b> <a href="{{ base }}" target="_blank" rel="noopener">{{ base }}</a>{% if "127.0.0.1" in base or "localhost" in base %} <span class="callout warn qr-warn">Abre esta página desde la IP del servidor (p. ej. http://192.168.1.20:8508) para que la dirección sirva en las tablets. Arranca el MES con iniciar.bat.</span>{% endif %}</li>
+        <li><b>PIN de los operarios:</b> {{ n_access }} de {{ n_employees }} operarios activos tienen acceso{% if n_movers %} ({{ n_movers }} patinadores){% endif %}.
+          En <a href="{% url 'admin:mes_core_employee_changelist' %}">Administración › Operarios</a> selecciónalos y usa la acción
+          «Tablet de piso: dar acceso y generar PIN»: se descarga un Excel con el PIN de cada uno para entregárselo.</li>
+        <li><b>Tareas:</b> el operario ve en su tablet las operaciones a las que el supervisor lo asignó en «Mi turno» (pedidos liberados a planta).</li>
+        <li><b>Pausas:</b> imprime el QR de pausas de cada línea y pégalo en la línea. Al terminar el desayuno o almuerzo el operario lo escanea (lector de QR o escribiendo el código) para retomar.</li>
+      </ol>
+    </div>
+    {% if base_qr %}<div class="qr-base"><div>{{ base_qr|safe }}</div><small class="muted">Abrir en la tablet</small></div>{% endif %}
+  </div>
+</div>
+<div class="qr-grid">
+  {% for r in rows %}
+  <div class="card qr-card">
+    <div><b style="font-size:16px">{{ r.wc.code }} · {{ r.wc.name }}</b><br><small class="muted">{{ r.wc.site.name }}</small></div>
+    <div class="qr-two">
+      <div>{% if r.pair_qr %}{{ r.pair_qr|safe }}{% endif %}<small class="muted">Tablet de la línea</small><span class="code">{{ r.lc.pair_code }}</span></div>
+      <div>{% if r.pause_qr %}{{ r.pause_qr|safe }}{% endif %}<small class="muted">QR de pausas</small><span class="code" style="font-size:13px">{{ r.lc.pause_code }}</span></div>
+    </div>
+    <div class="no-print" style="display:flex;gap:8px;flex-wrap:wrap">
+      <form method="post" onsubmit="return confirm('¿Generar un código nuevo de tablet? La tablet vinculada hoy quedará desvinculada.')">{% csrf_token %}<input type="hidden" name="id" value="{{ r.lc.pk }}"><input type="hidden" name="a" value="tablet"><button class="sbtn sm">Nuevo código de tablet</button></form>
+      <form method="post" onsubmit="return confirm('¿Generar un QR de pausas nuevo? El QR impreso dejará de funcionar.')">{% csrf_token %}<input type="hidden" name="id" value="{{ r.lc.pk }}"><input type="hidden" name="a" value="pausa"><button class="sbtn sm">Nuevo QR de pausas</button></form>
+    </div>
+  </div>
+  {% empty %}
+  <div class="card"><div class="card-b muted">No hay líneas activas. Créalas en Administración › Centros de trabajo.</div></div>
+  {% endfor %}
+</div>
+{% if not base_qr %}<p class="muted no-print">Para ver los códigos QR instala la librería <code>segno</code> (pip install segno). Mientras tanto se muestran los códigos en texto.</p>{% endif %}
+{% endblock %}

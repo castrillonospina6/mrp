@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Exportar a Excel{% endblock %}
+{% block crumbs %}<span>Informes</span><span class="sep">/</span><b>Exportar a Excel</b>{% endblock %}
+{% block extra_head %}
+<style>
+  .ex-f { display: grid; gap: 16px; max-width: 760px; }
+  .ex-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+  .ex-row label { display: grid; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--text-2); }
+  .ex-row input[type=date] { height: 38px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+  .ex-pre { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ex-sheets { display: grid; gap: 8px; }
+  .ex-sheets label { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); cursor: pointer; }
+  .ex-sheets small { display: block; color: var(--muted); margin-top: 2px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles"><div class="eyebrow">Informes</div><h1>Exportar a Excel</h1>
+  <p>Descarga la información de la base de datos con las mismas hojas y columnas del libro «Control de la produccion», para seguir sacando los indicadores igual. Elige de qué fecha a qué fecha.</p></div></div>
+
+<form method="get" class="card"><div class="card-b ex-f">
+  <input type="hidden" name="descargar" value="1">
+  <div class="ex-row">
+    <label>Desde<input type="date" name="desde" id="ex-a" value="{{ d_from|date:'Y-m-d' }}" required></label>
+    <label>Hasta<input type="date" name="hasta" id="ex-b" value="{{ d_to|date:'Y-m-d' }}" required></label>
+  </div>
+  <div class="ex-pre">{% for name, a, b in presets %}<button type="button" class="sbtn sm" data-a="{{ a|date:'Y-m-d' }}" data-b="{{ b|date:'Y-m-d' }}">{{ name }}</button>{% endfor %}</div>
+  <div class="ex-sheets">
+    {% for key, name in sheets.items %}<label><input type="checkbox" name="hoja" value="{{ key }}" checked>
+      <span><b>{{ name }}</b>
+        <small>{% if key == "registros" %}Una fila por persona y por reporte del rango: pedido, EAN, proceso, horas, unidades, eficiencia…{% elif key == "seguimiento" %}Cada pedido con actividad o creado en el rango: procesadas, pendientes, Cumple / No cumple, justificación.{% elif key == "eanes" %}Las referencias de esos pedidos: meta, procesado, sobrantes, justificado y estado (última etapa).{% else %}Por operario y día: horas registradas frente a las de su turno.{% endif %}</small>
+        <small>Columnas: {% if key == "registros" %}{{ cols.registros|join:", "|truncatechars:160 }}{% elif key == "seguimiento" %}{{ cols.seguimiento|join:", "|truncatechars:160 }}{% elif key == "eanes" %}{{ cols.eanes|join:", "|truncatechars:160 }}{% else %}{{ cols.horas|join:", "|truncatechars:160 }}{% endif %}</small></span></label>{% endfor %}
+    <label><input type="checkbox" name="anulados" value="1"><span><b>Incluir los reportes anulados</b><small>Salen en «Registros» con Estado = Anulado (no suman en las otras hojas).</small></span></label>
+  </div>
+  <div><button class="btn">Descargar Excel</button></div>
+</div></form>
+<script>
+  document.querySelectorAll(".ex-pre [data-a]").forEach((b) => b.addEventListener("click", () => {
+    document.getElementById("ex-a").value = b.dataset.a; document.getElementById("ex-b").value = b.dataset.b;
+  }));
+</script>
+{% endblock %}

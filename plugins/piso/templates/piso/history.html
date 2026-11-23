@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Histórico de piso{% endblock %}
+{% block crumbs %}<a href="{% url 'piso:live' %}">Piso en vivo</a> / <b>Histórico</b>{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Control de piso</div>
+    <h1>Histórico de piso</h1>
+    <p>Lo marcado en las tablets entre dos fechas. Eficiencia = minutos estándar producidos ÷ minutos disponibles (de la
+      primera a la última marcación de cada día, sin paros). Puntos = minutos estándar × {{ points_rule|floatformat:"-2" }}.</p>
+  </div>
+  <form method="get" class="tools">
+    <input type="date" name="desde" value="{{ d_from|date:'Y-m-d' }}" aria-label="Desde">
+    <input type="date" name="hasta" value="{{ d_to|date:'Y-m-d' }}" aria-label="Hasta">
+    <select name="linea" aria-label="Línea"><option value="">Todas las líneas</option>
+      {% for wc in lines %}<option value="{{ wc.pk }}" {% if line and line.pk == wc.pk %}selected{% endif %}>{{ wc.code }} · {{ wc.name }}</option>{% endfor %}</select>
+    <button class="btn" type="submit">Ver</button>
+  </form>
+</div>
+<div class="grid" style="margin-bottom:16px">
+  <div class="kpi"><div class="k-h">Unidades buenas</div><div class="k-v">{{ h.total.good|floatformat:"-2g" }}</div></div>
+  <div class="kpi"><div class="k-h">Eficiencia</div><div class="k-v">{% if h.total.eff is not None %}{{ h.total.eff|floatformat:0 }}%{% else %}–{% endif %}</div></div>
+  <div class="kpi"><div class="k-h">Rechazos</div><div class="k-v">{{ h.total.scrap|floatformat:"-2g" }}</div></div>
+  <div class="kpi"><div class="k-h">Reprocesos</div><div class="k-v">{{ h.total.rework|floatformat:"-2g" }}</div></div>
+  <div class="kpi"><div class="k-h">Paros de operarios</div><div class="k-v">{{ h.total.stop_min|floatformat:0 }} <small>min</small></div></div>
+</div>
+<div class="card" style="margin-bottom:16px">
+  <div class="card-h"><h2>Por operario</h2><span class="sub">{{ h.rows|length }} con marcaciones</span></div>
+  <div class="table-wrap flat"><table>
+    <thead><tr><th>Operario</th><th class="num">Días</th><th class="num">Buenas</th><th class="num">Rechazos</th><th class="num">Reprocesos</th><th class="num">Paro (min)</th><th class="num">Min estándar</th><th class="num">Eficiencia</th><th class="num">Puntos</th></tr></thead>
+    <tbody>
+    {% for r in h.rows %}<tr><td>{{ r.name }}</td><td class="num">{{ r.days }}</td><td class="num">{{ r.good|floatformat:"-2g" }}</td><td class="num">{{ r.scrap|floatformat:"-2g" }}</td>
+      <td class="num">{{ r.rework|floatformat:"-2g" }}</td><td class="num">{{ r.stop_min|floatformat:0 }}</td><td class="num">{{ r.std|floatformat:0 }}</td>
+      <td class="num">{% if r.eff is not None %}<span class="pill {% if r.eff >= 85 %}ok{% elif r.eff < 70 %}bad{% else %}warn{% endif %}">{{ r.eff|floatformat:0 }}%</span>{% else %}–{% endif %}</td>
+      <td class="num">{{ r.points|floatformat:"0g" }}</td></tr>
+    {% empty %}<tr class="empty-row"><td colspan="9">Sin marcaciones en este periodo.</td></tr>{% endfor %}
+    </tbody></table></div>
+</div>
+<div class="pv-cols" style="display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));align-items:start">
+  <div class="card">
+    <div class="card-h"><h2>Por día</h2></div>
+    <div class="table-wrap flat"><table>
+      <thead><tr><th>Día</th><th class="num">Buenas</th><th class="num">Rechazos</th><th class="num">Reprocesos</th><th class="num">Eficiencia</th></tr></thead>
+      <tbody>{% for d in h.days %}<tr><td>{{ d.day|date:"D d/m" }}</td><td class="num">{{ d.good|floatformat:"-2g" }}</td><td class="num">{{ d.scrap|floatformat:"-2g" }}</td><td class="num">{{ d.rework|floatformat:"-2g" }}</td>
+        <td class="num">{% if d.eff is not None %}{{ d.eff|floatformat:0 }}%{% else %}–{% endif %}</td></tr>
+      {% empty %}<tr class="empty-row"><td colspan="5">—</td></tr>{% endfor %}</tbody></table></div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h2>Paros y pausas</h2><span class="sub">Los 200 más recientes del periodo</span></div>
+    <div class="table-wrap flat"><table>
+      <thead><tr><th>Inicio</th><th>Quién</th><th>Motivo</th><th class="num">Min</th></tr></thead>
+      <tbody>{% for s in h.stops %}<tr><td>{{ s.start|date:"d/m H:i" }}</td><td>{% if s.employee %}{{ s.employee.display_name }}{% else %}Toda la línea{% endif %}</td>
+        <td>{{ s.cause }}{% if s.is_break %} <span class="pill info">Pausa</span>{% endif %}{% if not s.end %} <span class="pill bad">Abierto</span>{% endif %}</td><td class="num">{{ s.minutes|floatformat:0 }}</td></tr>
+      {% empty %}<tr class="empty-row"><td colspan="4">Sin paros en este periodo.</td></tr>{% endfor %}</tbody></table></div>
+  </div>
+</div>
+{% endblock %}

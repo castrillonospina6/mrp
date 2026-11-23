@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Rendimiento {{ order.number }}{% endblock %}
+{% block crumbs %}<a href="{{ order.get_absolute_url }}">{{ order.number }}</a><span class="sep">/</span><b>Rendimiento</b>{% endblock %}
+{% block content %}
+<div class="actions">
+  <h1 style="margin:0; flex:1">Rendimiento y lotes · {{ order.number }}</h1>
+  <a class="btn secondary" href="{{ order.get_absolute_url }}">Volver a la orden</a>
+</div>
+<p>{{ order.product }} · entrada real: <b>{{ input_kg|floatformat:"-2" }} kg</b>
+  <span class="muted">(planeado {{ order.quantity|floatformat:"-2" }} kg)</span></p>
+
+<h2>Rendimiento por corte</h2>
+{% if lines %}
+<div class="table-wrap"><table>
+  <thead><tr><th>Corte / subproducto</th><th>% estándar</th><th>Kg esperados</th><th>Kg reales</th><th>% real</th><th>Desviación</th></tr></thead>
+  <tbody>{% for l in lines %}
+    <tr>
+      <td>{{ l.product }}</td>
+      <td class="num">{{ l.expected_percent|floatformat:2 }}</td>
+      <td class="num">{{ l.expected_kg|floatformat:2 }}</td>
+      <td class="num">{{ l.actual_kg|floatformat:2 }}</td>
+      <td class="num">{{ l.actual_percent|floatformat:2|default:"—" }}</td>
+      <td class="num {% if l.out_of_tolerance %}late{% endif %}">{% if l.deviation is not None %}{{ l.deviation|floatformat:2 }} pts{% else %}—{% endif %}</td>
+    </tr>{% endfor %}
+    <tr><td><b>Total estándar</b></td><td class="num"><b>{{ total_expected|floatformat:2 }}</b></td><td colspan="4" class="muted">El resto corresponde a hueso, piel, merma de proceso, etc. si no está configurado como subproducto.</td></tr>
+  </tbody>
+</table></div>
+{% else %}
+<div class="panel muted">No hay rendimientos estándar para {{ order.product.sku }}. <a href="{% url 'admin:food_yieldstandard_add' %}">Configurarlos</a>.</div>
+{% endif %}
+
+<h2>Registrar lote</h2>
+<div class="panel">
+  <form class="inline" method="post">{% csrf_token %}
+    {% for field in form %}<p>{{ field.label_tag }} {{ field }} {{ field.errors }}</p>{% endfor %}
+    <p><button class="btn" type="submit">Registrar</button></p>
+  </form>
+  <p class="muted" style="margin:8px 0 0">Entrada = materia prima recibida (pollo con su lote de proveedor). Salida = cortes producidos. El código de lote se asigna solo.</p>
+</div>
+
+<h2>Lotes de la orden</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Código</th><th>Tipo</th><th>Producto</th><th>Kg</th><th>Lote proveedor</th><th>Temp.</th><th>Vence</th><th>Fecha</th></tr></thead>
+  <tbody>{% for lot in lots %}
+    <tr><td>{{ lot.code }}</td><td>{{ lot.get_direction_display }}</td><td>{{ lot.product }}</td><td class="num">{{ lot.quantity|floatformat:"-2" }}</td>
+      <td>{{ lot.supplier_lot|default:"—" }}</td><td>{{ lot.temperature_c|default:"—" }}</td><td>{{ lot.expires_on|date:"d/m/Y"|default:"—" }}</td><td>{{ lot.produced_at|date:"d/m H:i" }}</td></tr>
+  {% empty %}<tr><td colspan="8" class="muted">Sin lotes.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endblock %}

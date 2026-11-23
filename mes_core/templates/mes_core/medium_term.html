@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% load mes_assets mes_sites %}
+{% block title %}Mediano plazo{% endblock %}
+{% block crumbs %}<span>Decisiones</span><span class="sep">/</span><b>Mediano plazo y pronóstico</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/planner.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <h1>Mediano plazo y pronóstico</h1>
+    <p>Carga frente a capacidad por semana, con lo programado, el backlog sin programar (según su compromiso) y la demanda
+      pronosticada. Sirve para decidir con tiempo temporales, sábados o turnos adicionales.</p>
+  </div>
+  <form class="tools" method="get">
+    {% site_chips %}<input type="hidden" name="site" value="{{ site.pk }}">
+    <div class="segmented">
+      <a href="?site={{ site.pk }}&weeks=4&forecast={{ with_fc|yesno:'1,0' }}" class="{% if n_weeks == 4 %}on{% endif %}">4 semanas</a>
+      <a href="?site={{ site.pk }}&weeks=8&forecast={{ with_fc|yesno:'1,0' }}" class="{% if n_weeks == 8 %}on{% endif %}">8 semanas</a>
+    </div>
+    <div class="segmented">
+      <a href="?site={{ site.pk }}&weeks={{ n_weeks }}&forecast=1" class="{% if with_fc %}on{% endif %}">Con pronóstico</a>
+      <a href="?site={{ site.pk }}&weeks={{ n_weeks }}&forecast=0" class="{% if not with_fc %}on{% endif %}">Sin pronóstico</a>
+    </div>
+  </form>
+</div>
+
+<section class="card" style="margin-bottom:20px">
+  <div class="card-h"><h2>Para decidir</h2></div>
+  <ul class="mt-recs">{% for r in recommendations %}<li class="lv-{{ r.level }}">{{ r.text }}</li>{% endfor %}</ul>
+</section>
+
+<section class="card" style="margin-bottom:20px">
+  <div class="card-h"><h2>Personal (horas-hombre)</h2><span class="sub">Disponible = operarios × horas hábiles con festivos, horas extra, turnos adicionales y ausencias registradas</span></div>
+  <div class="table-wrap flat"><table class="mt-table">
+    <thead><tr><th>Semana</th>{% for w in weeks %}<th class="num">{{ w|date:"d/m" }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      <tr><th>Disponible</th>{% for c in people %}<td class="num">{{ c.cap|floatformat:"0g" }}{% if c.extra_days %}<small class="muted"> +{{ c.extra_days }}d</small>{% endif %}</td>{% endfor %}</tr>
+      <tr><th class="sub">Programado</th>{% for c in people %}<td class="num muted">{{ c.sched|floatformat:"0g" }}</td>{% endfor %}</tr>
+      <tr><th class="sub">Backlog sin programar</th>{% for c in people %}<td class="num muted">{{ c.backlog|floatformat:"0g" }}</td>{% endfor %}</tr>
+      {% if with_fc %}<tr><th class="sub">Pronóstico</th>{% for c in people %}<td class="num muted">{{ c.forecast|floatformat:"0g" }}</td>{% endfor %}</tr>{% endif %}
+      <tr><th>Requerido</th>{% for c in people %}<td class="num"><b>{{ c.req|floatformat:"0g" }}</b></td>{% endfor %}</tr>
+      <tr><th>Ocupación</th>{% for c in people %}<td class="num"><span class="heat lv-{{ c.level }}">{% if c.occ_pct is None %}—{% else %}{{ c.occ_pct }}%{% endif %}</span></td>{% endfor %}</tr>
+      <tr><th>Balance</th>{% for c in people %}<td class="num {% if c.balance < 0 %}late{% endif %}">{% if c.balance >= 0 %}+{% endif %}{{ c.balance|floatformat:"0g" }}</td>{% endfor %}</tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="card" style="margin-bottom:20px">
+  <div class="card-h"><h2>Líneas por tipo (horas-estación)</h2><span class="sub">Ocupación de las líneas: requerido ÷ disponible según su calendario</span></div>
+  <div class="table-wrap flat"><table class="mt-table">
+    <thead><tr><th>Tipo de línea</th>{% for w in weeks %}<th class="num">{{ w|date:"d/m" }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for row in line_rows %}
+      <tr><th>{{ row.kind }}<div class="muted small">{{ row.lines|length }} línea{{ row.lines|length|pluralize }}</div></th>
+        {% for c in row.cells %}<td class="num"><span class="heat lv-{{ c.level }}" title="{{ c.req|floatformat:1 }} h de {{ c.cap|floatformat:1 }} h · programado {{ c.sched|floatformat:1 }} · backlog {{ c.backlog|floatformat:1 }} · pronóstico {{ c.forecast|floatformat:1 }}">
+          {% if c.occ_pct is None %}—{% else %}{{ c.occ_pct }}%{% endif %}</span><div class="muted small">{{ c.req|floatformat:"0g" }}/{{ c.cap|floatformat:"0g" }}</div></td>{% endfor %}</tr>
+    {% empty %}<tr class="empty-row"><td colspan="9">Sin líneas activas.</td></tr>{% endfor %}</tbody>
+  </table></div>
+  <div class="cap-legend mt-legend"><span class="lv-ok">&lt; 85 %</span><span class="lv-tight">85–100 %</span><span class="lv-over">&gt; 100 %</span></div>
+</section>
+
+<section class="card">
+  <div class="card-h"><h2>Pronóstico de demanda</h2><span class="sub">Por tipo de proceso, con el histórico de pedidos de esta planta</span></div>
+  {% if forecast.rows %}
+  <div class="table-wrap flat"><table class="mt-table">
+    <thead><tr><th>Proceso</th><th>Método</th><th>Últimas 12 semanas</th>{% for w in weeks %}<th class="num">{{ w|date:"d/m" }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for r in forecast.rows %}
+      <tr><th>{{ r.label }}<div class="muted small">{% for n, pct in r.top_customers %}{{ n }} {{ pct }}%{% if not forloop.last %} · {% endif %}{% endfor %}</div></th>
+        <td class="small">{{ r.method }}{% if r.seasonal %}<div class="muted">tendencia {% if r.trend >= 0 %}+{% endif %}{{ r.trend }}%</div>{% endif %}</td>
+        <td><span class="spark">{% for v in r.history %}<i style="height:{% widthratio v r.avg8|add:1 40 %}%" title="{{ v|floatformat:0 }}"></i>{% endfor %}</span></td>
+        {% for q in r.qty %}<td class="num">{{ q|floatformat:"0g" }}</td>{% endfor %}</tr>
+      <tr class="sub-row"><th class="sub">Horas-hombre</th><td></td><td></td>{% for h in r.hours %}<td class="num muted">{{ h|floatformat:"0g" }}</td>{% endfor %}</tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}
+  <div class="card-b"><div class="callout">Todavía no hay historial suficiente (se necesitan al menos 4 semanas de pedidos por tipo de proceso).
+    A medida que se registren pedidos, el pronóstico aparece solo.</div></div>
+  {% endif %}
+</section>
+{% endblock %}

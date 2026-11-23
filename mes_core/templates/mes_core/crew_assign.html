@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% load mes_assets staff_tags %}
+{% block title %}Cuadrilla {{ op.order.number }}{% endblock %}
+{% block crumbs %}<span>Personal</span><span class="sep">/</span><a href="{{ back }}">Mi turno</a><span class="sep">/</span><b>Cuadrilla {{ op.order.number }} · {{ op.name }}</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/staff.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Armar cuadrilla · {{ op.order.number }}{% if op.supervisor %} · responsable {{ op.supervisor|uname }}{% endif %}</div>
+    <h1>{{ op.name }}</h1>
+    <p>Planeación pide <b>{{ op.crew }} operario{{ op.crew|pluralize }}</b>. Escoge a las personas: arriba quedan las disponibles con mejor
+      nivel en la competencia elegida. No puedes asignar a quien esté ausente o ya esté en otra operación a la misma hora.</p>
+  </div>
+  <div class="tools"><a class="sbtn" href="{{ back }}"><svg class="ico sm"><use href="#i-left"/></svg> Volver</a></div>
+</div>
+
+<div class="card" style="margin-bottom:18px">
+  <div class="cw-head">
+    <div><div class="l">Pedido</div><div class="v">{{ op.order.number }}{% if op.order.customer %} · {{ op.order.customer.name }}{% endif %}</div></div>
+    <div><div class="l">Producto</div><div class="v">{{ op.order.product.sku }} · {{ op.qty|floatformat:"-2" }} {{ op.order.product.unit }}</div></div>
+    <div><div class="l">Línea</div><div class="v">{{ op.work_center|default:"Sin línea" }}</div></div>
+    <div><div class="l">Programada</div><div class="v">{% if op.planned_start %}{{ op.planned_start|date:"D d/m H:i" }} – {{ op.planned_end|date:"D d/m H:i" }}{% else %}Sin programar{% endif %}</div></div>
+    <div><div class="l">Turno / día de asistencia</div><div class="v">{% if shift %}{{ shift.name }} · {% endif %}{{ day|date:"d/m/Y"|default:"—" }}</div></div>
+    <div class="cw-counter"><span class="big"><span id="cw-n">{{ n_assigned }}</span>/{{ op.crew }}</span>
+      <span style="display:flex;flex-direction:column;gap:4px"><span class="bar {{ n_assigned|crew_state:op.crew }}" id="cw-bar"><i style="width:{{ n_assigned|crew_pct:op.crew }}%"></i></span>
+        <span class="st-sub" id="cw-msg"></span></span></div>
+  </div>
+</div>
+
+<div class="card">
+  <form method="get" class="st-toolbar">
+    <label class="chk-inline">Ordenar por competencia
+      <select name="skill" onchange="this.form.submit()">
+        <option value="">{% if auto_skill %}Automática ({{ auto_skill.name }}){% else %}Automática (sin coincidencia){% endif %}</option>
+        <option value="none" {% if skill_param == 'none' %}selected{% endif %}>Ninguna</option>
+        {% for s in skills %}<option value="{{ s.pk }}" {% if skill_param == s.pk|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+      </select></label>
+    <input type="search" id="cw-q" placeholder="Buscar por nombre o documento…" aria-label="Buscar">
+    <label class="chk-inline"><input type="checkbox" id="cw-avail" checked> Solo disponibles</label>
+    <label class="chk-inline"><input type="checkbox" id="cw-mine"> Solo mi equipo</label>
+    <span class="grow"></span>
+    <span class="st-sub">{{ n_available }} disponibles{% if n_unconfirmed %} · {{ n_unconfirmed }} sin confirmar asistencia{% endif %}</span>
+  </form>
+  <form method="post" id="cw-form" data-crew="{{ op.crew }}">{% csrf_token %}
+    <div class="table-wrap flat"><table class="cw-table">
+      <thead><tr><th class="ck"></th><th>Operario</th><th>Asistencia</th><th>{% if skill %}Nivel en {{ skill.name }}{% else %}Nivel{% endif %}</th>
+        <th class="sk">Otras competencias</th><th class="tn">Turno · equipo</th><th>Estado</th></tr></thead>
+      <tbody>
+      {% for c in candidates %}{% with e=c.employee %}
+        <tr class="{% if c.assigned %}sel{% endif %} {% if not c.available %}blocked{% endif %}"
+            data-avail="{{ c.available|yesno:'1,0' }}" data-working="{% if c.working %}1{% elif c.working is None %}?{% else %}0{% endif %}"
+            data-mine="{{ c.mine|yesno:'1,0' }}" data-text="{{ e.full_name }} {{ e.document }}">
+          <td class="ck"><input type="checkbox" name="emp" value="{{ e.pk }}" {% if c.assigned %}checked{% endif %}
+              {% if not c.available and not c.assigned %}disabled{% endif %} aria-label="Asignar a {{ e.display_name }}"></td>
+          <td><span class="st-name">{{ e.display_name }}</span><span class="st-doc">{{ e.document }}{% if e.position %} · {{ e.position }}{% endif %}</span></td>
+          <td>{% if c.attendance %}<span class="pill {% if c.attendance.is_working %}ok{% elif c.attendance.status == 'ausente' %}bad{% else %}info{% endif %}">{{ c.attendance.get_status_display }}</span>
+            {% else %}<span class="pill">Sin confirmar</span>{% endif %}</td>
+          <td>{% if c.level %}<span class="lv l{{ c.level }}">{{ c.level|lvl_label }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+          <td class="sk"><div class="st-chips">{% for lvl, name in c.skills|slice:":4" %}{% if not skill or name != skill.name %}<span class="lv l{{ lvl }}" title="{{ lvl|lvl_label }}">{{ name }} <i>{{ lvl|lvl_short }}</i></span>{% endif %}{% endfor %}</div></td>
+          <td class="tn">{{ e.shift.name|default:"—" }}<br><small class="muted">{% if e.crew_borrowed %}{% if e.supervisor_id == user.pk %}Conmigo{% else %}Con {{ e.supervisor|uname }}{% endif %} · cuadrilla {{ e.crew_operation.order.number }}{% elif c.mine %}Mi equipo{% elif e.supervisor %}{{ e.supervisor|uname }}{% else %}Sin supervisor · libre{% endif %}</small></td>
+          <td>{% if c.blocked_reason %}<span class="pill {% if c.busy %}warn{% else %}bad{% endif %}">{{ c.blocked_reason }}</span>{% elif c.assigned %}<span class="pill brand">Asignado</span>{% else %}<span class="pill ok">Disponible</span>{% endif %}</td>
+        </tr>
+      {% endwith %}{% empty %}
+        <tr><td colspan="7" class="st-empty">No hay operarios activos en {{ op.order.site.code }}. Cárgalos en <a href="{% url 'mes_core:employee_list' %}">Operarios</a>.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% for html in crew_panels %}{{ html|safe }}{% endfor %}
+    <div class="att-save">
+      <span class="st-sub">Sugerir escoge primero a los confirmados presentes con mejor nivel; si no alcanzan, completa con los sin confirmar.</span>
+      <button class="sbtn" type="button" id="cw-clear">Limpiar</button>
+      <button class="sbtn" type="button" id="cw-suggest"><svg class="ico sm"><use href="#i-target"/></svg> Sugerir {{ op.crew }}</button>
+      <button class="btn" type="submit">Guardar cuadrilla</button>
+    </div>
+  </form>
+</div>
+<script>
+(() => {
+  const form = document.getElementById("cw-form");
+  const crew = Number(form.dataset.crew);
+  const rows = [...form.querySelectorAll("tbody tr[data-avail]")];
+  const box = (r) => r.querySelector("input[type=checkbox]");
+  const nEl = document.getElementById("cw-n"), bar = document.getElementById("cw-bar"), msg = document.getElementById("cw-msg");
+  const q = document.getElementById("cw-q"), onlyAvail = document.getElementById("cw-avail"), onlyMine = document.getElementById("cw-mine");
+  function count() {
+    const n = rows.filter((r) => box(r).checked).length;
+    nEl.textContent = n;
+    bar.className = "bar " + (n >= crew ? "" : n ? "warn" : "bad");
+    bar.firstElementChild.style.width = Math.min(100, crew ? (n * 100) / crew : 100) + "%";
+    msg.textContent = n < crew ? `Faltan ${crew - n}` : n > crew ? `${n - crew} más de lo planeado` : "Cuadrilla completa";
+    rows.forEach((r) => r.classList.toggle("sel", box(r).checked));
+  }
+  function filter() {
+    const text = (q.value || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+    rows.forEach((r) => {
+      const hide = (text && !r.dataset.text.includes(text)) ||
+        (onlyAvail.checked && r.dataset.avail !== "1" && !box(r).checked) ||
+        (onlyMine.checked && r.dataset.mine !== "1" && !box(r).checked);
+      r.hidden = hide;
+    });
+  }
+  form.addEventListener("change", count);
+  [q, onlyAvail, onlyMine].forEach((el) => el.addEventListener("input", filter));
+  document.getElementById("cw-clear").addEventListener("click", () => { rows.forEach((r) => { box(r).checked = false; }); count(); filter(); });
+  document.getElementById("cw-suggest").addEventListener("click", () => {
+    let n = rows.filter((r) => box(r).checked).length;
+    for (const pass of ["1", "?"]) {
+      for (const r of rows) {
+        if (n >= crew) break;
+        if (r.dataset.avail === "1" && r.dataset.working === pass && !box(r).checked && !box(r).disabled &&
+            (!onlyMine.checked || r.dataset.mine === "1")) { box(r).checked = true; n++; }
+      }
+    }
+    count(); filter();
+    if (n < crew) msg.textContent = `Solo hay ${n} disponibles; faltan ${crew - n}`;
+  });
+  count(); filter();
+})();
+</script>
+{% endblock %}

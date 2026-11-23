@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Módulos instalados{% endblock %}
+{% block crumbs %}<span>Configuración</span><span class="sep">/</span><b>Módulos instalados</b>{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <h1>Módulos instalados</h1>
+    <p>Cada módulo aporta tipos de proceso, pantallas y datos propios. Para mostrar u ocultar sus tipos en «Nuevo pedido»
+      usa <a href="{% url 'mes_core:service_type_list' %}">Configuración → Tipos de servicio</a>. Para quitar un módulo
+      completo (con sus pantallas) se usa la variable <code>MES_DISABLED_PLUGINS</code> en el archivo <code>.env</code>.</p>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:20px">
+  <div class="table-wrap flat">
+  <table>
+    <thead><tr><th>Módulo</th><th>Versión</th><th>Descripción</th><th>Requiere</th></tr></thead>
+    <tbody>
+    {% for p in plugins %}
+      <tr><td><b>{{ p.verbose_name }}</b> <span class="muted">{{ p.label }}</span></td><td>{{ p.plugin_version }}</td>
+        <td style="white-space:normal">{{ p.plugin_description }}</td><td>{{ p.requires|join:", "|default:"—" }}</td></tr>
+    {% empty %}<tr class="empty-row"><td colspan="4">No hay módulos cargados.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<h2 class="section-title">Tipos de proceso disponibles</h2>
+{% for pt in process_types %}
+<div class="card" style="margin-bottom:14px">
+  <div class="card-h"><h2>{{ pt.label }}</h2><span class="sub">clave <code>{{ pt.key }}</code> · módulo {{ pt.plugin }}</span></div>
+  {% if pt.description %}<p class="muted" style="margin:12px 18px 0">{{ pt.description }}</p>{% endif %}
+  <div class="table-wrap flat"><table>
+    <thead><tr><th>#</th><th>Operación</th><th>Tipo de línea</th><th class="num">Alistamiento (min)</th><th class="num">Min / unidad</th></tr></thead>
+    <tbody>{% for op in pt.operations %}<tr><td>{{ forloop.counter }}</td><td>{{ op.name }}</td><td><code>{{ op.work_center_kind }}</code></td>
+      <td class="num">{{ op.setup_minutes }}</td><td class="num">{{ op.minutes_per_unit }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+{% endfor %}
+{% endblock %}

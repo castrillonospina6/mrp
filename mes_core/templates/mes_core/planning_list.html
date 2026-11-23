@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load static mes_assets %}
+{% block title %}Planeación{% endblock %}
+{% block crumbs %}<span>Planeación</span><span class="sep">/</span><b>Pedidos por planear</b>{% endblock %}
+{% block body_class %}scheduler-page{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/scheduler.css' %}"><link rel="stylesheet" href="{% asset 'mes_core/planning.css' %}">{% endblock %}
+{% block content %}
+<div class="pl-head pl-head-row">
+  <div>
+    <div class="sch-eyebrow">Planeación · {{ n_pending }} pedido{{ n_pending|pluralize }} por planear</div>
+    <h1 class="sch-title">Planeación de etapas</h1>
+    <p class="pl-lead">Elige un pedido, define sus etapas y el sistema calcula horas-hombre, operarios y duración.</p>
+  </div>
+  <div class="pl-head-actions">
+    <a class="sbtn" href="{% url 'mes_core:shift_settings' %}">Configurar turnos</a>
+    <a class="sbtn" href="{% url 'mes_core:scheduler' %}">Programador</a>
+  </div>
+</div>
+
+<div class="pl-toolbar">
+  <div class="seg">
+    <a class="segl {% if tab == 'pendientes' %}on{% endif %}" href="?tab=pendientes">Por planear · {{ n_pending }}</a>
+    <a class="segl {% if tab != 'pendientes' %}on{% endif %}" href="?tab=planeadas">Planeadas · {{ n_planned }}</a>
+  </div>
+  <form method="get" class="sch-search"><input type="hidden" name="tab" value="{{ tab }}">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input name="q" value="{{ q }}" placeholder="Pedido, cliente, producto, OC, OP, embarque…"></form>
+</div>
+
+<div class="table-wrap pl-card flush"><table class="pl-table">
+  <thead><tr><th>Pedido</th><th>Cliente</th><th>Producto</th><th class="num">Unidades</th><th>Servicio</th>
+    <th>Recibido</th><th>Entrega</th><th class="num">Tránsito</th><th>Listo antes de</th><th class="num">Etapas</th><th>Estado</th><th></th></tr></thead>
+  <tbody>
+  {% for o in orders %}
+    <tr>
+      <td><b class="mono">{{ o.number }}</b>{% if o.purchase_order or o.external_op or o.reference %}<br><small class="muted">{% if o.purchase_order %}OC {{ o.purchase_order }}{% endif %}{% if o.external_op %}{% if o.purchase_order %} · {% endif %}OP {{ o.external_op }}{% endif %}{% if o.reference and not o.purchase_order and not o.external_op %}{{ o.reference }}{% endif %}</small>{% endif %}</td>
+      <td>{% if o.customer %}<span class="tdot t-{{ o.customer.tier }}"></span> {{ o.customer.name }}{% else %}—{% endif %}</td>
+      <td>{{ o.product.sku }}<br><small class="muted">{{ o.product.name|truncatechars:28 }}</small></td>
+      <td class="num">{{ o.quantity|floatformat:"-2" }} {{ o.product.unit }}</td>
+      <td>{{ o.process_label }}</td>
+      <td>{{ o.received_on|date:"d/m/Y"|default:"—" }}</td>
+      <td>{{ o.delivery_date|date:"d/m/Y"|default:"—" }}</td>
+      <td class="num">{{ o.transit_days }} d</td>
+      <td>{% if o.due_date %}{% with days=o.due_date|timeuntil %}<span class="{% if o.due_date < now %}late{% endif %}">{{ o.due_date|date:"D d/m H:i" }}</span><br><small class="muted">en {{ days }}</small>{% endwith %}{% else %}—{% endif %}</td>
+      <td class="num">{{ o.n_stages|default:"—" }}</td>
+      <td><span class="badge {{ o.status }}">{{ o.get_status_display }}</span></td>
+      <td><a class="sbtn {% if o.status == 'por_planear' %}accent{% endif %} sm" href="{% url 'mes_core:planning_detail' o.pk %}">{% if o.status == 'por_planear' %}Planear{% else %}Ver / ajustar{% endif %}</a></td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="12" class="muted pl-empty">{% if tab == 'pendientes' %}No hay pedidos esperando planeación.{% else %}No hay órdenes planeadas abiertas.{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% endblock %}

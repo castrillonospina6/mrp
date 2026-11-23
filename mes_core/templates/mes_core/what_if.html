@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% load mes_assets mes_sites %}
+{% block title %}Simulación{% endblock %}
+{% block crumbs %}<span>Decisiones</span><span class="sep">/</span><b>Simulación «¿qué pasa si…?»</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/planner.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <h1>Simulación «¿qué pasa si…?»</h1>
+    <p>Arma hasta 3 escenarios y compáralos contra el plan actual antes de decidir. Nada se guarda hasta que pulses «Aplicar».</p>
+  </div>
+  <div class="tools">
+    {% site_chips %}
+    <form method="post">{% csrf_token %}<input type="hidden" name="site" value="{{ site.pk }}"><input type="hidden" name="action" value="reset">
+      <button class="btn ghost" type="submit">Empezar de cero</button></form>
+    <form method="post">{% csrf_token %}<input type="hidden" name="site" value="{{ site.pk }}"><input type="hidden" name="action" value="run">
+      <button class="btn" type="submit" {% if not has_changes %}disabled title="Agrega al menos un cambio"{% endif %}><svg class="ico sm"><use href="#i-trend"/></svg> Comparar escenarios</button></form>
+  </div>
+</div>
+
+<div class="wi-scenarios">
+  {% for sc in scenarios %}
+  <section class="card wi-sc" id="esc-{{ forloop.counter0 }}">
+    <div class="card-h">
+      <span class="wi-tag">{{ forloop.counter }}</span>
+      <form method="post" class="wi-name">{% csrf_token %}<input type="hidden" name="site" value="{{ site.pk }}">
+        <input type="hidden" name="action" value="rename"><input type="hidden" name="scenario" value="{{ forloop.counter0 }}">
+        <input name="name" value="{{ sc.name }}" maxlength="60" aria-label="Nombre del escenario" onchange="this.form.requestSubmit()"></form>
+      <div class="tools">
+        {% if scenarios|length > 1 %}<form method="post">{% csrf_token %}<input type="hidden" name="site" value="{{ site.pk }}">
+          <input type="hidden" name="action" value="remove_scenario"><input type="hidden" name="scenario" value="{{ forloop.counter0 }}">
+          <button class="btn ghost sm" type="submit">Quitar</button></form>{% endif %}
+      </div>
+    </div>
+    <div class="card-b">
+      {% if sc.outcome %}
+        <div class="wi-out {% if sc.outcome.error %}bad{% endif %}">
+          {% if sc.outcome.error %}{{ sc.outcome.error }}{% else %}
+          <div><span>Pedidos atrasados</span><b class="{% if sc.outcome.late > result.base.late %}neg{% elif sc.outcome.late < result.base.late %}pos{% endif %}">{{ sc.outcome.late }}</b>
+            <small>base {{ result.base.late }}</small></div>
+          <div><span>Termina el último</span><b>{{ sc.outcome.end|date:"D d/m H:i"|default:"—" }}</b><small>base {{ result.base.end|date:"D d/m H:i"|default:"—" }}</small></div>
+          <div><span>Cambios de producto</span><b>{{ sc.outcome.changeover|floatformat:0 }} min</b><small>base {{ result.base.changeover|floatformat:0 }}</small></div>
+          {% endif %}
+        </div>
+      {% endif %}
+      <ol class="wi-changes">
+        {% for ch in sc.changes %}
+          <li><span>{{ ch.label }}</span>
+            <form method="post">{% csrf_token %}<input type="hidden" name="site" value="{{ site.pk }}"><input type="hidden" name="action" value="remove_change">
+              <input type="hidden" name="scenario" value="{{ forloop.parentloop.counter0 }}"><input type="hidden" name="change" value="{{ forloop.counter0 }}">
+              <button type="submit" class="icon-btn" aria-label="Quitar cambio">×</button></form></li>
+        {% empty %}<li class="muted wi-empty">Sin cambios todavía. Agrega lo que quieres probar.</li>{% endfor %}
+      </ol>
+      <details class="wi-add" {% if not sc.changes %}open{% endif %}>
+        <summary>Agregar cambio</summary>
+        <form method="post" class="wi-form">{% csrf_token %}
+          <input type="hidden" name="site" value="{{ site.pk }}"><input type="hidden" name="action" value="add_change">
+          <input type="hidden" name="scenario" value="{{ forloop.counter0 }}">
+          <label class="full">¿Qué cambia?<select name="kind" class="wi-kind">
+            {% for k, label in kinds %}<option value="{{ k }}">{{ label }}</option>{% endfor %}</select></label>
+          <div data-k="pedido">
+            <label>Tipo de proceso<select name="process_type">{% for v, l in process_types %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
+            <label>Producto<input name="product" placeholder="Opcional"></label>
+            <label>Cantidad<input type="number" name="quantity" min="1" step="any" placeholder="1000"></label>
+            <label>Prioridad<select name="priority"><option value="1">1 · Urgente</option><option value="2">2 · Alta</option><option value="3" selected>3 · Media</option><option value="4">4 · Baja</option></select></label>
+            <label>Compromiso<input type="date" name="due"></label>
+          </div>
+          <div data-k="linea_parada" hidden>
+            <label>Línea<select name="line">{% for l in lines %}<option value="{{ l.pk }}">{{ l.code }} · {{ l.name }}</option>{% endfor %}</select></label>
+            <label>Desde<input type="datetime-local" name="start"></label>
+            <label>Hasta<input type="datetime-local" name="end"></label>
+            <label>Motivo<input name="reason" placeholder="Daño, falta de insumo…"></label>
+          </div>
+          <div data-k="horas_extra" hidden>
+            <label>Turno<select name="shift">{% for s in shifts %}<option value="{{ s.pk }}" data-end="{{ s.end_time|time:'H:i' }}">{{ s.name }} {{ s.start_time|time:"H:i" }}–{{ s.end_time|time:"H:i" }}</option>{% endfor %}</select></label>
+          </div>
+          <div data-k="horas_extra turno_adicional festivo" hidden>
+            <label>Fecha<input type="date" name="date"></label>
+          </div>
+          <div data-k="horas_extra turno_adicional" hidden>
+            <label>Desde<input type="time" name="start_time"></label>
+            <label>Hasta<input type="time" name="end_time"></label>
+            <label>Operarios<input type="number" name="operators" min="0" placeholder="0 = los del turno"></label>
+          </div>
+          <div data-k="turno_adicional" hidden><label>Nombre<input name="name" placeholder="Ej.: Sábado extra"></label></div>
+          <div data-k="prioridad" hidden>
+            <label>Pedido<select name="order">{% for o in orders %}<option value="{{ o.pk }}">{{ o.number }} · {{ o.product.name|truncatechars:24 }}</option>{% endfor %}</select></label>
+            <label>Nueva prioridad<select name="priority"><option value="">Sin cambio</option><option value="1">1 · Urgente</option><option value="2">2 · Alta</option><option value="3">3 · Media</option><option value="4">4 · Baja</option><option value="5">5 · Muy baja</option></select></label>
+            <label>Nuevo compromiso<input type="date" name="due"></label>
+          </div>
+          <button class="btn sm" type="submit">Agregar al escenario</button>
+        </form>
+      </details>
+      {% if sc.changes %}
+      <form method="post" class="wi-apply" onsubmit="return confirm('Se crearán los cambios de «{{ sc.name|escapejs }}» y se reprogramará todo lo que no esté congelado. ¿Continuar?')">{% csrf_token %}
+        <input type="hidden" name="site" value="{{ site.pk }}"><input type="hidden" name="action" value="apply"><input type="hidden" name="scenario" value="{{ forloop.counter0 }}">
+        <button class="sbtn" type="submit">Aplicar este escenario</button></form>
+      {% endif %}
+    </div>
+  </section>
+  {% endfor %}
+  {% if scenarios|length < 3 %}
+  <form method="post" class="wi-new">{% csrf_token %}<input type="hidden" name="site" value="{{ site.pk }}"><input type="hidden" name="action" value="add_scenario">
+    <button type="submit"><svg class="ico"><use href="#i-plus"/></svg><span>Agregar escenario</span><small>Para comparar alternativas lado a lado</small></button></form>
+  {% endif %}
+</div>
+
+{% if result %}
+<section class="card" style="margin-top:20px">
+  <div class="card-h"><h2>Resultado por pedido</h2>
+    <span class="sub">Fin estimado de cada pedido. «Base» = el plan actual reprogramado sin cambios.</span>
+    <label class="tools wi-toggle"><input type="checkbox" id="show-all"> Ver también los que no cambian</label></div>
+  <div class="table-wrap flat"><table class="wi-table">
+    <thead><tr><th>Pedido</th><th>Compromiso</th><th>Base</th>{% for sc in scenarios %}<th>{{ sc.name }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for r in result.rows %}
+      <tr class="{% if not r.changed %}same{% endif %}">
+        <td>{% if r.info %}<b>{{ r.info.number }}</b>{% if r.new %} <span class="pill brand">Nuevo</span>{% endif %}<div class="muted small">{{ r.info.product|truncatechars:28 }}{% if r.info.customer %} · {{ r.info.customer }}{% endif %}</div>{% endif %}</td>
+        <td>{{ r.info.due|date:"d/m H:i"|default:"—" }}</td>
+        <td>{% if r.base %}<span class="{% if r.base.late %}late{% endif %}">{{ r.base.end|date:"D d/m H:i"|default:"—" }}</span>{% else %}—{% endif %}</td>
+        {% for c in r.cells %}<td>{% if c.o %}<span class="{% if c.o.late %}late{% endif %}">{{ c.o.end|date:"D d/m H:i"|default:"—" }}</span>
+          {% if c.delta %}<span class="wi-delta {% if c.delta > 0 %}neg{% else %}pos{% endif %}">{% if c.delta > 0 %}+{% endif %}{{ c.delta|floatformat:1 }} h</span>{% endif %}
+          {% else %}—{% endif %}</td>{% endfor %}
+      </tr>
+    {% empty %}<tr class="empty-row"><td colspan="9">No hay pedidos abiertos.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endif %}
+<script>
+(() => {
+  document.querySelectorAll(".wi-form").forEach((f) => {
+    const sel = f.querySelector(".wi-kind");
+    const sync = () => f.querySelectorAll("[data-k]").forEach((d) => {
+      const on = d.dataset.k.split(" ").includes(sel.value);
+      d.hidden = !on;
+      d.querySelectorAll("input,select").forEach((i) => (i.disabled = !on));
+    });
+    sel.addEventListener("change", sync);
+    const shift = f.querySelector("select[name=shift]");
+    shift?.addEventListener("change", () => {
+      const end = shift.selectedOptions[0]?.dataset.end;
+      if (end) { f.start_time.value = end; const [h, m] = end.split(":").map(Number); f.end_time.value = `${String((h + 2) % 24).padStart(2, "0")}:${String(m).padStart(2, "0")}`; }
+    });
+    sync();
+  });
+  const all = document.getElementById("show-all");
+  const table = document.querySelector(".wi-table");
+  if (all && table) { const s = () => table.classList.toggle("show-all", all.checked); all.addEventListener("change", s); s(); }
+})();
+</script>
+{% endblock %}

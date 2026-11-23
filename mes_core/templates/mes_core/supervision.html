@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% load mes_assets staff_tags mes_sites %}
+{% block title %}Mi turno{% endblock %}
+{% block crumbs %}<span>Personal</span><span class="sep">/</span><b>Mi turno · {{ day|date:"D d/m/Y" }}</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/staff.css' %}">{% endblock %}
+{% block content %}
+{% if no_site %}<div class="callout">No hay plantas activas.</div>{% else %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Supervisión · {% if site %}{{ site.name }}{% else %}todas las bodegas{% endif %}{% if day == today %} · hoy{% endif %}</div>
+    <h1>Mi turno</h1>
+    <p>1) En la lista general (todo el personal, de todas las plantas) marca <b>presentes a los que tienes contigo</b>;
+      quedan a tu nombre. 2) Arma la cuadrilla de cada operación que te asignó planeación. Las ausencias se reflejan solas en
+      el tablero de capacidad. El turno de noche cuenta para el día en que termina.</p>
+  </div>
+  <div class="tools">
+    <form method="get" class="day-nav"><input type="hidden" name="site" value="{{ site_param }}"><input type="hidden" name="lista" value="{{ roster_f }}"><input type="hidden" name="ops" value="{{ ops_f }}">
+      <a class="sbtn icon" href="?site={{ site_param }}&lista={{ roster_f }}&ops={{ ops_f }}&day={{ prev|date:'Y-m-d' }}" aria-label="Día anterior"><svg class="ico sm"><use href="#i-left"/></svg></a>
+      <input type="date" name="day" value="{{ day|date:'Y-m-d' }}" onchange="this.form.submit()" aria-label="Día">
+      <a class="sbtn icon" href="?site={{ site_param }}&lista={{ roster_f }}&ops={{ ops_f }}&day={{ next|date:'Y-m-d' }}" aria-label="Día siguiente"><svg class="ico sm"><use href="#i-right"/></svg></a>
+      {% if day != today %}<a class="sbtn sm" href="?site={{ site_param }}&lista={{ roster_f }}&ops={{ ops_f }}">Hoy</a>{% endif %}
+    </form>
+  </div>
+</div>
+<div style="margin:-6px 0 14px">{% site_chips %}</div>
+
+<div class="kpis">
+  <div class="kpi"><div class="k-h">Presentes (todo el personal)<span class="k-ico"><svg class="ico"><use href="#i-check"/></svg></span></div>
+    <div class="k-v">{{ n_present }}<small> / {{ n_team }}</small></div><div class="k-s">{% if n_pending %}{{ n_pending }} sin confirmar{% else %}Asistencia completa{% endif %} · {{ n_mine }} contigo</div></div>
+  <div class="kpi"><div class="k-h">Ausentismo del día<span class="k-ico"><svg class="ico"><use href="#i-alert"/></svg></span></div>
+    <div class="k-v">{{ n_absent }}</div><div class="k-s">ausentes, permisos, incapacidades y vacaciones (general)</div></div>
+  <div class="kpi"><div class="k-h">Operaciones a cargo<span class="k-ico"><svg class="ico"><use href="#i-layers"/></svg></span></div>
+    <div class="k-v">{{ ops|length }}</div><div class="k-s">{{ required }} operarios requeridos</div></div>
+  <div class="kpi"><div class="k-h">Cuadrillas armadas<span class="k-ico"><svg class="ico"><use href="#i-users"/></svg></span></div>
+    <div class="k-v">{{ staffed }}<small> / {{ required }}</small></div>
+    <div class="k-s"><span class="bar {{ staffed|crew_state:required }}" style="width:120px;display:inline-block"><i style="width:{{ staffed|crew_pct:required }}%"></i></span></div></div>
+</div>
+
+<div class="sv-layout">
+  <div class="card">
+    <div class="card-h"><h2>Asistencia · lista general</h2><span class="sub">{{ day|date:"l d/m" }}</span>
+      <div class="tools"><div class="segmented" role="group" aria-label="Lista">
+        <a class="{% if roster_f == 'todos' %}on{% endif %}" href="?{{ base_qs }}&lista=todos">Todos</a>
+        <a class="{% if roster_f == 'mios' %}on{% endif %}" href="?{{ base_qs }}&lista=mios" title="Los que marcaste presentes contigo">Conmigo · {{ n_mine }}</a>
+        <a class="{% if roster_f == 'pendientes' %}on{% endif %}" href="?{{ base_qs }}&lista=pendientes">Sin confirmar · {{ n_pending }}</a>
+        {% if has_team %}<a class="{% if roster_f == 'equipo' %}on{% endif %}" href="?{{ base_qs }}&lista=equipo" title="Tu equipo habitual (asignado en Administración)">Mi equipo</a>{% endif %}
+      </div></div></div>
+    <form method="get" class="st-toolbar">
+      <input type="hidden" name="site" value="{{ site_param }}"><input type="hidden" name="day" value="{{ day|date:'Y-m-d' }}">
+      <input type="hidden" name="lista" value="{{ roster_f }}"><input type="hidden" name="ops" value="{{ ops_f }}">
+      <input name="q" value="{{ q }}" placeholder="Buscar por nombre, documento o cargo…" aria-label="Buscar operario" autofocus>
+      <select name="shift" onchange="this.form.submit()" aria-label="Turno habitual"><option value="">Todos los turnos</option>
+        {% for s, label in shifts %}<option value="{{ s.pk }}" {% if shift_f == s.pk|stringformat:'s' %}selected{% endif %}>{{ label }} {{ s.start_time|time:"H:i" }}–{{ s.end_time|time:"H:i" }}</option>{% endfor %}
+        <option value="none" {% if shift_f == 'none' %}selected{% endif %}>Sin turno</option></select>
+      <button class="sbtn" type="submit"><svg class="ico sm"><use href="#i-search"/></svg> Buscar</button>
+    </form>
+    {% if total_filtered > roster_max %}<div class="callout warn" style="margin:0 16px 10px">Se muestran {{ roster_max }} de {{ total_filtered }}: usa la búsqueda o el turno para encontrar a los tuyos.</div>{% endif %}
+    <form method="post" id="att-form">{% csrf_token %}
+      <input type="hidden" name="site" value="{{ site_param }}"><input type="hidden" name="day" value="{{ day|date:'Y-m-d' }}"><input type="hidden" name="qs" value="{{ qs }}">
+      <div class="table-wrap flat"><table class="att-table">
+        <thead><tr><th>Operario</th><th>Asistencia</th><th>Observación</th></tr></thead>
+        <tbody>
+        {% for r in roster %}{% with e=r.emp a=r.att %}
+          <tr class="att-row">
+            <td><input type="hidden" name="emp" value="{{ e.pk }}"><span class="st-name">{{ e.display_name }}</span>
+              <span class="st-doc">{{ e.document }}{% if e.position %} · {{ e.position|capfirst }}{% endif %}{% if e.shift %} · {{ e.shift.name }}{% endif %}{% if e.supervisor %} · {% if e.crew_borrowed %}con {{ e.supervisor|uname }} (cuadrilla){% else %}equipo de {{ e.supervisor|uname }}{% endif %}{% endif %}</span>
+              {% for op in r.ops %}<span class="pill info" style="margin-top:3px" title="{{ op.order.number }} {{ op.name }}">{{ op.work_center.code|default:op.order.number }} · {{ op.planned_start|date:"H:i" }}</span> {% endfor %}</td>
+            <td><div class="att-seg" role="radiogroup" aria-label="Asistencia de {{ e.display_name }}">
+              {% for v, label in statuses %}<label><input type="radio" name="st_{{ e.pk }}" value="{{ v }}" {% if a and a.status == v %}checked{% endif %}><span>{{ label }}</span></label>{% endfor %}
+            </div>{% if a %}<div class="att-who">{% if a.is_working %}{% if a.confirmed_by_id == user.pk %}<b>Contigo</b>{% else %}Con {{ a.confirmed_by|uname }}{% endif %}{% else %}Confirmó {{ a.confirmed_by|uname }}{% endif %} · {{ a.confirmed_at|date:"H:i" }}</div>{% endif %}</td>
+            <td><input class="att-notes" name="nt_{{ e.pk }}" value="{{ a.notes|default:'' }}" maxlength="255" placeholder="Opcional" aria-label="Observación"></td>
+          </tr>
+        {% endwith %}{% empty %}
+          <tr><td colspan="3" class="st-empty">{% if roster_f == 'mios' %}Aún no has marcado a nadie presente contigo este día. Búscalos en «Todos».{% elif roster_f == 'pendientes' %}Todo el personal tiene la asistencia confirmada.{% else %}No hay operarios activos con estos filtros.{% endif %}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table></div>
+      {% if roster %}
+      <div class="att-save">
+        <span class="st-sub" id="att-count"></span>
+        {% if bulk_present %}<button class="sbtn" type="button" id="all-present" title="Solo los que ves en la lista filtrada">Marcar presentes (contigo) a los sin confirmar de esta lista</button>{% endif %}
+        <button class="btn" type="submit">Guardar asistencia</button>
+      </div>
+      {% endif %}
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h2>{% if ops_f == 'mias' %}Mis operaciones{% else %}Operaciones del día{% endif %}</h2><span class="sub">{{ day|date:"d/m" }}</span>
+      {% if see_all %}<div class="tools"><div class="segmented" role="group" aria-label="Operaciones">
+        <a class="{% if ops_f == 'mias' %}on{% endif %}" href="?site={{ site_param }}&day={{ day|date:'Y-m-d' }}&lista={{ roster_f }}&ops=mias">Mías</a>
+        <a class="{% if ops_f == 'todas' %}on{% endif %}" href="?site={{ site_param }}&day={{ day|date:'Y-m-d' }}&lista={{ roster_f }}&ops=todas">{% if site %}Toda la bodega{% else %}Todas{% endif %}</a></div></div>{% endif %}</div>
+    <ul class="op-list">
+      {% for op in ops %}
+        <li>
+          <span class="t"><span class="mono">{{ op.order.number }}</span> {{ op.name }}
+            {% if op.order.status == 'liberada' or op.order.status == 'en_proceso' %}<span class="pill ok" title="El equipo de insumos lo liberó a planta">Insumos liberados</span>
+            {% elif op.order.status == 'insumos' %}{% if op.order.supplies_released_at %}<span class="pill info" title="Insumos ya liberó; pasa a planta cuando logística merque">Insumos listos</span>
+              {% else %}<span class="pill info" title="El equipo de insumos aún no lo libera: arma la cuadrilla, pero no arranques">Esperando insumos</span>{% endif %}
+            {% else %}<span class="pill" title="Planeación aún no lo envía a insumos">En planeación</span>{% endif %}
+            {% if op.order.goods_status == 'mercado' %}<span class="pill ok" title="Mercó {{ op.order.goods_picked_by }}{% if op.order.goods_note %} · {{ op.order.goods_note }}{% endif %}">Mercancía en {{ op.order.goods_location|truncatechars:28 }}</span>
+            {% else %}<span class="pill warn" title="Logística aún no merca la mercancía de este pedido">Por mercar</span>{% endif %}
+            {% if op.n_crew < op.crew %}<span class="pill {% if op.n_crew %}warn{% else %}bad{% endif %}">Faltan {{ op.crew|minus:op.n_crew }}</span>{% endif %}</span>
+          <span class="m">{{ op.work_center.code|default:"Sin línea" }} · {{ op.planned_start|date:"D H:i" }}–{{ op.planned_end|date:"H:i" }}
+            {% if op.order.customer %} · {{ op.order.customer.name }}{% endif %} · {{ op.order.product.sku }}{% if ops_f != 'mias' %} · {{ op.supervisor|uname:"sin supervisor" }}{% endif %}</span>
+          <span class="a"><span class="crew"><span class="bar {{ op.n_crew|crew_state:op.crew }}"><i style="width:{{ op.n_crew|crew_pct:op.crew }}%"></i></span><b>{{ op.n_crew }}/{{ op.crew }}</b></span>
+            {% if op.supervisor_id == user.pk or see_all %}<a class="sbtn sm {% if op.n_crew < op.crew %}accent{% endif %}" href="{% url 'mes_core:crew_assign' op.pk %}">{% if op.n_crew %}Ver cuadrilla{% else %}Armar cuadrilla{% endif %}</a>{% endif %}</span>
+        </li>
+      {% empty %}
+        <li class="muted" style="display:block">{% if ops_f == 'mias' %}Planeación no te ha asignado operaciones para este día.{% else %}No hay operaciones programadas este día.{% endif %}</li>
+      {% endfor %}
+    </ul>
+    {% if unscheduled %}
+    <div class="card-h" style="border-top:1px solid var(--border)"><h2>Asignadas sin programar</h2></div>
+    <ul class="op-list">{% for op in unscheduled %}
+      <li><span class="t"><span class="mono">{{ op.order.number }}</span> {{ op.name }}</span><span class="m">{{ op.order.product.sku }} · aún sin fecha en el programador</span>
+        <span class="a"><b>{{ op.n_crew }}/{{ op.crew }}</b><a class="sbtn sm" href="{% url 'mes_core:crew_assign' op.pk %}">Cuadrilla</a></span></li>
+    {% endfor %}</ul>
+    {% endif %}
+  </div>
+</div>
+<script>
+(() => {
+  const form = document.getElementById("att-form");
+  if (!form) return;
+  const count = document.getElementById("att-count");
+  const rows = [...form.querySelectorAll("tr.att-row")];
+  const pending = () => rows.filter((r) => !r.querySelector("input[type=radio]:checked")).length;
+  const refresh = () => { if (count) count.textContent = `${pending()} sin confirmar en esta lista`; };
+  refresh();
+  form.addEventListener("change", (e) => {
+    const row = e.target.closest("tr.att-row");
+    if (row) row.classList.add("changed");
+    refresh();
+  });
+  document.getElementById("all-present")?.addEventListener("click", () => {
+    rows.forEach((r) => {
+      if (!r.querySelector("input[type=radio]:checked")) {
+        r.querySelector("input[value=presente]").checked = true;
+        r.classList.add("changed");
+      }
+    });
+    refresh();
+  });
+  window.addEventListener("beforeunload", (e) => {
+    if (form.querySelector("tr.changed") && !form.dataset.submitting) e.preventDefault();
+  });
+  form.addEventListener("submit", () => { form.dataset.submitting = "1"; });
+})();
+</script>
+{% endif %}
+{% endblock %}

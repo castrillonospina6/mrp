@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% load mes_assets staff_tags %}
+{% block title %}Matriz de polivalencia{% endblock %}
+{% block crumbs %}<span>Personal</span><span class="sep">/</span><b>Matriz de polivalencia</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/staff.css' %}">{% endblock %}
+{% block content %}
+{% if no_site %}<div class="callout">No hay plantas activas.</div>{% else %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Personal · todas las plantas</div>
+    <h1>Matriz de polivalencia</h1>
+    <p>Qué sabe hacer cada operario y con qué nivel. Elige el nivel en la celda y se guarda solo. Las competencias son texto
+      libre: «Control de CALIDAD» y «control de calidad» quedan como la misma.</p>
+  </div>
+  <div class="tools">
+    <a class="sbtn" href="{% url 'mes_core:employee_list' %}?site={{ site.pk }}"><svg class="ico sm"><use href="#i-users"/></svg> Operarios</a>
+  </div>
+</div>
+
+<div class="card">
+  <form method="get" class="st-toolbar">
+    <input type="hidden" name="site" value="{{ site.pk }}">
+    <div class="segmented" role="group" aria-label="Alcance">
+      <a class="{% if scope == 'mine' %}on{% endif %}" href="?site={{ site.pk }}&scope=mine">Mi equipo</a>
+      <a class="{% if scope == 'all' %}on{% endif %}" href="?site={{ site.pk }}&scope=all">Toda la planta</a>
+    </div>
+    <input type="hidden" name="scope" value="{{ scope }}">
+    <input name="q" value="{{ f.q }}" placeholder="Nombre o documento…" aria-label="Buscar">
+    <select name="shift" aria-label="Turno"><option value="">Todos los turnos</option>
+      {% for s, label in shifts %}<option value="{{ s.pk }}" {% if f.shift == s.pk|stringformat:'s' %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+    <button class="sbtn" type="submit">Filtrar</button>
+    <span class="grow"></span>
+    <span class="lv-legend"><span class="lv l1">Novato <i>N</i></span><span class="lv l2">Intermedio <i>I</i></span><span class="lv l3">Experto <i>E</i></span></span>
+  </form>
+  {% if can_add_skill %}
+  <form method="post" class="st-toolbar mx-add">{% csrf_token %}
+    <input type="hidden" name="site" value="{{ site.pk }}"><input type="hidden" name="qs" value="{{ qs }}">
+    <input name="name" maxlength="80" placeholder="Nueva competencia (p. ej. montacargas)" required aria-label="Nueva competencia">
+    <button class="sbtn" type="submit"><svg class="ico sm"><use href="#i-plus"/></svg> Agregar columna</button>
+    <span class="st-sub">Debajo de cada competencia: cuántos expertos (E), intermedios (I) y novatos (N) hay en la planta.</span>
+  </form>
+  {% endif %}
+
+  {% if not cols %}
+    <div class="st-empty">Aún no hay competencias. {% if can_add_skill %}Agrega la primera arriba (p. ej. «picking», «etiquetado», «montacargas»).{% endif %}</div>
+  {% elif not rows %}
+    <div class="st-empty">{% if scope == 'mine' %}No tienes operarios a cargo{% if not has_team %} todavía: cárgalos en <a href="{% url 'mes_core:employee_list' %}?site={{ site.pk }}">Operarios</a> (uno a uno o desde Excel){% endif %}. <a href="?site={{ site.pk }}&scope=all">Ver toda la planta</a>.{% else %}No hay operarios con estos filtros.{% endif %}</div>
+  {% else %}
+  <div class="mx-wrap">
+    <table class="mx" data-api="{{ api_url }}" data-edit="{{ can_edit|yesno:'1,0' }}">
+      <thead><tr><th class="who">Operario</th>
+        {% for c in cols %}<th class="sk"><b>{{ c.skill.name }}</b>
+          <div class="cov" title="Expertos · intermedios · novatos (todo el personal)"><span class="c3">E {{ c.cov.3 }}</span><span class="c2">I {{ c.cov.2 }}</span><span class="c1">N {{ c.cov.1 }}</span></div></th>{% endfor %}
+        <th class="sk">Total</th></tr></thead>
+      <tbody>
+      {% for r in rows %}
+        <tr>
+          <td class="who"><span class="st-name">{{ r.emp.display_name }}</span><span class="st-doc">{{ r.emp.document }}{% if r.emp.shift %} · {{ r.emp.shift.name }}{% endif %}{% if not r.editable %} · {{ r.emp.supervisor|uname }} (solo lectura){% endif %}</span></td>
+          {% for skill_id, lvl in r.cells %}
+            <td class="cell">{% if can_edit and r.editable %}
+              <select class="lvsel {% if lvl %}l{{ lvl }}{% endif %}" data-emp="{{ r.emp.pk }}" data-skill="{{ skill_id }}" aria-label="Nivel de {{ r.emp.display_name }}">
+                <option value="">—</option>{% for v, label in levels %}<option value="{{ v }}" {% if v == lvl %}selected{% endif %}>{{ label }}</option>{% endfor %}
+              </select>
+            {% elif lvl %}<span class="lv l{{ lvl }}">{{ lvl|lvl_label }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+          {% endfor %}
+          <td class="n" data-total>{{ r.n }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+  {% if page.paginator.num_pages > 1 %}
+  <div class="st-pager">Página {{ page.number }} de {{ page.paginator.num_pages }}
+    {% if page.has_previous %}<a class="sbtn sm" href="?{{ qs }}&page={{ page.previous_page_number }}">Anterior</a>{% endif %}
+    {% if page.has_next %}<a class="sbtn sm" href="?{{ qs }}&page={{ page.next_page_number }}">Siguiente</a>{% endif %}</div>
+  {% endif %}
+</div>
+<script>
+(() => {
+  const table = document.querySelector("table.mx[data-edit='1']");
+  if (!table) return;
+  const csrf = document.cookie.split("; ").find((c) => c.startsWith("csrftoken="))?.split("=")[1] || "";
+  table.addEventListener("change", async (e) => {
+    const sel = e.target.closest("select.lvsel");
+    if (!sel) return;
+    const prev = sel.dataset.prev ?? [...sel.options].find((o) => o.defaultSelected)?.value ?? "";
+    sel.classList.add("saving");
+    sel.classList.remove("err", "l1", "l2", "l3");
+    try {
+      const r = await fetch(table.dataset.api, {
+        method: "POST", headers: { "Content-Type": "application/json", "X-CSRFToken": csrf },
+        body: JSON.stringify({ employee: sel.dataset.emp, skill: sel.dataset.skill, level: sel.value }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || "Error al guardar");
+      if (sel.value) sel.classList.add("l" + sel.value);
+      sel.dataset.prev = sel.value;
+      const row = sel.closest("tr");
+      row.querySelector("[data-total]").textContent = [...row.querySelectorAll("select.lvsel")].filter((s) => s.value).length;
+    } catch (err) {
+      sel.value = prev;
+      if (prev) sel.classList.add("l" + prev);
+      sel.classList.add("err");
+      alert(err.message);
+    } finally {
+      sel.classList.remove("saving");
+    }
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

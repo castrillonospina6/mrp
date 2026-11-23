@@ -1,0 +1,643 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Planta en vivo · Control de piso</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0e0e12;--cd:#1f1f24;--c2:#2d2d34;--tx:#f4f4f6;--mu:#9b9aa6;--ac:#5b3fd1;--a2:#a594ff;--ok:#3ddc6b;--rd:#ff5468;--yl:#ffc83d;--bd:#2a2a31;--rt:#4a4a52;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:light){:root:not([data-theme=dark]){--bg:#f1f0f6;--cd:#fff;--c2:#ebeaf3;--tx:#17171c;--mu:#6b6a78;--a2:#5b3fd1;--ok:#13914f;--rd:#e0394d;--yl:#f2b01e;--bd:#e1e0ea;--rt:#d9d8e3;color-scheme:light}}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:500 14px/1.35 "Space Grotesk",system-ui,sans-serif}
+main{max-width:1400px;margin:auto;padding:0 20px 24px}
+nav{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 16px;padding:12px 0;border-bottom:1px solid var(--bd);position:sticky;top:0;background:var(--bg);z-index:5}nav a{padding:9px 16px;border-radius:10px;color:var(--mu);text-decoration:none;font-weight:700}nav a:hover{background:var(--c2);color:var(--tx)}nav a.on{background:var(--ac);color:#fff}.br{font-size:18px;font-weight:700;margin-right:auto;padding-right:16px}h1.pt{margin:0;font-size:clamp(22px,3vw,30px)}
+nav a{padding:10px 20px;border-radius:99px;color:var(--mu);text-decoration:none;font-weight:700}nav a.on{background:var(--ac);color:#fff}
+.c{background:var(--cd);border:1px solid var(--bd);border-radius:22px;padding:16px;position:relative;overflow:hidden}
+.k,small{color:var(--mu);font-size:12px;font-weight:500}.big{font-size:clamp(40px,5vw,64px);font-weight:700;line-height:1;margin-top:14px;position:relative}
+.ok{color:var(--ok)}.rd{color:var(--rd)}.a2{color:var(--a2)}.sp{position:absolute;right:0;bottom:0;width:55%;height:45%;color:var(--a2)}
+.og{display:grid;gap:14px;grid-template-columns:1.2fr 1fr .9fr;margin-bottom:14px}.kg{display:grid;gap:14px;grid-template-columns:1fr 1fr;align-content:start}
+.ac3{grid-column:1/3;display:flex;justify-content:space-around;text-align:center}.ac3 b{font-size:34px;display:block}
+.r2{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}.r3{display:flex;justify-content:space-between;border-top:1px solid var(--bd);padding-top:12px;margin-top:12px}.r3 b{font-size:22px;display:block}
+.rg{position:relative;aspect-ratio:1;max-width:300px;margin:10px auto}.rg svg{width:100%}.rt,.rb{fill:none;stroke-width:9}.rt{stroke:var(--rt)}.rb{stroke-linecap:round}
+.ri{z-index:1;position:absolute;inset:0;display:grid;place-content:center;text-align:center;gap:2px}.ri hr{width:60%;border:0;border-top:1px solid var(--rt);margin:4px auto}
+.n{font-size:clamp(38px,5vw,56px);font-weight:700;line-height:1}.n2{font-size:28px;font-weight:700;line-height:1}
+.tmr{font-size:clamp(36px,5vw,56px);font-weight:700;text-align:center}
+button,select,input,textarea{font:inherit;font-weight:700;color:var(--tx);background:var(--c2);border:1px solid var(--bd);border-radius:12px;padding:9px 12px;min-width:0}
+button{cursor:pointer;border:0;border-radius:99px;padding:10px 16px}.pr{background:var(--ac);color:#fff}
+.mg{background:linear-gradient(160deg,#3b2f7a,#241d4a);border-color:#5b3fd1;color:#fff}.mg small,.mg .k{color:#c9c2f5}
+.ch{background:none;border:1px solid #ffffff33;color:#fff;font-size:13px;padding:7px 12px;margin:0 4px 6px 0}.ch.on{background:#fff;color:#111}
+.mb{background:#111116;border-radius:14px;padding:12px;margin:10px 0}.mb textarea{width:100%;box-sizing:border-box;background:none;border:0;color:#fff;font-size:16px;resize:none}
+.nt{background:#fff;color:#111;border-radius:12px;padding:10px;margin-top:8px}
+.bd{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}.bd .c{border-radius:20px}
+.tl{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.tl>div{background:var(--c2);border-radius:14px;padding:12px}.tl b{font-size:30px;display:block;margin-top:14px}
+.al-yl{background:var(--yl);color:#1b1500;border:0}.al-ac{background:#6b4fe8;color:#fff;border:0}.al-rd{background:var(--rd);color:#fff;border:0}
+.al-yl .tl>div,.al-ac .tl>div,.al-rd .tl>div{background:#0003;color:inherit}.al-yl .ok{color:#145a24}
+.chip{display:inline-block;background:var(--c2);border-radius:8px;padding:5px 10px;font-size:12px;margin:4px 6px 0 0}
+.av{display:inline-grid;place-content:center;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#8b74ff,#5b3fd1);color:#fff;font-style:normal;font-weight:700;font-size:12px}
+.ph{max-width:900px;margin:0 auto;display:grid;gap:14px}
+
+.who{display:flex;gap:8px;align-items:center;font-size:12px;text-align:left}.who small{display:block}
+.pill{position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);background:var(--ac);color:#fff;border-radius:99px;padding:2px 10px;font-size:11px;font-weight:700;white-space:nowrap}
+.bar{display:flex;flex-wrap:wrap;gap:10px}.bar button{padding:14px 20px;border-radius:12px;flex:1 1 150px}.bar .pr{flex:2 1 220px;font-size:16px}
+.sh{position:fixed;inset:0;background:#000a;display:grid;place-content:center;z-index:9}.sh .c{display:grid;gap:8px;min-width:260px;background:var(--cd);color:var(--tx);width:min(92vw,420px)}
+.r4{display:grid;grid-template-columns:repeat(4,auto);gap:6px;text-align:left}.r4 b{font-size:20px;display:block}
+@media(max-width:900px){.og{grid-template-columns:1fr}}
+@media(max-width:600px){main{padding:0 12px 20px}nav a{padding:8px 12px}.br{width:100%;margin:0}}
+.rg::after{content:"";position:absolute;inset:14%;border-radius:50%;background:radial-gradient(circle at 50% 25%,var(--c2),var(--cd))}
+.sel{display:flex;gap:8px;flex-wrap:wrap}.sel select{flex:1 1 180px}.op2,.col{display:grid;gap:14px;align-content:start}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.kt{background:var(--cd);border:1px solid var(--bd);border-radius:18px;padding:14px;display:flex;flex-direction:column;justify-content:space-between;gap:10px;min-width:0}
+.kt>b{font-size:clamp(24px,3vw,34px)}.w2{grid-column:span 2}.ki{display:flex;justify-content:space-between;text-align:center;gap:6px}.ki b{display:block;font-size:22px;color:var(--tx)}.ki span{font-size:11px;color:var(--mu)}
+.p3{display:flex;justify-content:space-between;margin:0;font-size:14px;font-weight:700}.bl{color:#5aa7ff}.gr{color:var(--ok)}
+.om{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:10px;border-top:1px solid var(--bd);padding-top:12px;margin-top:12px}.om b{display:block;font-size:20px}
+.ic{display:flex;gap:6px}.ic i{font-style:normal;font-size:20px;color:var(--rt)}.ic i.yl{color:var(--yl)}.ic i.ok{color:var(--ok)}.ic i.rd{color:var(--rd)}
+@media(min-width:1000px){.ph.w{max-width:1200px}.op2{grid-template-columns:1fr 1fr;align-items:start}}
+@media(max-width:600px){.g4{grid-template-columns:1fr 1fr}}
+.lg{max-width:380px;margin:10vh auto}.fm{display:grid;gap:10px;margin:14px 0}.fm input{padding:12px}.sel input{flex:1 1 160px}
+.ar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--bd);padding:10px 0}.ar .who{flex:1 1 200px}.ar select{flex:1 1 200px}
+button:disabled{opacity:.35;cursor:not-allowed}
+/* Anillos: mismo tamaño siempre y texto que escala con el anillo (sin ajustes manuales) */
+.rg{width:100%;container-type:inline-size}.rw{position:relative;min-width:0}.rr{display:grid;grid-template-columns:1fr 1fr;gap:clamp(8px,2.5vw,24px)}.rr>*{min-width:0}
+.rg .n{font-size:21cqw}.rg .n2{font-size:12cqw}.rg small{font-size:max(8px,4.8cqw)}.rg .r4{grid-template-columns:repeat(2,auto);justify-content:center;gap:3cqw;text-align:center}.rg .r4 b{font-size:8.5cqw}.rg hr{width:56%}
+/* Adaptación automática a PC, tablet y celular */
+.c{padding:clamp(12px,3.5vw,18px)}.r2{flex-wrap:wrap}h2{overflow-wrap:anywhere}main{min-width:0}html{-webkit-text-size-adjust:100%}
+.bd{grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr))}
+.mh{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:8px}
+@media(pointer:coarse){button,select,input{min-height:44px}}
+@media(max-width:600px){input,select,textarea{font-size:16px}.mh{grid-template-columns:1fr 1fr}.mh>:first-child{grid-column:1/-1}.ph{gap:10px}.op2,.col{gap:10px}}
+.pb{height:10px;border-radius:99px;background:var(--c2);overflow:hidden;margin-top:10px}.pb i{display:block;height:100%;background:var(--ac)}.ar input{flex:0 1 110px}
+.ob{border-top:1px solid var(--bd);padding:14px 0;display:grid;gap:10px}.qi{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 0;border-bottom:1px dashed var(--bd);font-size:13px}.qi span{flex:1 1 240px}.qi button{padding:6px 12px}
+.hz{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:8px}.hz label{display:grid;gap:4px;font-size:12px;color:var(--mu)}
+.ld{display:grid;gap:2px;margin:8px 0}.ld>div{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed var(--bd)}.ld small{display:block}.ld b{white-space:nowrap}.ld .tt{border:0;border-top:2px solid var(--tx);font-weight:700;padding-top:10px}.ld .tt b{font-size:22px}
+.tlb{position:relative;height:30px;border-radius:10px;background:var(--c2);overflow:hidden;margin:8px 0 4px}.tlb>i{position:absolute;top:0;bottom:0;box-sizing:border-box;overflow:hidden;white-space:nowrap;font-style:normal;font-size:11px;line-height:30px;text-align:center;color:#fff;border-right:1px solid var(--bg)}
+.sg0{background:var(--ac)}.sg1{background:#7a63f0}.sg2{background:#4d3bb0}.fr{background:color-mix(in srgb,var(--ok) 28%,transparent);color:var(--ok)!important}.ps{background:repeating-linear-gradient(45deg,#000a 0 4px,#0004 4px 8px)}.el{background:#0008}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}.cal>b{text-align:center;color:var(--mu);font-size:12px}
+.cd{background:var(--c2);border:1px solid var(--bd);border-radius:12px;padding:6px 8px;min-height:66px;text-align:left;display:grid;align-content:space-between;gap:2px;color:var(--tx)}.cd.z{opacity:.45}.cd.hy{outline:2px solid var(--ac)}.cd b{font-size:clamp(14px,2.2vw,20px)}.cd small{font-size:11px}.cd i{display:block;height:4px;border-radius:9px;background:var(--ac)}
+.ym{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}.my{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin:8px 0}.my button{aspect-ratio:1;padding:0;border-radius:4px;background:var(--c2);min-height:0}
+.bk{position:fixed;inset:0;z-index:30;display:grid;place-content:center;background:rgba(190,20,45,.86);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);color:#fff;padding:env(safe-area-inset-top,0px) 16px env(safe-area-inset-bottom,0px);touch-action:none}
+.bk .bkc{background:#0000002e;border:2px solid #ffffff55;color:#fff;text-align:center;display:grid;gap:12px;width:min(92vw,460px);padding:24px}.bk small,.bk .k{color:#ffe3e7}.bk .tmr{font-size:clamp(64px,18vw,120px);line-height:1}
+.bk input{font-size:22px;text-align:center;letter-spacing:.15em;background:#0004;border:2px solid #fff8;color:#fff}.bk input::placeholder{color:#fff9;letter-spacing:0}.bk p{margin:0;min-height:1.3em;font-weight:700;color:#fff}
+.dn{position:fixed;inset:0;z-index:40;display:grid;place-content:center;background:rgba(14,130,70,.94);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);color:#fff;padding:env(safe-area-inset-top,0px) 16px env(safe-area-inset-bottom,0px);touch-action:none}
+.dnc{background:#0000002e;border:2px solid #ffffff55;color:#fff;text-align:center;display:grid;gap:12px;width:min(92vw,460px);padding:24px}.dnc small,.dnc .k{color:#e4ffec}.dnc .tmr{font-size:clamp(48px,14vw,88px);line-height:1}
+.dck{width:92px;height:92px;border-radius:50%;background:#fff;color:#13914f;font-size:60px;line-height:92px;font-weight:700;margin:0 auto}
+#ts{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 12px);transform:translateX(-50%);z-index:50;display:grid;gap:8px;width:min(92vw,460px);pointer-events:none}
+:root{--rc:#7a63f0}
+:root[data-theme=light]{--bg:#f1f0f6;--cd:#fff;--c2:#ebeaf3;--tx:#17171c;--mu:#6b6a78;--a2:#5b3fd1;--ok:#13914f;--rd:#e0394d;--yl:#f2b01e;--bd:#e1e0ea;--rt:#d9d8e3;color-scheme:light}
+.otb{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;margin:0 0 4px;padding:6px;background:var(--cd);border:1px solid var(--bd);border-radius:20px}
+.otb button{display:grid;justify-items:center;gap:4px;background:none;border-radius:14px;padding:8px 2px;color:var(--mu);font-size:12px;min-width:0}.otb button.on{background:var(--c2);color:var(--tx)}.otb button.on svg{color:var(--a2)}
+.otb svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.otb span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:420px){.otb button{font-size:10.5px}}
+.cmp .xf{display:none}
+.swt{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px dashed var(--bd)}.swt:last-child{border:0}
+.swt input{-webkit-appearance:none;appearance:none;flex:none;width:50px;height:30px;min-height:0;padding:0;border:0;border-radius:99px;background:var(--rt);position:relative;cursor:pointer;transition:background .2s}
+.swt input::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .2s}.swt input:checked{background:var(--ac)}.swt input:checked::after{transform:translateX(20px)}
+.sw2{width:40px;height:40px;padding:0;border-radius:50%;border:3px solid transparent}.sw2.on{border-color:var(--tx)}
+.ap{display:grid;gap:6px;margin-top:12px}.fl{display:grid;gap:4px;font-size:12px;color:var(--mu);margin:10px 0 4px}.soon{border-style:dashed}.soon .chip{margin:0 0 8px}
+.tst{background:var(--yl);color:#1b1500;border-radius:14px;padding:12px 16px;font-weight:700;box-shadow:0 8px 24px #0006;pointer-events:auto}.tst.ok{background:var(--ok);color:#052b13}
+
+.sh .c{max-height:86vh;overflow:auto}
+.mbar{position:sticky;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);z-index:6;display:flex;justify-content:center;align-items:center;gap:12px;padding:6px 0}
+.mbar button{width:58px;height:58px;padding:0;border-radius:50%;background:var(--c2);color:var(--tx);display:grid;place-content:center;box-shadow:0 6px 18px #0005}
+.mbar .pr{width:78px;height:78px;background:var(--ac);color:#fff;font-size:38px;line-height:1}
+.mbar svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.dot{position:absolute;right:-1px;bottom:-1px;width:12px;height:12px;border-radius:50%;border:2px solid var(--cd)}
+.mt{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:10px;margin-top:12px}.mt>div{text-align:center;cursor:pointer;min-width:0}.mt small{display:block;margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:600px){.mh.m3{grid-template-columns:1.6fr 1fr 1fr}.mh.m3>:first-child{grid-column:auto}}
+.ic i{display:grid;place-content:center;width:36px;height:36px;border-radius:50%}.ic i svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.ic i.ok{background:color-mix(in srgb,var(--ok) 20%,transparent)}.ic i.w{color:var(--tx)}
+.mbar .al-rd{background:var(--rd);color:#fff}
+@media(min-width:481px) and (max-width:600px){.g4.k4{grid-template-columns:repeat(4,1fr)}}
+.stp{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:14px}.stp span{text-align:center;color:var(--mu);min-width:0}.stp i{display:block;height:6px;border-radius:99px;background:var(--rt);margin-bottom:6px}.stp .on i{background:var(--ac)}.stp .cu{color:var(--tx)}.stp .cu i{background:var(--ok)}.stp small{font-size:11px}
+.pbar{position:sticky;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);z-index:6;display:flex;gap:8px;align-items:stretch}.pbar button{border-radius:16px;padding:0 16px;min-height:60px;background:var(--c2);color:var(--tx);box-shadow:0 6px 18px #0005;display:grid;place-content:center}.pbar .pr{flex:1;background:var(--ac);color:#fff;font-size:18px}.pbar .al-rd{background:var(--rd);color:#fff}.pbar svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+</style></head><body><main id="app"></main><div id=ts></div>
+<script src="db.js"></script>
+<script>
+const A=document.getElementById('app'),$=s=>document.querySelector(s),CAUSES=['Baño','Espera de trabajo','Falta de corte','Falla mecánica','Reprocesos'],
+E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let db,st='Conectando…',U=null,VW='',QF={},OPEN={},loginErr='',setupMode=false,me={},S={refs:[],ops:[],mods:[],logs:[],mlogs:[],lotes:[],cola:[],users:[],stops:[],msgs:[],tareas:[],ubic:[],pats:[],movs:[]},msgT='p',msgSel=[],msgTxt='',sheet=null,TM={t:0,k:0};
+try{me=JSON.parse(localStorage.getItem('me')||'{}')}catch(e){}
+const save=()=>{try{localStorage.setItem('me',JSON.stringify(me))}catch(e){}};
+const now=()=>Date.now(),T0=()=>new Date().setHours(0,0,0,0),by=(a,id)=>a.find(x=>x.id===id),col=c=>db.collection(c),add=(c,d)=>col(c).add(d),
+avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null,cl=v=>v==null?'':v>=85?'ok':v<70?'rd':'',P=v=>v==null?'–':Math.round(v)+'%',
+init=n=>String(n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(),av=n=>`<i class=av>${E(init(n))}</i>`,
+fmt=s=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')},
+sum=(o,k)=>S.logs.filter(l=>l.op===o.id&&l.k===k).reduce((a,l)=>a+l.q,0),
+stopMin=(m,s,u=now(),o)=>S.stops.filter(x=>x.m===m&&(!x.op||!o||x.op===o)).reduce((a,x)=>a+Math.max(0,(Math.min(x.e||now(),u)-Math.max(x.s,s))/6e4),0),
+opts=(a,sel,ph)=>`<option value="">${ph}</option>`+a.map(x=>`<option value="${x.id}"${x.id===sel?' selected':''}>${E(x.n)}</option>`).join('');
+// Eficiencia = minutos estándar producidos (unid × SAM) ÷ minutos disponibles (sin paros)
+const ef=(o,since)=>{const L=S.logs.filter(l=>l.op===o.id);if(!L.length)return null;const s=Math.max(since,Math.min(...L.map(l=>l.ts))),m=((o.fin||now())-s)/6e4-stopMin(o.m,s,o.fin||now(),o.id);if(m<1)return null;return L.filter(l=>l.k==='p'&&l.ts>=s).reduce((a,l)=>a+l.q*l.sam,0)/m*100};
+const eM=(m,since)=>{const L=S.logs.filter(l=>l.mod===m.id);if(!L.length)return null;const n=S.ops.filter(o=>o.m===m.id).length||1,s=Math.max(since,Math.min(...L.map(l=>l.ts))),a=S.ops.filter(o=>o.m===m.id).reduce((t,o)=>t+(now()-s)/6e4-stopMin(m.id,s,now(),o.id),0);if(a<1)return null;return L.filter(l=>l.k==='p'&&l.ts>=s).reduce((x,l)=>x+l.q*l.sam,0)/a*100};
+const opM=o=>{const L=S.logs.filter(l=>l.op===o.id),e=ef(o,T0());if(!L.length||e==null)return{};const s=Math.min(...L.map(l=>l.ts)),w=((o.fin||now())-s)/6e4,q=sum(o,'p'),x=sum(o,'x');return{e,oee:(w-stopMin(o.m,s,o.fin||now(),o.id))/w*Math.min(e,100)*(q?(q-x)/q:1),last:Math.max(...L.map(l=>l.ts))}};
+const win=(a,u)=>{const w=(u-a)/6e4,n=S.ops.length;let s=0;S.ops.forEach(o=>s+=stopMin(o.m,a,u,o.id));
+ const L=S.logs.filter(l=>l.ts>=a&&l.ts<u),p=L.filter(l=>l.k==='p'),q=p.reduce((x,l)=>x+l.q,0),x=L.filter(l=>l.k==='x').reduce((t,l)=>t+l.q,0),
+ bm=S.stops.filter(z=>BRK.includes(z.c)).reduce((t,z)=>t+Math.max(0,(Math.min(z.e||now(),u)-Math.max(z.s,a))/6e4),0),tot=n*w-bm,v=n*w-s,sam=avg(S.refs.map(r=>r.s))||1,e=v>.5?p.reduce((t,l)=>t+l.q*l.sam,0)/v*100:null,d=tot>0?v/tot*100:null,es=v>0?v/sam:0;
+ return{ef:e,dp:d,ez:es>.5?q/es*100:null,oee:e==null||d==null?null:d*Math.min(e,100)/100*(q?(q-x)/q:1),q,es}};
+const ring=(v,mx,c,inner,id='')=>{const C=2*Math.PI*52,p=Math.min(1,mx>0?v/mx:0);return`<div class=rg><svg viewBox="0 0 120 120"><circle cx=60 cy=60 r=52 class=rt></circle><circle ${id?`id=${id}`:''} cx=60 cy=60 r=52 class=rb stroke="${c}" stroke-dasharray="${C*p} ${C}" transform="rotate(-90 60 60)"></circle></svg><div class=ri>${inner}</div></div>`};
+const sp=a=>{const v=a.map(x=>x==null?0:x),m=Math.max(...v,1),n=v.length-1||1;return`<svg class=sp viewBox="0 0 100 40" preserveAspectRatio=none><path d="M0 40 ${v.map((y,i)=>`L${i/n*100} ${40-y/m*36}`).join(' ')} L100 40Z" fill="currentColor" opacity=.3></path></svg>`};
+
+// Incentivo (REGLA PROVISIONAL, ajústala): puntos = minutos estándar producidos × pt; valor en pesos = puntos × val
+const INC={pt:10,val:1},M0=()=>{const d=new Date();return new Date(d.getFullYear(),d.getMonth(),1).getTime()},nf=n=>Math.round(n).toLocaleString('es-CO'),
+pts=(o,s)=>S.mlogs.filter(l=>l.op===o.id&&l.k==='p'&&l.ts>=s).reduce((a,l)=>a+l.q*l.sam,0)*INC.pt,
+// Eficiencia mensual: por cada día con marcaciones, minutos estándar producidos ÷ minutos disponibles (primera→última marcación, sin paros)
+efMes=o=>{const D={};S.mlogs.filter(l=>l.op===o.id).forEach(l=>(D[new Date(l.ts).toDateString()]=D[new Date(l.ts).toDateString()]||[]).push(l));let p=0,a=0;
+ for(const L of Object.values(D)){const s=Math.min(...L.map(l=>l.ts)),e=s>=T0()?(o.fin>=s?o.fin:now()):Math.max(...L.map(l=>l.ts)),m=(e-s)/6e4-stopMin(o.m,s,e,o.id);if(m>=1){a+=m;p+=L.filter(l=>l.k==='p').reduce((x,l)=>x+l.q*l.sam,0)}}return a?p/a*100:null};
+const doneN=o=>S.mlogs.filter(l=>l.op===o.id&&l.k==='p'&&l.ref===o.ref&&(l.lote||null)===(o.lote||null)&&l.ts>=(o.ini||0)).reduce((a,l)=>a+l.q,0);
+// Orden del módulo: unidades hechas desde la tablet del módulo (op nulo) para la referencia/lote/inicio actuales, igual que doneN para el operario
+const doneM=m=>S.mlogs.filter(l=>!l.op&&l.mod===m.id&&l.k==='p'&&l.ref===m.ref&&(l.lote||null)===(m.lote||null)&&l.ts>=(m.ini||0)).reduce((a,l)=>a+l.q,0),
+mtk=m=>S.tareas.filter(z=>!z.op&&z.m===m.id).sort((a,b)=>b.fin-a.fin);
+const hT=t=>new Date(t).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',hour12:false}),
+// Tareas que este operario completó hoy (vienen del historial del servidor)
+pmu=o=>{const g=S.msgs.find(g=>g.to.includes(o.id)&&!(me.seen||[]).includes(g.id));return g?`<div class=sh><div class=c><div class=nt>🔔 <b style="color:#5b3fd1">Mensaje de Producción</b><br>${E(g.txt)}</div><button class=pr data-a=accept data-v="${g.id}">Aceptar</button></div></div>`:''},
+myt=o=>{const L=S.tareas.filter(z=>z.op===o.id&&z.fin>=T0()).sort((a,b)=>b.fin-a.fin);
+ return L.length?`<div class=c><div class=r2><b>Tareas completadas hoy</b><b class=ok>${L.length} ✔</b></div>${L.map(z=>`<div class=r3 style="font-size:13px"><span>✔ ${E(z.rn||'—')} · ${E(z.ln||'sin lote')}<small style="display:block">${hT(z.ini)}–${hT(z.fin)} · ${z.q}/${z.meta} u${z.efi!=null?' · ef '+P(z.efi):''}</small></span></div>`).join('')}</div>`:''};
+function office(){
+ if(!S.ops.length)return'<div class=c>Sin datos. Ve a <a href="#config" style="color:var(--a2)">Configuración</a>.</div>';
+ const t0=Math.min(...S.logs.map(l=>l.ts),now()),D=win(t0,now()),H=[...Array(12)].map((_,i)=>win(now()-(12-i)*36e5,now()-(11-i)*36e5)),
+ P1=S.logs.filter(l=>l.k==='p').sort((a,b)=>a.ts-b.ts),la=P1[P1.length-1],cy=P1.slice(1).map((l,i)=>(l.ts-P1[i].ts)/1e3).filter(x=>x<600),
+ lr=la&&by(S.refs,la.ref),tk=lr?lr.s*60/S.ops.length:0,kp=(t,v,k,c)=>`<div class=c><b>${t}</b><div class=k>Diaria</div><div class="big ${c}">${P(v)}</div>${sp(H.map(h=>h[k]))}</div>`;
+ TM={t:la?la.ts:0,k:tk};
+ const board=S.ops.map(o=>{const M=opM(o),m=by(S.mods,o.m),op=S.stops.find(x=>x.m===o.m&&!x.e&&(!x.op||x.op===o.id)),lr2=by(S.refs,[...S.logs].filter(l=>l.op===o.id).sort((a,b)=>b.ts-a.ts)[0]?.ref);
+  let cls='',foot=`<span class=chip>${E(lr2?.n||o.mq||'–')}</span><span class=chip>${E(m?.n)}</span>`;
+  if(op){cls=op.c==='Reprocesos'?'al-rd':'al-ac';foot=`<b style="font-size:20px" data-lt="${op.s}">${fmt((now()-op.s)/1e3)}</b><div>Paro · ${E(op.c)}</div>`}
+  else if(o.fin){foot=`<b style="font-size:20px" class=ok>Disponible</b><div>Tarea finalizada</div>`}
+  else if(M.last&&now()-M.last>6e5){cls='al-yl';foot=`<b style="font-size:20px">${fmt((now()-M.last)/1e3)} min</b><div>Sin marcaciones</div>`}
+  return`<div class="c ${cls}"><div class=who>${av(o.n)}<span><b style="font-size:16px">${E(o.n)}</b><small>${E(o.mq)}</small></span></div><div class=tl><div>Eficiencia<b class="${cl(M.e)}">${P(M.e)}</b></div><div>OEE<b>${P(M.oee)}</b></div></div>${foot}</div>`}).join('');
+ const dest=msgT==='p'?`<select data-c=mp>${opts(S.ops,msgSel,'Operario…')}</select>`:msgT==='m'?`<select data-c=mp>${opts(S.mods,msgSel,'Módulo…')}</select>`:msgT==='v'?`<select data-c=mv multiple size=4>${S.ops.map(o=>`<option value="${o.id}"${msgSel.includes?.(o.id)?' selected':''}>${E(o.n)}</option>`).join('')}</select>`:'';
+ const lb={p:'Una persona',m:'Un módulo',v:'Varias personas',b:'Baja eficiencia',a:'Alta eficiencia'},lm=S.msgs.slice().sort((a,b)=>b.ts-a.ts)[0];
+ return`<div class=og><div class=kg>${kp('Eficiencia',D.ef,'ef',cl(D.ef))}${kp('Eficacia',D.ez,'ez',cl(D.ez))}${kp('Disponibilidad',D.dp,'dp',D.dp>=85?'ok':'')}${kp('OEE',D.oee,'oee',cl(D.oee))}
+ <div class="c ac3"><div><b>${D.q}</b><small>Fabricadas hoy</small></div><div><b>${Math.round(D.es)}</b><small>Esperadas</small></div><div><b class=a2>${S.logs.filter(l=>l.k==='x').length}</b><small>Rechazos</small></div></div></div>
+ <div class=c><div class=r2><div><div class=n2 id=clk></div><small>Horario</small></div><div style="text-align:right"><b>${E(lr?.n||'–')}</b><div class=k>Orden en curso</div></div></div>
+ ${ring(D.q,D.es,'var(--ac)',`<b class="n a2">${D.q}</b><small>Fabricadas</small><hr><b class="n2 a2">${Math.round(D.es)}</b><small>Esperadas</small>`)}
+ <div class=tmr id=tm>00:00.0</div><div class=k style="text-align:center">Takt ${fmt(tk)} esperado</div>
+ <div class=r3><div><b>${fmt(cy[cy.length-1]||0)}</b><small>Último ciclo</small></div><div><b>${fmt(cy.length?Math.min(...cy):0)}</b><small>Menor ciclo</small></div><div><b>${fmt(avg(cy)||0)}</b><small>Promedio</small></div></div></div>
+ <div class="c mg"><div class=k style="letter-spacing:.1em">MENSAJES A LA PLANTA</div><h2 style="margin:6px 0 12px">De la web a sammu.</h2>
+ <div>${Object.entries(lb).map(([k,t])=>`<button class="ch${k===msgT?' on':''}" data-a=mt data-v=${k}>${t}</button>`).join('')}</div>${dest}
+ <div class=mb><div class=k style="color:#fff">Para: <b>${E(lb[msgT])}</b></div><textarea rows=3 placeholder="Escribe el mensaje…">${E(msgTxt)}</textarea><button class=pr data-a=send>Enviar ➤</button></div>
+ <div class=mb><small>sammu · tablet</small>${lm?`<div class=nt>🔔 <b style="color:#5b3fd1">Mensaje de Producción</b><br>${E(lm.txt)}</div>`:''}</div><small>Llegan encima de sammu, sin interrumpir el trabajo.</small></div></div>
+ <div class=c><div class=k style="letter-spacing:.1em;margin-bottom:12px;color:var(--a2)">TABLERO POR OPERARIO</div><div class=bd style="margin:0">${board}</div></div>${mcard()}`}
+
+const TB=a=>`<h1 class=pt>${a==='Inicio'?'Vista de operario':'Vista de módulo'}</h1>`,
+BAR=(p,r)=>MB(p,r),
+SH=()=>!sheet?'':`<div class=sh data-a=sheet data-v=""><div class=c>${sheet==='rej'?'<button data-a=log data-k=x>Rechazo</button><button data-a=log data-k=w>Reproceso</button>':sheet==='who'?whoSh():sheet==='pstop'?PSH():sheet==='pinc'?PIN():sheet==='pmov'?PMV():sheet==='stop'?stopHead()+CAUSES.map(c=>`<button data-a=stop data-v="${c}">${c}</button>`).join(''):(S.msgs.slice(-3).reverse().map(g=>`<div class=nt>${E(g.txt)}</div>`).join('')||'<small>Sin mensajes hoy.</small>')}<button data-a=sheet data-v="">Cerrar</button></div></div>`;
+
+function oper(){const o=by(S.ops,me.op);return(!o||(me.ot||'inicio')==='inicio'?oper0():otab(o))+brk(o)}
+function oper0(){
+ const o=by(S.ops,me.op),r=by(S.refs,o?.ref),L=by(S.lotes,o?.lote),
+ sl=U.rol==='operario'?'':`<div class=sel><select data-c=op>${opts(S.ops,me.op,'Operario…')}</select></div>`;
+ if(!o)return`<div class=ph>${TB('Inicio')}${sl}${OT()}<small>Elige un operario.</small></div>`;
+ if(!r)return`<div class=ph>${TB('Inicio')}${sl}${OT()}<div class=c><b>Sin tarea asignada</b><small style="display:block;margin-top:6px">Tu supervisor te asignará una operación y un lote. Esta pantalla se actualiza sola.</small></div>${BAR('log',S.stops.some(z=>z.op===o.id&&!z.e))}${pmu(o)}${SH()}</div>`;
+ const m=by(S.mods,o.m),pr=S.logs.filter(l=>l.op===o.id&&l.k==='p').sort((a,b)=>a.ts-b.ts),pH=pr.filter(l=>l.ts>(o.fin||now())-36e5).reduce((a,l)=>a+l.q,0),meta=Math.floor(60/r.s),
+ tard=pr.length>1?(pr[pr.length-1].ts-pr[pr.length-2].ts)/1e3:0,e1=ef(o,(o.fin||now())-36e5),e2=ef(o,T0()),e3=efMes(o),op=S.stops.find(z=>z.op===o.id&&!z.e),mst=S.stops.find(z=>z.m===o.m&&!z.op&&!z.e),nq=S.cola.filter(z=>z.op===o.id).sort((a,b)=>a.ord-b.ord),
+ nxc=nq.length?`<div class=c><div class=r2><b>Siguiente en tu cola</b><span>${E(by(S.refs,nq[0].ref)?.n)} · ${nq[0].meta} u</span></div>${nq.length>1?`<small>+${nq.length-1} más en espera</small>`:''}</div>`:'',fin=!!o.fin,dn=doneN(o),
+ prog=o.meta>0?`<div class=c><div class=r2><b>Meta de la tarea</b><b class="${fin?'ok':''}">${dn} / ${o.meta}${fin?' ✔':''}</b></div><div class=pb><i style="width:${Math.min(100,dn/o.meta*100)}%"></i></div></div>`:'',
+ td=S.stops.filter(z=>z.op===o.id&&(z.e||now())>T0()).sort((a,b)=>b.s-a.s),cs=td.filter(z=>z.e).reduce((a,z)=>a+(z.e-Math.max(z.s,T0()))/1e3,0),
+ pcard=`${fin?`<div class=c style="border-color:var(--ok)"><b class=ok>✔ Tarea completada · 100%</b><small style="display:block;margin-top:6px">Completaste las ${o.meta} unidades y quedó guardada en tu historial. Quedaste disponible: tu supervisor te asignará la siguiente tarea.</small></div>`:op?`<div class="c al-rd"><div class=k style="color:#fff">PARO EN CURSO · ${E(op.c)}</div><div class=tmr data-lt="${op.s}">${fmt((now()-op.s)/1e3)}</div><small style="display:block;text-align:center;color:#fff">minutos : segundos · toca Reanudar para cerrar el paro</small></div>`:mst?`<div class="c al-ac"><b>Paro del módulo: ${E(mst.c)}</b> · <b data-lt="${mst.s}">${fmt((now()-mst.s)/1e3)}</b></div>`:''}`,
+ pm=S.msgs.find(g=>g.to.includes(o.id)&&!(me.seen||[]).includes(g.id)),x=sum(o,'x'),w=sum(o,'w'),
+ ids=L?S.lotes.filter(z=>z.n===L.n).map(z=>z.id):[],cnt=(i,k)=>S.mlogs.filter(l=>l.k===k&&l.ref===r.id&&i.includes(l.lote)).reduce((a,l)=>a+l.q,0),
+ lq=S.lotes.filter(z=>ids.includes(z.id)).reduce((a,z)=>a+z.q,0),lf=cnt(ids,'p'),tf=L?cnt([L.id],'p'):0,te=tard?r.s*60/tard*100:null,
+ hp=pts(o,(o.fin||now())-36e5),dp=pts(o,T0()),ap=pts(o,M0())*INC.val;
+ return`<div class=ph>${TB('Inicio')}${sl}${OT()}${pcard}
+ <div class=c><div class=r2 style="flex-wrap:nowrap;align-items:flex-start"><div style="min-width:0"><h2 style="margin:0;font-size:clamp(22px,5vw,30px)">${E(r.n)}</h2>${L?`<b style="display:block;margin-top:8px">Ref. ${E(L.n)}</b><small style="font-size:14px">${E(L.col)} · ${E(L.t)}</small>`:'<small style="display:block;margin-top:8px">Sin lote seleccionado</small>'}${o.meta>0?`<div class=pb style="max-width:260px"><i style="width:${Math.min(100,dn/o.meta*100)}%"></i></div><small>${fin?'✔ Meta cumplida':'Meta de la tarea'} · ${dn} / ${o.meta}</small>`:''}</div><div class=who style="flex:none">${oav(o)}<span><b style="font-size:15px">${E(dnm(o))}</b><small>${E(m?.n)}</small></span></div></div><hr style="border:0;border-top:1px solid var(--bd);margin:14px 0 0">
+ <div class=rr style="padding-bottom:10px"><div class=rw${op?'':' data-a=log data-k=p'} style="cursor:${op?'not-allowed':'pointer'}">${ring(pH,meta,'var(--rc)',`<b class="n a2">${pH}</b><small>Fabricados</small><hr><div class=r4><span><b>${Math.max(0,meta-pH)}</b><small>Faltantes</small></span><span><b>${r.s}</b><small>Minutos</small></span></div>`)}<span class=pill>${fin?'✔ Completada':op?'En paro':'Toca para marcar'}</span></div>
+ ${ring(x+w,Math.max(pr.length,1),'var(--rd)',`<b class=n>${x}</b><small>Rechazos</small><hr><b class=n2>${w}</b><small>Reprocesos</small>`)}</div></div>
+ <div class="g4 k4">
+ <div class=kt><small>Eficiencia hora</small><b class="${cl(e1)}">${P1(e1)}</b></div><div class=kt><small>Eficiencia diaria</small><b class="${cl(e2)}">${P1(e2)}</b></div>
+ <div class="kt w2"><b style="font-size:16px">Información del lote</b><div class=ki><span><b>${lf}</b>Fabricados</span><span><b>${Math.max(0,lq-lf)}</b>Faltantes</span><span style="color:var(--rd)"><b class=rd>${L?cnt(ids,'w'):0}</b>Reprocesos</span></div></div>
+ <div class=kt><small>Puntos individuales</small><p class=p3><span class=bl>H</span><span class=bl>+${nf(hp)}</span></p><p class=p3><span class=gr>D</span><span class=gr>+${nf(dp)}</span></p><p class=p3><span title="Acumulado del mes">A</span><span>$${nf(ap)}</span></p></div>
+ <div class=kt><small>Eficiencia mensual</small><b class="${cl(e3)}">${P1(e3)}</b></div>
+ <div class="kt w2"><b style="font-size:16px">Información por talla</b><div class=ki><span><b>${tf}</b>Fabricados</span><span><b>${L?Math.max(0,L.q-tf):0}</b>Faltantes</span><span><b>${E(L?.t||'–')}</b>${E(L?.col||'')}</span></div></div></div>
+ <div class=c><div class=r2><div class=who>${oav(o)}<b style="font-size:20px">${E(r.n)}</b></div><span class=ic>${ICN(op||mst?'yl':'','Paro abierto','warn')}${ICN(!op&&!mst&&e1>=100?'ok':'','Eficiencia hora ≥ 100%','ok')}${ICN(x?'rd':'','Hay rechazos hoy','sad')}${ICN(fin?'ok':'w',fin?'Tarea completada':'Tarea abierta',fin?'lockc':'lock')}</span></div>
+ <div class=om><div><b>${mmss(r.s*60)}</b><small>Tiempo esperado</small></div><div><b>${mmss(tard)}</b><small>Tiempo tardado</small></div><div><b class="${cl(te)}">${te?te.toFixed(1)+'%':'–'}</b><small>Eficiencia</small></div><div><b style="color:var(--yl)">${E(L?.t||'–')}</b><small>Talla</small></div><div><b>${pr.length?hT(pr[pr.length-1].ts):'–'}</b><small>Marcación</small></div></div></div>
+ ${BAR('log',op)}
+ ${pm?`<div class=sh><div class=c><div class=nt>🔔 <b style="color:#5b3fd1">Mensaje de Producción</b><br>${E(pm.txt)}</div><button class=pr data-a=accept data-v="${pm.id}">Aceptar</button></div></div>`:''}${SH()}</div>`}
+
+let MS=null;
+const IC3={warn:'<path d="M12 3.5L2.5 20h19z"/><path d="M12 10v4.5M12 17.2v.01"/>',ok:'<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>',sad:'<circle cx="12" cy="12" r="9"/><path d="M9 10h.01M15 10h.01M8.5 16.3c1.2-1.6 5.8-1.6 7 0"/>',lock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.7-1.5"/>',lockc:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'},
+ICN=(c,t,k)=>`<i class="${c}" title="${t}"><svg viewBox="0 0 24 24">${IC3[k]}</svg></i>`,
+P1=v=>v==null?'–':v.toFixed(1)+'%',mmss=s=>{s=Math.max(0,Math.round(s));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')},
+oav=o=>avc(dnm(o),Math.max(0,S.ops.indexOf(o)),'36px');
+const PAL=['#8b74ff','#ff8a5b','#2fb5a8','#e8b43a','#5b8def','#d6678a'],
+avc=(n,i,sz,ring)=>`<i class=av style="background:${PAL[i%6]};${sz?`width:${sz};height:${sz};font-size:${parseInt(sz)>36?13:10}px;`:''}${ring?`box-shadow:0 0 0 3px ${ring};`:''}">${E(init(n))}</i>`,
+hms=s=>{s=Math.max(0,Math.floor(s));return[Math.floor(s/3600),Math.floor(s/60)%60,s%60].map(v=>String(v).padStart(2,'0')).join(':')},
+MI={play:'<path d="M7 4.5l12 7.5-12 7.5z"/>',refresh:'<path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v4.5h-4.5"/>',down:'<path d="M10 15v4a2 2 0 0 0 2 2l3-7V3H6.5A2 2 0 0 0 4.5 4.7l-1 7A2 2 0 0 0 5.5 14zM18 3h3v11h-3"/>',flag:'<path d="M5 21V4M5 4h12l-2.5 4L17 12H5"/>',chat:'<path d="M21 12a8 8 0 0 1-11.7 7.1L4 20.5l1.3-4.6A8 8 0 1 1 21 12z"/><path d="M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01"/>'},
+MB=(p='modlog',r=false,d='')=>`<div class=mbar><button data-a=rf title="Actualizar"><svg viewBox="0 0 24 24">${MI.refresh}</svg></button><button data-a=sheet data-v=rej title="Rechazo / reproceso"><svg viewBox="0 0 24 24">${MI.down}</svg></button><button class=pr data-a=${p}${r||d?` disabled title="${r?'Hay un paro abierto':d}"`:' title="Marcar"'}>＋</button><button data-a=flag class="${r?'al-rd':''}" title="${r?'Reanudar':'Paro'}"><svg viewBox="0 0 24 24">${r?MI.play:MI.flag}</svg></button><button data-a=sheet data-v=msg title="Mensajes"><svg viewBox="0 0 24 24">${MI.chat}</svg></button></div>`,
+whoSh=()=>{const os=S.ops.filter(o=>o.m===me.mod);return'<b>¿Quién se para o regresa?</b>'+(os.map(o=>{const z=S.stops.find(x=>x.op===o.id&&!x.e);return`<button data-a=mop data-v="${o.id}"${z?' class=al-ac':''}>${E(o.n)}${z?' · '+E(z.c)+' · reanudar':''}</button>`}).join('')||'<small>Este módulo no tiene operarios.</small>')},
+stopHead=()=>MS?`<b>${E(by(S.ops,MS)?.n||'')}</b><small>Elige el motivo del paro</small>`:'',
+mnm=id=>by(S.ops,id)?.n||'Operario',
+mstp=m=>S.stops.filter(x=>x.m===m.id&&x.op&&!BRK.includes(x.c)),
+mdur=x=>Math.max(0,(Math.min(x.e||now(),now())-Math.max(x.s,T0()))/6e4),
+mhist=m=>{const L=S.mlogs.filter(l=>l.mod===m.id&&l.k==='p'),D={},A=mstp(m).sort((a,b)=>b.s-a.s),hoy=A.filter(x=>(x.e||now())>T0()),os=S.ops.filter(o=>o.m===m.id),e2=eM(m,T0()),tk=new Date().toDateString();
+ L.forEach(l=>{const k=new Date(l.ts).toDateString();D[k]=(D[k]||0)+l.q});
+ const por=os.map(o=>{const a=hoy.filter(x=>x.op===o.id);return{o,n:a.length,m:a.reduce((t,x)=>t+mdur(x),0)}}).filter(z=>z.n);
+ return`<h2 style="margin:0">Historial del módulo</h2><div class=g4><div class=kt><small>Prendas hoy</small><b>${L.filter(l=>l.ts>=T0()).reduce((a,l)=>a+l.q,0)}</b></div><div class=kt><small>Eficiencia hoy</small><b class="${cl(e2)}">${P(e2)}</b></div><div class=kt><small>Prendas del mes</small><b>${L.reduce((a,l)=>a+l.q,0)}</b></div><div class=kt><small>Paros hoy</small><b>${Math.round(hoy.reduce((t,x)=>t+mdur(x),0))} <span style="font-size:14px">min</span></b></div></div>
+ <div class=c><b>Improductivo de hoy por operario</b>${por.map(z=>`<div class=r3 style="font-size:13px"><span class=who>${av(z.o.n)}<span>${E(z.o.n)}</span></span><span><span class=chip>${z.n} paro${z.n===1?'':'s'}</span><b>${Math.round(z.m)} min</b></span></div>`).join('')||'<small style="display:block;margin-top:8px">Sin paros hoy.</small>'}</div>
+ <div class=c><b>Paros registrados</b>${A.slice(0,40).map(x=>`<div class=r3 style="font-size:13px"><span><b>${E(mnm(x.op))}</b> · ${E(x.c)}<small style="display:block">${new Date(x.s).toLocaleDateString('es-CO',{day:'2-digit',month:'short'})} ${hT(x.s)}${x.e?' – '+hT(x.e):' · abierto'}</small></span><b ${x.e?'':`data-lt="${x.s}"`}>${fmt(((x.e||now())-x.s)/1e3)}</b></div>`).join('')||'<small style="display:block;margin-top:8px">Aún no hay paros registrados.</small>'}${A.length>40?`<small style="display:block;margin-top:8px">Mostrando los 40 más recientes de ${A.length}.</small>`:''}</div>
+ <div class=c><b>Prendas por día</b>${Object.entries(D).reverse().map(([k,v])=>`<div class=r3 style="font-size:13px"><span style="text-transform:capitalize">${k===tk?'Hoy':new Date(k).toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long'})}</span><b>${v} u</b></div>`).join('')||'<small style="display:block;margin-top:8px">Aún no hay marcaciones este mes.</small>'}</div>
+ <div class=c><div class=r2><b>Órdenes completadas</b><span class=chip>${mtk(m).length} este mes</span></div>${mtk(m).map(z=>`<div class=r3 style="font-size:13px"><span>✔ <b>${E(z.rn||'—')}</b> · ${E(z.ln||'sin lote')}<small style="display:block">${hT(z.ini)}–${hT(z.fin)} · ${z.q}/${z.meta} u · paro ${Math.round(z.pm||0)} min${z.x?' · '+z.x+' rech.':''}${z.w?' · '+z.w+' repr.':''}</small></span><b class="${cl(z.efi)}">${P(z.efi)}</b></div>`).join('')||'<small style="display:block;margin-top:8px">Aún no hay órdenes completadas este mes.</small>'}</div>`},
+mlin=m=>{const os=S.ops.filter(o=>o.m===m.id);
+ return`<h2 style="margin:0">Línea del módulo</h2><small>${os.length} operario${os.length===1?'':'s'}</small>${os.map((o,i)=>{const z=S.stops.find(x=>x.op===o.id&&!x.e),r=by(S.refs,o.ref),Q=S.cola.filter(x=>x.op===o.id).length,dd=doneN(o);
+  return`<div class="c${z?' '+(z.c==='Reprocesos'?'al-rd':'al-ac'):''}"><div class=r2><span class=who>${avc(o.n,i)}<span><b style="font-size:16px">${E(o.n)}</b><small>${E(o.mq)}</small></span></span>${z?`<b data-lt="${z.s}">${fmt((now()-z.s)/1e3)}</b>`:o.fin?'<span class=chip style="color:var(--ok)">✔ Disponible</span>':''}</div>${z?`<div style="margin-top:8px">Paro · ${E(z.c)}</div>`:''}${r?`<div style="margin-top:10px"><b>${E(r.n)}</b><small style="display:block">${lbl(o.lote)}</small>${o.meta>0?`<div class=pb><i style="width:${Math.min(100,dd/o.meta*100)}%"></i></div><small>${dd} / ${o.meta} u${Q?` · +${Q} en cola`:''}</small>`:''}</div>`:'<small style="display:block;margin-top:8px">Sin tarea asignada</small>'}</div>`}).join('')}`},
+mofic=m=>{const r=by(S.refs,m.ref),L=by(S.lotes,m.lote),n=S.ops.filter(o=>o.m===m.id).length||1,soon=(t,d)=>`<div class="c soon"><span class=chip>Próximamente</span><b style="display:block">${t}</b><small>${d}</small></div>`;
+ return`<h2 style="margin:0">Ficha técnica</h2>${r?`<div class=c><span class=chip>Referencia del módulo</span><div style="font-size:20px;font-weight:700;margin:6px 0">${E(r.n)}</div><small>${L?`Ref. ${E(L.n)} · ${E(L.col)} · ${E(L.t)}`:'Sin lote'} · ${n} operarios</small><div class=om><div><b>${r.s}</b><small>SAM (min)</small></div><div><b>${fmt(r.s*60/n)}</b><small>Takt del módulo</small></div><div><b>${Math.floor(60*n/r.s)}</b><small>Prendas/hora al 100%</small></div></div></div>`:'<div class=c><b>Sin referencia</b><small style="display:block;margin-top:6px">Cuando el supervisor cargue una orden verás aquí su ficha.</small></div>'}
+ ${soon('Paso a paso','Video y fotos de cómo armar la prenda completa en el módulo.')}${soon('¿Lo estamos haciendo bien?','Puntos de calidad y medidas para comparar contra el estándar.')}${soon('Errores comunes','Defectos frecuentes de esta referencia y cómo evitarlos.')}`};
+function modulo(){
+ const m=by(S.mods,me.mod),msl=U.rol==='modulo'?'':`<div class=sel><select data-c=mod>${opts(S.mods,me.mod,'Módulo…')}</select></div>`;
+ if(!m)return`<div class=ph>${TB('Línea')}${msl}<small>Elige un módulo.</small></div>`;
+ const t=me.ot||'inicio';
+ if(t!=='inicio'){const B={historial:mhist,linea:mlin,ficha:mofic,ajustes:m=>oaj({n:m.n,m:m.id,mq:'Confección',nofull:1})}[t]||mhist;return`<div class=ph>${msl}${OT()}${B(m)}${SH()}</div>`}
+ const r=by(S.refs,m.ref),L=by(S.lotes,m.lote);
+ if(!r)return`<div class=ph>${TB('Línea')}${msl}${OT()}<div class=c><b>Sin orden cargada</b><small style="display:block;margin-top:6px">Tu supervisor le asignará una referencia y un lote a este módulo. Mientras tanto no se puede marcar nada. Esta pantalla se actualiza sola.</small></div>${MB('modlog',false,'Sin orden cargada')}${SH()}</div>`;
+ const os=S.ops.filter(o=>o.m===m.id),n=os.length||1,pm=S.logs.filter(l=>l.mod===m.id&&l.k==='p').sort((a,b)=>a.ts-b.ts),pH=pm.filter(l=>l.ts>now()-36e5).reduce((a,l)=>a+l.q,0),
+ meta=Math.floor(60*n/r.s),tk=r.s*60/n,e1=eM(m,now()-36e5),e2=eM(m,T0()),last=pm[pm.length-1],tard=pm.length>1?(last.ts-pm[pm.length-2].ts)/1e3:0,te=tard?tk/tard*100:null,
+ td=mstp(m).filter(x=>(x.e||now())>T0()),imp=td.reduce((a,x)=>a+mdur(x),0),nx=S.logs.filter(l=>l.mod===m.id&&l.k==='x').length,
+ closed=!!m.fin,dn=doneM(m),nq=S.cola.filter(z=>z.mod===m.id).length,
+ openOf=id=>S.stops.find(x=>x.op===id&&!x.e),srt=os.slice().sort((a,b)=>!!openOf(b.id)-!!openOf(a.id)),vis=srt.slice(0,5),rest=os.length-vis.length,
+ tile=o=>{const z=openOf(o.id),i=os.indexOf(o);return`<div data-a=mop data-v="${o.id}"><span style="position:relative;display:inline-block">${avc(o.n,i,'44px',z?'var(--rd)':'var(--a2)')}<span class=dot style="background:${z?'var(--rd)':'var(--a2)'}"></span></span><small>${E(o.n.split(' ')[0])}</small>${z?`<small class=rd data-lt="${z.s}">${fmt((now()-z.s)/1e3)}</small>`:''}</div>`};
+ TM={t:last?last.ts:now(),k:tk};
+ return`<div class=ph>${TB('Línea')}${msl}${OT()}
+ ${closed?`<div class=c style="border-color:var(--ok)"><b class=ok>✔ Orden completada · 100%</b><small style="display:block;margin-top:6px">El módulo completó las ${m.meta} unidades y la orden quedó guardada en el historial. Queda disponible: tu supervisor le asignará la siguiente orden.</small></div>`:''}<div class="mh m3"><div class=c><div class=who style="gap:10px"><i class=av style="width:52px;height:52px;font-size:17px;background:#c9bfff;color:#241d4a;flex:none">${E(init(m.n))}</i><span style="min-width:0"><b style="font-size:17px;display:block">${E(m.n)}</b><small>Confección</small></span></div><div style="display:flex;gap:2px;align-items:center;margin-top:10px">${os.slice(0,4).map((o,i)=>avc(o.n,i,'26px')).join('')}${os.length>4?`<i class=av style="width:26px;height:26px;font-size:10px;background:#4a4a52">+${os.length-4}</i>`:''}<button class=pr data-a=sheet data-v=who title="Registrar paro de un operario" style="width:30px;height:30px;padding:0;border-radius:8px;margin-left:6px;min-height:0">＋</button></div></div>
+ <div class=c><small>Eficiencia hora</small><b class="n2 ${cl(e1)}" style="display:block;margin-top:12px">${P(e1)}</b></div><div class=c><small>Eficiencia diaria</small><b class="n2 ${cl(e2)}" style="display:block;margin-top:12px">${P(e2)}</b></div></div>
+ <div class=c><div class=r2 style="flex-wrap:nowrap"><div style="min-width:0"><b style="font-size:26px">Ref. ${E(L?L.n:r.n)}</b><div style="margin-top:6px">Prenda completa</div><small>${L?E(L.col)+' · '+E(L.t):E(r.n)}</small>${m.meta>0?`<div class=pb style="max-width:260px"><i style="width:${Math.min(100,dn/m.meta*100)}%"></i></div><small>${closed?'✔ Meta cumplida':'Meta de la orden'} · ${dn} / ${m.meta}${nq?` · +${nq} en cola`:''}</small>`:''}</div></div><hr style="border:0;border-top:1px solid var(--bd);margin:14px 0 0">
+ <div class=rr><div class=rw data-a=modlog style="cursor:pointer">${ring(pH,meta,'var(--rc)',`<b class="n a2">${pH}</b><small>Fabricadas</small><hr><div class=r4><span><b>${Math.max(0,meta-pH)}</b><small>Faltantes</small></span><span><b>${r.s}</b><small>Minutos</small></span></div>`)}<span class=pill>${closed?'✔ Completada':'Toca para marcar'}</span></div>
+ ${ring(0,1,'#d9d8e3',`<b class=n2 id=tm data-h=1>00:00:00</b><small>Takt ${fmt(tk)} esperado</small>`,'tg')}</div></div>
+ <div class=c><div class=r2 style="flex-wrap:nowrap;align-items:flex-start"><div style="min-width:0;flex:1"><b style="font-size:17px">Tiempos improductivos abiertos</b><div class=mt>${vis.map(tile).join('')}${rest>0?`<div data-a=sheet data-v=who><i class=av style="width:44px;height:44px;background:#4a4a52;font-size:13px">+${rest}</i><small>Más</small></div>`:''}</div></div><div style="text-align:right;flex:none"><b class=n2>${imp>=1000?(imp/1000).toFixed(1)+'K':Math.round(imp)}</b><small style="display:block">Minutos<br>improductivos</small></div></div></div>
+ <div class=c><div class=r2><div class=who>${avc(m.n,0)}<b style="font-size:17px">${E(r.n)}</b></div><span class=ic>${ICN(S.stops.some(x=>x.m===m.id&&x.op&&!x.e)?'yl':'','Hay paros abiertos','warn')}${ICN(e1>=100?'ok':'','Eficiencia hora ≥ 100%','ok')}${ICN(nx?'rd':'','Hay rechazos hoy','sad')}${ICN(closed?'ok':'w',closed?'Orden completada':'Orden abierta',closed?'lockc':'lock')}</span></div>
+ <div class=om><div><b>${fmt(tk)}</b><small>Tiempo esperado</small></div><div><b>${fmt(tard)}</b><small>Tiempo tardado</small></div><div><b class="${cl(te)}">${te?te.toFixed(1)+'%':'–'}</b><small>Eficiencia</small></div><div><b style="color:var(--yl)">${E(L?.t||'–')}</b><small>Talla</small></div><div><b>${last?hT(last.ts):'–'}</b><small>Marcación</small></div></div></div>
+ ${mreq(m)}${MB('modlog',false,closed?'Orden completada':'')}${SH()}</div>`}
+
+function cfg(){return cfg0()+cfgP()+qrm()}
+function cfg0(){
+ const li=(c,a,f)=>a.map(x=>`<div style="display:flex;gap:8px;border-bottom:1px solid var(--bd);padding:6px 0;align-items:center"><span style="flex:1">${f(x)}</span><button data-a=del data-c=${c} data-v="${x.id}">✕</button></div>`).join(''),
+ f=(t,inner,c,list)=>`<div class=c style="margin-bottom:12px"><b>${t}</b><div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">${inner}<button class=pr data-a=new data-c=${c}>Agregar</button></div>${list}</div>`;
+ return(S.mods.length+S.ops.length+S.refs.length?'':'<div class=c style="margin-bottom:12px"><button class=pr data-a=seed>Cargar datos de ejemplo</button></div>')+
+ f('Módulos','<input placeholder="Nombre del módulo">','mods',li('mods',S.mods,x=>E(x.n)+` <button data-a=qrv data-v="${x.id}">🔳 QR de pausas</button>`))+
+ f('Operarios','<input placeholder="Nombre"><input placeholder="Máquina"><select>'+opts(S.mods,'','Módulo…')+'</select>','ops',li('ops',S.ops,x=>E(x.n)+' · '+E(x.mq)+' · '+E(by(S.mods,x.m)?.n)))+
+ f('Referencias · operaciones (SAM en minutos)','<input placeholder="4127 · Pegar cuello"><input type=number step=0.01 min=0 placeholder="SAM">','refs',li('refs',S.refs,x=>E(x.n)+' · SAM '+x.s))+f('Lotes por talla (cantidad a fabricar)','<input placeholder="Ref. prenda 698576-601"><input placeholder="Color"><input placeholder="Talla"><input type=number min=1 placeholder="Cantidad"><select>'+opts(S.mods,'','Módulo…')+'</select>','lotes',li('lotes',S.lotes,x=>E(x.n)+' · '+E(x.col)+' · '+E(x.t)+' · '+x.q+' u'))+(S.lotes.length?'':'<div class=c><button data-a=seedl>Cargar lotes de ejemplo</button></div>')}
+
+const RL={admin:'Administrador',operario:'Trabajador',modulo:'Módulo',patinador:'Patinador'},
+loginView=()=>`<div class="c lg"><h1 class=pt>sammu OS</h1><small>${setupMode?'Primer uso: crea el usuario administrador.':'Ingresa con tu usuario y contraseña.'}</small>
+ <form data-f=${setupMode?'setup':'login'} class=fm><input name=u placeholder="Usuario" required autocomplete=username autocapitalize=none><input name=p type=password placeholder="Contraseña" required minlength=${setupMode?6:1} autocomplete=${setupMode?'new-password':'current-password'}><button class=pr>${setupMode?'Crear administrador':'Entrar'}</button></form>
+ ${loginErr?`<p class=rd>${E(loginErr)}</p>`:st?`<p class=k>${E(st)}</p>`:''}</div>`,
+usuarios=()=>{const lk=x=>x.rol==='operario'?E(by(S.ops,x.op)?.n||'sin operario'):x.rol==='modulo'?E(by(S.mods,x.mod)?.n||'sin módulo'):x.rol==='patinador'?E(by(S.pats,x.op)?.n||'sin patinador'):'todo el sistema';
+ return`<div class=c style="margin-bottom:12px"><b>Nuevo usuario</b><form data-f=nu class=sel style="margin:8px 0"><input name=u placeholder="Usuario" required autocomplete=off><input name=p type=password placeholder="Contraseña (mín. 6)" minlength=6 required autocomplete=new-password><select name=rol><option value=operario>Trabajador</option><option value=modulo>Módulo</option><option value=patinador>Patinador</option><option value=admin>Administrador</option></select><select name=op>${opts(S.ops,'','Operario…')}</select><select name=mod>${opts(S.mods,'','Módulo…')}</select><select name=pat>${opts(S.pats,'','Patinador…')}</select><button class=pr>Crear</button></form><small>Trabajador: elige su operario. Módulo: elige el módulo. Administrador no necesita puesto.</small></div>
+ <div class=c><b>Usuarios</b>${S.users.map(x=>`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--bd);padding:8px 0"><span style="flex:1 1 200px"><b>${E(x.u)}</b> <small>${RL[x.rol]} · ${lk(x)}${x.act?'':' · desactivado'}</small></span><button data-a=utog data-v="${x.id}">${x.act?'Desactivar':'Activar'}</button><button data-a=upw data-v="${x.id}">Contraseña</button><button data-a=udel data-v="${x.id}">✕</button></div>`).join('')||'<small>Sin usuarios.</small>'}</div>`},
+loadUsers=async()=>{try{const r=await fetch('/admin/users');if(r.ok)S.users=await r.json();render()}catch(e){}},
+adm=async(m,id,b)=>{const r=await fetch('/admin/users/'+id,{method:m,headers:{'content-type':'application/json'},body:b?JSON.stringify(b):undefined});if(!r.ok)alert((await r.json().catch(()=>({}))).e||'Error');loadUsers()};
+const lopt=(sel,md)=>'<option value="">Sin lote</option>'+S.lotes.filter(z=>!md||!z.m||z.m===md).map(z=>`<option value="${z.id}"${z.id===sel?' selected':''}>${E(z.n)} · ${E(z.col)} · ${E(z.t)}</option>`).join('');
+const hm=t=>{if(!t)return null;const[a,b]=t.split(':');return+a*60+ +b},
+hh=m=>{m=Math.round(m);return String(Math.floor(m/60)%24).padStart(2,'0')+':'+String(m%60).padStart(2,'0')},
+dm=m=>{m=Math.round(m);return m>=60?Math.floor(m/60)+' h '+m%60+' min':m+' min'},
+// Jornada: tiempo operativo teórico = (salida − ingreso) − desayuno − almuerzo, sin paros
+jor=o=>{const i=hm(o.hi),f=hm(o.hs);if(i==null||f==null||f<=i)return null;
+ const P=[[hm(o.di),hm(o.df)],[hm(o.ai),hm(o.af)]].filter(([a,b])=>a!=null&&b!=null&&b>a).sort((x,y)=>x[0]-y[0]),cut=(a,b,lo,hi)=>Math.max(0,Math.min(b,hi)-Math.max(a,lo));
+ return{i,f,P,cut,net:f-i-P.reduce((t,[a,b])=>t+cut(a,b,i,f),0)}},
+adv=(t,m,P)=>{for(let g=0;m>1e-9&&g<30;g++){const c=P.find(([a,b])=>t>=a&&t<b);if(c){t=c[1];continue}const n=P.find(([a])=>a>t);if(n&&t+m>n[0]){m-=n[0]-t;t=n[0]}else{t+=m;m=0}}return t},
+fx=o=>(+o.efo||100)/100,need=(o,r,q)=>r&&q>0?q*r.s/fx(o):0,
+// Plan: recorre la jornada desde ahora (o el ingreso) saltando pausas: tarea actual (lo que falta) y luego la cola, en orden
+plan=o=>{const J=jor(o);if(!J)return null;const N=new Date(),nm=N.getHours()*60+N.getMinutes(),t0=me.pm==='now'?Math.max(J.i,nm):J.i;let t=t0,used=0;
+ const step=(r,q)=>{const m=need(o,r,q),a=t;t=adv(t,m,J.P);used+=m;return{m,a,b:t,q,ex:t>J.f+.5}},
+ c=o.ref&&!o.fin&&o.meta>0?step(by(S.refs,o.ref),Math.max(0,o.meta-doneN(o))):null,
+ qs=S.cola.filter(x=>x.op===o.id).sort((a,b)=>a.ord-b.ord).map(x=>({x,...step(by(S.refs,x.ref),x.meta)})),
+ rest=Math.max(0,J.f-t0-J.P.reduce((s,[a,b])=>s+J.cut(a,b,t0,J.f),0));
+ return{J,c,qs,used,rest,free:rest-used,t0,t,nm,ended:me.pm==='now'&&nm>=J.f,el:Math.max(0,J.net-rest),lq:qs.reduce((s,z)=>s+z.m,0)}},
+// su: segundos por unidad · fit: unidades que caben en m minutos
+su=(o,r)=>r?Math.round(r.s*60/fx(o)):0,
+fit=(o,r,m)=>r&&r.s>0?Math.max(0,Math.floor(m*fx(o)/r.s+1e-9)):0,
+hint=o=>{const f=QF[o.id]||{},r=by(S.refs,f.ref),p=plan(o);
+ if(!p)return'Define el horario para calcular el tiempo libre.';
+ if(!r)return`Libre: ${dm(Math.max(0,p.free))}. Elige una operación para ver cuántas unidades caben.`;
+ const q=+f.q>0?+f.q:0,m=need(o,r,q),mx=fit(o,r,p.free);
+ if(!q)return`${su(o,r)} s por unidad · en ${dm(Math.max(0,p.free))} libres caben ${mx} unidades.`;
+ return`${q} u × ${su(o,r)} s = ${dm(m)} · de ${hh(p.t)} a ${hh(adv(p.t,m,p.J.P))} · `+(m>p.free+.01?`⚠ excede por ${dm(m-p.free)} (máximo ${mx} u)`:`quedarían ${dm(p.free-m)} libres`)},
+gs=()=>{const g=me.gh||{},J=jor(g);return J?`${hh(J.i)} → ${hh(J.f)} − pausas ${dm(J.f-J.i-J.net)} = jornada neta ${dm(J.net)} · eficiencia objetivo ${Math.round(fx(g)*100)}%`:'Completa ingreso y salida para ver la jornada neta.'},
+FLD=[['hi','Ingreso','time'],['hs','Salida','time'],['di','Desayuno desde','time'],['df','Desayuno hasta','time'],['ai','Almuerzo desde','time'],['af','Almuerzo hasta','time'],['efo','Eficiencia objetivo %','number']],
+sch=(o,c)=>`<div class=hz>${FLD.map(([k,t,y])=>`<label>${t}<input type=${y} ${y==='number'?'min=1 max=150 ':''}data-c=${c} data-k=${k}${o?` data-v="${o.id}"`:''} value="${(o?o[k]:(me.gh||{})[k])??''}"></label>`).join('')}</div>`,
+lbl=l=>{const z=by(S.lotes,l);return z?`${E(z.n)} · ${E(z.col)} · ${E(z.t)}`:'sin lote'};
+function asig(){const st=o=>!o.ref||o.fin?`<span class=chip style="color:var(--ok)">${o.fin?'✔ Finalizada · ':''}Disponible</span>`:`<span class=chip>En tarea${o.meta>0?` · ${doneN(o)}/${o.meta}`:''}</span>`,
+ rn=x=>E(by(S.refs,x)?.n||'—'),
+ sg=(a,b,J,k,tx,tt)=>{const w=J.f-J.i,d=Math.min(b,J.f)-Math.max(a,J.i);return d>0?`<i class="${k}" style="left:${Math.max(0,a-J.i)/w*100}%;width:${d/w*100}%" title="${E(tt||tx)}">${E(tx)}</i>`:''},
+ // Línea de tiempo de la jornada: tarea actual, cola, tiempo libre, pausas y lo que ya pasó
+ tlb=(o,p)=>{const J=p.J,n=x=>by(S.refs,x)?.n||'';
+  return`<div class=tlb>${[p.c?sg(p.c.a,p.c.b,J,'sg0','Actual','Actual: '+n(o.ref)+' '+hh(p.c.a)+'–'+hh(p.c.b)):'',...p.qs.map((z,i)=>sg(z.a,z.b,J,'sg'+(1+i%2),i+1,(i+1)+': '+n(z.x.ref)+' '+hh(z.a)+'–'+hh(z.b))),sg(p.t,J.f,J,'fr','Libre','Libre '+hh(p.t)+'–'+hh(J.f)),...J.P.map(([a,b])=>sg(a,b,J,'ps','','Pausa '+hh(a)+'–'+hh(b))),sg(J.i,p.t0,J,'el','','Ya transcurrido')].join('')}</div><div class=r2><small>${hh(J.i)}</small><small>Gris: ya pasó · rayas: pausas · verde: libre</small><small>${hh(J.f)}</small></div>`},
+ // Cuenta clara: jornada neta − lo que ya pasó − tarea actual − cola = libre
+ ld=(o,p)=>{const r=by(S.refs,o.ref),Q=p.qs.length,cur=p.c?`${E(r?.n)} · faltan ${p.c.q} u × ${su(o,r)} s`:o.ref&&!o.fin?'Sin meta: no se puede calcular':'Sin tarea: está disponible';
+  return`<div class=ld>${p.ended?`<small class=rd>La jornada ya terminó (${hh(p.J.f)}). Cambia a «Jornada completa» para planear el siguiente día.</small>`:''}<div><span>Jornada neta<small>${hh(p.J.i)}–${hh(p.J.f)}, sin desayuno ni almuerzo</small></span><b>${dm(p.J.net)}</b></div>
+ ${p.el>.5?`<div><span>Ya transcurrido<small>hasta las ${hh(p.t0)}</small></span><b>− ${dm(p.el)}</b></div>`:''}
+ <div><span>Tarea actual<small>${cur}</small></span><b>− ${dm(p.c?p.c.m:0)}</b></div>
+ <div><span>Cola de trabajo<small>${Q} tarea${Q===1?'':'s'}</small></span><b>− ${dm(p.lq)}</b></div>
+ <div class=tt><span>${p.free<0?'Excede la jornada':'Libre para asignar'}</span><b class="${p.free<0?'rd':'ok'}">${dm(Math.abs(p.free))}</b></div></div>`},
+ cap=(o,p)=>p.free>.5?`<div style="margin:6px 0"><small>Con ${dm(p.free)} libres caben (toca una para llenar la cola):</small><div>${S.refs.map(r=>`<button class=chip data-a=qfill data-v="${o.id}:${r.id}">${E(r.n)} · ${fit(o,r,p.free)} u</button>`).join('')}</div></div>`:'',
+ blk=o=>{const p=plan(o),f=QF[o.id]||{},Q=p?p.qs:S.cola.filter(x=>x.op===o.id).sort((a,b)=>a.ord-b.ord).map(x=>({x}));
+  return`<div class=ob><div class=r2><span class=who>${av(o.n)}<span>${E(o.n)}<small>${E(by(S.mods,o.m)?.n)} · ${E(o.mq)}</small></span></span><span>${p?`<span class="chip ${p.free<0?'rd':'ok'}">${p.free<0?'Excede '+dm(-p.free):'Libre '+dm(p.free)}</span>`:''}${st(o)}</span></div>
+ ${p?ld(o,p)+tlb(o,p)+cap(o,p):`<small>Falta el horario de ${E(o.n)}: ábrelo en «Horario» (abajo) o usa «Aplicar a todos».</small>`}
+ <div><b>1 · Tarea actual</b><div class=ar style="border:0;padding:6px 0 0"><select data-c=asr data-v="${o.id}">${opts(S.refs,o.ref,'Sin operación')}</select><select data-c=asl data-v="${o.id}">${lopt(o.lote)}</select><input type=number min=1 data-c=asm data-v="${o.id}" value="${o.meta||''}" placeholder="Meta (u)"></div><small>${o.ref&&!o.fin?`Van ${doneN(o)} de ${o.meta||'?'} unidades${p&&p.c?` · termina ≈ ${hh(p.c.b)}`:' · pon la meta para contar su tiempo'}`:'Sin tarea: lo que agregues abajo pasa a ser la tarea actual.'}</small></div>
+ <div><b>2 · Cola de trabajo</b> <small>(lo que sigue, en orden)</small>${Q.map(({x,m,a,b,ex},i)=>`<div class=qi><span><b>${i+1}.</b> ${rn(x.ref)} · ${lbl(x.lote)} · <b>${x.meta} u</b>${p?`<small style="display:block">${x.meta} u × ${su(o,by(S.refs,x.ref))} s = ${dm(m)} · ${hh(a)} → ${hh(b)}${ex?' <b class=rd>⚠ fuera de jornada</b>':''}</small>`:''}</span><button data-a=qmv data-v="${x.id}:-1">▲</button><button data-a=qmv data-v="${x.id}:1">▼</button><button data-a=qdel data-v="${x.id}">✕</button></div>`).join('')||'<small style="display:block">Vacía.</small>'}</div>
+ <div><b>3 · Agregar a la cola</b><div class=ar style="border:0;padding:6px 0 0"><select data-c=qr data-v="${o.id}">${opts(S.refs,f.ref,'Operación…')}</select><select data-c=ql data-v="${o.id}">${lopt(f.lote)}</select><input type=number min=1 data-c=qq data-v="${o.id}" value="${f.q||''}" placeholder="Unidades"><button data-a=qmax data-v="${o.id}">Máx.</button><button class=pr data-a=qadd data-v="${o.id}">＋ Agregar</button></div><small id="qh-${o.id}">${hint(o)}</small></div>
+ <div><button data-a=tg data-v="${o.id}">${OPEN[o.id]?'▾':'▸'} Horario de ${E(o.n)}</button>${OPEN[o.id]?sch(o,'sch'):''}</div></div>`};
+ return`<div class=c style="margin-bottom:12px"><b>Horario general de la jornada</b><small style="display:block;margin:4px 0 0">Defínelo una vez y aplícalo a todos; luego ajustas a cada operario. Jornada neta = salida − ingreso − desayuno − almuerzo (sin paros). Cada unidad tarda SAM ÷ eficiencia objetivo.</small>${sch(null,'gh')}<b id=gsum style="display:block;margin-top:10px">${gs()}</b><button class=pr data-a=gapl style="margin-top:10px">Aplicar a todos los operarios</button></div>
+ <div class=c><b>Asignación de tareas y cola de trabajo</b><small style="display:block;margin:4px 0 8px">Cómo leerlo: <b>jornada neta − tarea actual − cola = tiempo libre</b>. Con el tiempo libre agregas más tareas; al cumplir la meta arranca sola la siguiente de la cola.</small><div class=sel style="margin:0 0 8px"><button class="${me.pm==='now'?'':'pr'}" data-a=pmo data-v=full>Jornada completa</button><button class="${me.pm==='now'?'pr':''}" data-a=pmo data-v=now>Desde la hora actual</button></div><small style="display:block;margin-bottom:8px">${me.pm==='now'?'Descuenta lo que ya pasó hoy: sirve durante el turno. Si la jornada ya terminó, no queda tiempo.':'Planea el día completo, de ingreso a salida, sin importar la hora que sea: sirve para armar la cola antes de empezar.'}</small>${S.ops.map(blk).join('')||'<small>Crea operarios en Configuración.</small>'}</div>`}
+// Módulos: misma lógica que los operarios (orden actual + cola). Sin orden cargada no marcan; al cumplir la meta se cierra y arranca la siguiente de la cola.
+function asigM(){const rn=x=>E(by(S.refs,x)?.n||'—'),
+ blk=m=>{const f=QF[m.id]||{},fin=!!m.fin,dn=doneM(m),n=S.ops.filter(o=>o.m===m.id).length,Q=S.cola.filter(x=>x.mod===m.id).sort((a,b)=>a.ord-b.ord);
+  return`<div class=ob><div class=r2><span class=who>${av(m.n)}<span>${E(m.n)}<small>${n} operario${n===1?'':'s'}</small></span></span>${!m.ref||fin?`<span class=chip style="color:var(--ok)">${fin?'✔ Finalizada · ':''}Disponible</span>`:`<span class=chip>En orden${m.meta>0?` · ${dn}/${m.meta}`:''}</span>`}</div>
+ <div><b>1 · Orden actual</b><div class=ar style="border:0;padding:6px 0 0"><select data-c=msr data-v="${m.id}">${opts(S.refs,m.ref,'Sin referencia')}</select><select data-c=msl data-v="${m.id}">${lopt(m.lote,m.id)}</select><input type=number min=1 data-c=msm data-v="${m.id}" value="${m.meta||''}" placeholder="Meta (u)"></div><small>${m.ref&&!fin?`Van ${dn} de ${m.meta||'?'} unidades${m.meta>0?'':' · pon la meta para que la orden se cierre sola'}`:'Sin orden: el módulo no puede marcar nada hasta que tenga una. Lo que agregues abajo pasa a ser la orden actual.'}</small></div>
+ <div><b>2 · Cola de órdenes</b> <small>(la siguiente arranca sola al cumplir la meta)</small>${Q.map((x,i)=>`<div class=qi><span><b>${i+1}.</b> ${rn(x.ref)} · ${lbl(x.lote)} · <b>${x.meta} u</b></span><button data-a=qmv data-v="${x.id}:-1">▲</button><button data-a=qmv data-v="${x.id}:1">▼</button><button data-a=qdel data-v="${x.id}">✕</button></div>`).join('')||'<small style="display:block">Vacía.</small>'}</div>
+ <div><b>3 · Agregar a la cola</b><div class=ar style="border:0;padding:6px 0 0"><select data-c=mqr data-v="${m.id}">${opts(S.refs,f.ref,'Referencia…')}</select><select data-c=mql data-v="${m.id}">${lopt(f.lote,m.id)}</select><input type=number min=1 data-c=mqq data-v="${m.id}" value="${f.q||''}" placeholder="Unidades"><button class=pr data-a=mqadd data-v="${m.id}">＋ Agregar</button></div></div></div>`};
+ return`<div class=c style="margin-top:12px"><b>Asignación de órdenes por módulo</b><small style="display:block;margin:4px 0 8px">Igual que con los operarios: el módulo no puede marcar sin una orden cargada, no avanza a la siguiente hasta cumplir la meta de la actual y, al llegar al 100%, se bloquea el botón de marcar.</small>${S.mods.map(blk).join('')||'<small>Crea módulos en Configuración.</small>'}</div>`}
+// ---- Históricos: calendario por año / mes / día y borrado de registros (solo admin) ----
+let HL=0;
+const H={v:'mes',y:new Date().getFullYear(),m:new Date().getMonth(),d:new Date().getDate()},HC={},
+dk=(y,m,d)=>y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'),
+post=(u,b)=>fetch(u,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}),
+hload=async()=>{const y=H.y,c=HC[y];if(HL||(c&&(y!==new Date().getFullYear()||now()-c.t<2e4)))return;HL=1;
+ try{const r=await fetch(`/admin/hist?from=${new Date(y,0,1).getTime()}&to=${new Date(y+1,0,1).getTime()}&tz=${new Date().getTimezoneOffset()}`);HC[y]=r.ok?{...await r.json(),t:now()}:{days:[],stops:[],t:now()}}catch(e){HC[y]={days:[],stops:[],t:now()}}
+ HL=0;render()};
+function hist(){hload();const c=HC[H.y],Y=H.y,T=new Date(),tk=dk(T.getFullYear(),T.getMonth(),T.getDate()),
+ MN=m=>new Date(2000,m,1).toLocaleDateString('es-CO',{month:'long'}),
+ tit=H.v==='anio'?Y:H.v==='mes'?new Date(Y,H.m,1).toLocaleDateString('es-CO',{month:'long',year:'numeric'}):new Date(Y,H.m,H.d).toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long',year:'numeric'}),
+ tb=`<div class=c style="margin-bottom:12px"><div class=r2><div class=sel>${[['anio','Año'],['mes','Mes'],['dia','Día']].map(([k,t])=>`<button class="${H.v===k?'pr':''}" data-a=hvw data-v=${k}>${t}</button>`).join('')}</div><div class=sel><button data-a=hnv data-v=-1>◀</button><b style="align-self:center;min-width:150px;text-align:center">${tit}</b><button data-a=hnv data-v=1>▶</button><button data-a=hhoy>Hoy</button></div></div></div>`;
+ if(!c)return tb+'<p class=k>Cargando histórico…</p>';
+ const byd={};c.days.forEach(r=>(byd[r.d]=byd[r.d]||[]).push(r));
+ const pd=k=>(byd[k]||[]).reduce((a,r)=>a+r.p,0),rowsOf=(a,b)=>c.days.filter(r=>r.d>=a&&r.d<=b),
+ // eficiencia = minutos estándar producidos ÷ minutos disponibles (primera→última marcación del día, sin paros)
+ mm=r=>{const t=c.stops.filter(x=>x.m===r.m&&(!x.op||!r.op||x.op===r.op)).reduce((a,x)=>a+Math.max(0,(Math.min(x.e||r.l,r.l)-Math.max(x.s,r.f))/6e4),0),a=(r.l-r.f)/6e4-t;return{...r,sm:t,a,ef:r.op&&a>=1?r.sam/a*100:null}},
+ ag=rs=>{const R=rs.map(mm);let p=0,x=0,w=0,s=0,a=0;R.forEach(r=>{p+=r.p;x+=r.x;w+=r.w;if(r.ef!=null){s+=r.sam;a+=r.a}});return{R,p,x,w,ef:a?s/a*100:null}},
+ kp=g=>`<div class=g4 style="margin-bottom:12px"><div class=kt><small>Unidades</small><b>${g.p}</b></div><div class=kt><small>Eficiencia</small><b class="${cl(g.ef)}">${P(g.ef)}</b></div><div class=kt><small>Rechazos</small><b>${g.x}</b></div><div class=kt><small>Reprocesos</small><b>${g.w}</b></div></div>`,
+ tbl=(g,ex)=>{const M={};g.R.forEach(r=>{const k=r.op||'m'+r.m,z=M[k]=M[k]||{op:r.op,m:r.m,p:0,x:0,w:0,sm:0,s:0,a:0};z.p+=r.p;z.x+=r.x;z.w+=r.w;z.sm+=r.sm;if(r.ef!=null){z.s+=r.sam;z.a+=r.a}});
+  return Object.values(M).sort((a,b)=>b.p-a.p).map(z=>{const n=z.op?by(S.ops,z.op)?.n||'Operario eliminado':(by(S.mods,z.m)?.n||'Módulo')+' (módulo)',e=z.a?z.s/z.a*100:null;
+   return`<div class=ar><span class=who>${av(n)}<span>${E(n)}</span></span><span class=chip>${z.p} u</span><span class=chip>${z.x} rech.</span><span class=chip>${z.w} repr.</span><span class=chip>paro ${Math.round(z.sm)} min</span><b class="${cl(e)}">${P(e)}</b>${ex?ex(z):''}</div>`}).join('')||'<small style="display:block;margin-top:6px">Sin marcaciones en este periodo.</small>'},
+ mini=(m,n)=>{const off=(new Date(Y,m,1).getDay()+6)%7;return[...Array(off)].map(()=>'<span></span>').join('')},
+ rs=`<div class=c style="margin-top:12px"><b>Reiniciar pruebas</b><small style="display:block;margin:4px 0 8px">Borra todas las marcaciones, paros, mensajes, colas y tareas actuales. Conserva operarios, módulos, referencias, lotes y usuarios. Para borrar solo un día u operario, entra a la vista «Día».</small><button class=al-rd data-a=hrs>Borrar todo el historial…</button></div>`;
+ const tkIn=(a,b)=>(c.tasks||[]).filter(z=>z.fin>=a&&z.fin<b),
+ tkl=L=>{L=L.slice().sort((a,b)=>b.fin-a.fin);return`<div class=c style="margin-top:12px"><div class=r2><b>Trabajos completados</b><span class=chip>${L.length} ✔</span></div>${L.slice(0,100).map(z=>`<div class=ar><span class=who>${av(z.opn)}<span>${E(z.opn||'Operario')}<small>${E(z.rn||'—')} · ${E(z.ln||'sin lote')}</small></span></span><span class=chip>${new Date(z.fin).toLocaleDateString('es-CO',{day:'2-digit',month:'short'})} ${hT(z.ini)}–${hT(z.fin)}</span><span class=chip>${z.q}/${z.meta} u</span><span class=chip>paro ${Math.round(z.pm||0)} min</span><b class="${cl(z.efi)}">${P(z.efi)}</b></div>`).join('')||'<small style="display:block;margin-top:6px">Aún no hay trabajos completados en este periodo.</small>'}${L.length>100?`<small style="display:block;margin-top:6px">Mostrando los 100 más recientes de ${L.length}.</small>`:''}</div>`};
+ let B;
+ if(H.v==='anio'){const g=ag(c.days),mx=Math.max(1,...Object.keys(byd).map(pd));
+  B=kp(g)+`<div class=ym>${[...Array(12)].map((_,m)=>{const G=ag(rowsOf(dk(Y,m,1),dk(Y,m,31))),n=new Date(Y,m+1,0).getDate();
+   return`<div class=c><button data-a=hmes data-v=${m} style="text-transform:capitalize">${MN(m)}</button><div class=my>${mini(m)}${[...Array(n)].map((_,i)=>{const k=dk(Y,m,i+1),u=pd(k);return`<button data-a=hdia data-v="${k}" title="${k}: ${u} u"${u?` style="background:color-mix(in srgb,var(--ac) ${20+80*u/mx}%,var(--c2))"`:''}></button>`}).join('')}</div><small>${G.p} u · ef ${P(G.ef)}</small></div>`}).join('')}</div><div class=c style="margin-top:12px"><b>Por operario en el año</b>${tbl(g)}</div>`+tkl(tkIn(new Date(Y,0,1).getTime(),new Date(Y+1,0,1).getTime()))}
+ else if(H.v==='mes'){const a=dk(Y,H.m,1),b=dk(Y,H.m,31),g=ag(rowsOf(a,b)),n=new Date(Y,H.m+1,0).getDate(),mx=Math.max(1,...Object.keys(byd).filter(k=>k>=a&&k<=b).map(pd));
+  B=kp(g)+`<div class=c><div class=cal>${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(d=>`<b>${d}</b>`).join('')}${mini(H.m)}${[...Array(n)].map((_,i)=>{const k=dk(Y,H.m,i+1),u=byd[k]?ag(byd[k]):null;
+   return`<button class="cd${u?'':' z'}${k===tk?' hy':''}" data-a=hdia data-v="${k}"><small>${i+1}</small>${u?`<b>${u.p}</b><small class="${cl(u.ef)}">${P(u.ef)}</small><i style="width:${u.p/mx*100}%"></i>`:'<span></span>'}</button>`}).join('')}</div></div><div class=c style="margin-top:12px"><b>Por operario en el mes</b>${tbl(g)}</div>`+tkl(tkIn(new Date(Y,H.m,1).getTime(),new Date(Y,H.m+1,1).getTime()))}
+ else{const k=dk(Y,H.m,H.d),d0=new Date(Y,H.m,H.d).getTime(),d1=new Date(Y,H.m,H.d+1).getTime(),g=ag(rowsOf(k,k)),ps=c.stops.filter(x=>x.s<d1&&(x.e||d1)>=d0).sort((a,b)=>a.s-b.s),
+   nm=x=>x.op?by(S.ops,x.op)?.n||by(S.pats,x.op)?.n||'Operario':by(S.mods,x.m)?.n||'Módulo';
+  B=kp(g)+`<div class=c><div class=r2><b>Por operario</b><button data-a=hpg data-v="${d0}|${d1}|">🗑 Borrar todo este día</button></div>${tbl(g,z=>z.op?`<button data-a=hpg data-v="${d0}|${d1}|${z.op}" title="Borrar marcaciones y paros de este operario en este día">✕</button>`:'')}</div><div class=c style="margin-top:12px"><b>Paros del día</b>${ps.map(x=>`<div class=r3 style="font-size:13px"><span>${new Date(Math.max(x.s,d0)).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',hour12:false})} · ${E(nm(x))} · ${E(x.c)}</span><b>${fmt((Math.min(x.e||now(),d1)-Math.max(x.s,d0))/1e3)}</b></div>`).join('')||'<small style="display:block;margin-top:6px">Sin paros.</small>'}</div>`+tkl(tkIn(d0,d1))}
+ return tb+B+rs}
+// ---- Pausas (desayuno/almuerzo): pantalla roja con cuenta regresiva y reanudación con el QR del módulo ----
+let QRV=null;
+const BK={t:0},BRK=['Desayuno','Almuerzo'],
+bkw=o=>[['Desayuno',o.di,o.df],['Almuerzo',o.ai,o.af]].map(([k,a,b])=>({k,a:hm(a),b:hm(b)})).filter(w=>w.a!=null&&w.b!=null&&w.b>w.a),
+brk=o=>{if(U.rol!=='operario'||!o)return'';const st=S.stops.find(z=>z.op===o.id&&!z.e&&BRK.includes(z.c));if(!st)return'';
+ const w=bkw(o).find(x=>x.k===st.c),N=new Date(),end=w?new Date(N.getFullYear(),N.getMonth(),N.getDate(),0,w.b).getTime():0,rem=st.s<T0()||!w?0:(end-now())/1e3,kd=st.c.toLowerCase();
+ if(rem>0)return`<div class=bk><div class="c bkc"><div class=k>🍴 HORA DE ${kd.toUpperCase()}</div><div class=tmr id=bkt data-end="${end}">${fmt(Math.ceil(rem))}</div><small>Disfruta tu ${kd}. Vuelve a las ${hh(w.b)} y escanea el QR de tu módulo para retomar.</small></div></div>`;
+ return`<div class=bk><div class="c bkc"><b style="font-size:24px">Se acabó el tiempo de ${kd}</b><small>Escanea el QR pegado en tu módulo para retomar la operación.</small><input id=bkc placeholder="Esperando el QR…" autocomplete=off autocapitalize=characters maxlength=40><p id=bke>${E(BK.err||'')}</p><div class=k>Tiempo extra <b data-lt="${w&&st.s>=T0()?end:st.s}">0:00</b></div></div></div>`},
+// Cada 200 ms: cuenta regresiva, foco en el campo del QR y creación automática del paro cuando llega la hora de la pausa
+bkTick=()=>{const b=$('#bkt'),i=$('#bkc');
+ if(b){const r=(+b.dataset.end-now())/1e3;if(r<=0)render();else b.textContent=fmt(Math.ceil(r))}
+ if(i){if(!S.stops.some(z=>z.op===me.op&&!z.e&&BRK.includes(z.c))){i.blur();render()}else if(document.activeElement!==i&&!i.disabled)i.focus()}
+ if(!db||!U||U.rol!=='operario'||now()-BK.t<3e3)return;const o=by(S.ops,me.op);if(!o)return;
+ const N=new Date(),m=N.getHours()*60+N.getMinutes(),w=bkw(o).find(x=>m>=x.a&&m<x.b);
+ if(w&&!S.stops.some(z=>z.op===o.id&&BRK.includes(z.c)&&(!z.e||(z.c===w.k&&z.s>=T0())))){BK.t=now();
+  S.stops.filter(z=>z.op===o.id&&!z.e).forEach(z=>db.doc('stops/'+z.id).update({e:now()}).catch(()=>{}));add('stops',{c:w.k}).catch(()=>{})}},
+qrm=()=>!QRV?'':`<div class=sh data-a=qrx><div class=c data-a=nop style="text-align:center"><div style="width:240px;max-width:100%;margin:0 auto;background:#fff;padding:6px;border-radius:12px">${QRV.svg||'<small style="color:#111">Falta instalar la dependencia: ejecuta npm install en el servidor.</small>'}</div><b style="font-size:22px;letter-spacing:.12em">${E(QRV.code)}</b><small>${E(by(S.mods,QRV.id)?.n||'')}: pega este QR en el módulo. Al escanearlo, el operario retoma el trabajo cuando termina su desayuno o almuerzo.</small><button class=pr data-a=qrp>Imprimir</button><button data-a=qrn>Generar código nuevo</button><button data-a=qrx>Cerrar</button></div></div>`;
+// El lector de QR escribe el código como un teclado: se envía solo al completar los 12 caracteres (o con Enter)
+A.addEventListener('input',e=>{const t=e.target;if(t.id==='bkc'&&t.value.trim().length>=12)act.bkgo(t)});
+A.addEventListener('keydown',e=>{const t=e.target;if(t.id==='bkc'&&e.key==='Enter'&&!t.disabled)act.bkgo(t)});
+// ---- Cierre de tarea al 100%: aviso, bloqueo de marcaciones y recarga automática hacia la siguiente tarea ----
+const DONE_MSG='Ya completaste el 100% de esta tarea. No puedes marcar más unidades.',DONE_MSG_M='El módulo ya completó el 100% de esta orden. No se pueden marcar más unidades.',
+emsg=e=>{try{return JSON.parse(e.message).e||e.message}catch(_){return e.message}},
+toast=(m,k)=>{const h=$('#ts');if(!h)return;const d=document.createElement('div');d.className='tst '+(k||'');d.textContent=m;h.appendChild(d);setTimeout(()=>d.remove(),3500)};
+let DNT=null,TKI=false;
+function showDone(t){if(DNT)return;const el=document.createElement('div');el.className='dn';
+ el.innerHTML=`<div class="c dnc"><div class=dck>✔</div><b style="font-size:24px">¡Tarea completada!</b><div class=k>${E(t.rn||'')}${t.ln?' · '+E(t.ln):''}</div><div class=tmr>${t.q} / ${t.meta}</div><small>${U.rol==='modulo'?'El módulo completó el 100% de la orden. Quedó guardada en el historial.':'Ya completaste el 100% de esta tarea. Quedó guardada en tu historial.'}</small><div class=k id=dnx></div></div>`;
+ document.body.appendChild(el);DNT=el;el.onclick=()=>toast(DONE_MSG,'ok');fb(1);
+ let n=4;const x=()=>{const d=$('#dnx');if(d)d.textContent=n>0?'Cargando la siguiente tarea en '+n+'…':'Cargando…'};x();
+ const iv=setInterval(()=>{n--;x();if(n<=0){clearInterval(iv);me.ot='inicio';save();location.reload()}},1e3)}
+// ---- Pestañas del operario: Inicio · Historial · Línea · Ficha técnica · Ajustes ----
+let WL=null;
+const IC={inicio:'<path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',historial:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M8 14h3"/>',linea:'<path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4.5" cy="6" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="18" r="1.2"/>',ficha:'<path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>',ajustes:'<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>'},
+OT=()=>{const t=me.ot||'inicio';return`<div class=otb>${[['inicio','Inicio'],['historial','Historial'],['linea','Línea'],['ficha','Ficha técnica'],['ajustes','Ajustes']].map(([k,n])=>`<button class="${t===k?'on':''}" data-a=otab data-v=${k}><svg viewBox="0 0 24 24">${IC[k]}</svg><span>${n}</span></button>`).join('')}</div>`},
+osl=()=>U.rol==='operario'?'':`<div class=sel><select data-c=op>${opts(S.ops,me.op,'Operario…')}</select></div>`,
+// Ajustes personales: se guardan en este dispositivo, por usuario
+CF=()=>((me.cfgs||{})[U&&U.id])||{},
+dnm=o=>U.rol!=='admin'&&CF().nick||o.n,
+ACC={morado:'#5b3fd1',azul:'#2f7cf6',verde:'#12a150',naranja:'#e8710a',rosa:'#d6336c'},
+applyCfg=()=>{const c=U?CF():{},R=document.documentElement,a=ACC[c.acc];
+ if(c.theme==='dark'||c.theme==='light')R.dataset.theme=c.theme;else delete R.dataset.theme;
+ let s=$('#acs');if(!s){s=document.createElement('style');s.id='acs';document.head.appendChild(s)}
+ s.textContent=a?`:root{--ac:${a};--a2:color-mix(in srgb,${a} 55%,#fff);--rc:color-mix(in srgb,${a} 80%,#fff)}@media(prefers-color-scheme:light){:root:not([data-theme=dark]){--a2:${a}}}:root[data-theme=light]{--a2:${a}}`:'';
+ A.style.zoom=c.sz||'';
+ const w=!!(c.awake&&navigator.wakeLock);
+ if(w&&!WL)navigator.wakeLock.request('screen').then(l=>{WL=l;l.addEventListener('release',()=>{WL=null})}).catch(()=>{});else if(!w&&WL){WL.release();WL=null}},
+setCF=(k,v)=>{me.cfgs=me.cfgs||{};const c=me.cfgs[U.id]=me.cfgs[U.id]||{};if(v===''||v==null||v===false)delete c[k];else c[k]=v;save();applyCfg()},
+// Sonido y vibración al marcar (ok=true: tarea completada)
+fb=ok=>{const c=CF();if(c.vib&&navigator.vibrate)navigator.vibrate(ok?[40,60,40,60,120]:40);
+ if(c.snd)try{const x=fb.x=fb.x||new(window.AudioContext||window.webkitAudioContext)(),t=x.currentTime;if(x.state==='suspended')x.resume();
+  (ok?[660,880,1175]:[880]).forEach((f,i)=>{const o=x.createOscillator(),g=x.createGain(),s=t+i*.14;o.frequency.value=f;o.connect(g);g.connect(x.destination);g.gain.setValueAtTime(.15,s);g.gain.exponentialRampToValueAtTime(.001,s+.12);o.start(s);o.stop(s+.13)})}catch(e){}},
+ohist=o=>{const L=S.tareas.filter(z=>z.op===o.id).sort((a,b)=>b.fin-a.fin),D={},tk=new Date().toDateString(),sp=(a,k)=>a.filter(l=>l.op===o.id&&l.k==='p').reduce((t,l)=>t+l.q,0),
+ e2=ef(o,T0()),e3=efMes(o);L.forEach(z=>{const k=new Date(z.fin).toDateString();(D[k]=D[k]||[]).push(z)});
+ return`<h2 style="margin:0">Mi historial</h2><div class=g4><div class=kt><small>Unidades hoy</small><b>${sp(S.logs)}</b></div><div class=kt><small>Eficiencia hoy</small><b class="${cl(e2)}">${P(e2)}</b></div><div class=kt><small>Unidades del mes</small><b>${sp(S.mlogs)}</b></div><div class=kt><small>Eficiencia del mes</small><b class="${cl(e3)}">${P(e3)}</b></div><div class=kt style="grid-column:1/-1"><small>Puntos del mes</small><b>${nf(pts(o,M0()))} <span class=gr style="font-size:18px">≈ $${nf(pts(o,M0())*INC.val)}</span></b></div></div>
+ ${(()=>{const td=S.stops.filter(z=>z.op===o.id&&(z.e||now())>T0()).sort((a,b)=>b.s-a.s),op=td.find(z=>!z.e),cs=td.filter(z=>z.e).reduce((a,z)=>a+(z.e-Math.max(z.s,T0()))/1e3,0);return`<div class=c><div class=r2><div><b>Tiempo de paro hoy</b><div class=k>${td.length} paro${td.length===1?'':'s'} · min:seg</div></div><b class=n2 id=pz data-b="${cs}" data-s="${op?Math.max(op.s,T0()):''}">${fmt(cs+(op?(now()-Math.max(op.s,T0()))/1e3:0))}</b></div>${td.filter(z=>z.e).slice(0,5).map(z=>`<div class=r3 style="font-size:13px"><span>${hT(z.s)} · ${E(z.c)}</span><b>${fmt((z.e-z.s)/1e3)}</b></div>`).join('')}</div>`})()}
+ <div class=c><div class=r2><b>Tareas completadas</b><span class=chip>${L.length} este mes</span></div>${Object.entries(D).map(([k,a])=>`<div style="margin-top:14px"><small style="text-transform:capitalize">${k===tk?'Hoy':new Date(a[0].fin).toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long'})} · ${a.reduce((s,z)=>s+z.q,0)} u</small>${a.map(z=>`<div class=r3 style="font-size:13px"><span>✔ <b>${E(z.rn||'—')}</b> · ${E(z.ln||'sin lote')}<small style="display:block">${hT(z.ini)}–${hT(z.fin)} · ${z.q}/${z.meta} u · paro ${Math.round(z.pm||0)} min${z.x?' · '+z.x+' rech.':''}${z.w?' · '+z.w+' repr.':''}</small></span><b class="${cl(z.efi)}">${P(z.efi)}</b></div>`).join('')}</div>`).join('')||'<small style="display:block;margin-top:8px">Aún no has completado tareas este mes.</small>'}</div>`},
+// Línea: todo lo que tiene asignado el operario (tarea actual + cola) con horas estimadas si hay horario
+olin=o=>{const m0=me.pm;me.pm='now';const p=plan(o);me.pm=m0;
+ const Q=S.cola.filter(x=>x.op===o.id).sort((a,b)=>a.ord-b.ord),cur=o.ref&&!o.fin,dd=doneN(o),rc=by(S.refs,o.ref),N=(cur?1:0)+Q.length,
+ card=(tag,nm,lo,meta,sub,ex)=>`<div class=c${ex}><div class=r2><div><span class=chip>${tag}</span><div style="font-size:18px;font-weight:700;margin-top:6px">${E(nm||'—')}</div><small>${lo}</small></div><b class=n2>${meta?meta+' u':'–'}</b></div>${sub}</div>`;
+ return`<h2 style="margin:0">Mi línea de trabajo</h2><small>${N} tarea${N===1?'':'s'} pendiente${N===1?'':'s'}${p?` · tiempo estimado ${dm(p.used)} · libre ${dm(Math.max(0,p.free))}`:''}</small>
+ ${cur?card('▶ En curso',rc?.n,lbl(o.lote),o.meta,`<div class=pb><i style="width:${o.meta>0?Math.min(100,dd/o.meta*100):0}%"></i></div><small style="display:block;margin-top:8px">${o.meta>0?`${dd} de ${o.meta} · faltan ${Math.max(0,o.meta-dd)}${p&&p.c?` · termina ≈ ${hh(p.c.b)}`:''}`:'Sin meta definida'}</small>`,' style="border-color:var(--ac)"'):`<div class=c><b${o.fin?' class=ok':''}>${o.fin?'✔ Tarea completada':'Sin tarea en curso'}</b><small style="display:block;margin-top:6px">${Q.length?'La siguiente de tu cola arranca sola.':'Estás disponible: tu supervisor te asignará la siguiente tarea.'}</small></div>`}
+ ${Q.map((x,i)=>card('Siguiente '+(i+1),by(S.refs,x.ref)?.n,lbl(x.lote),x.meta,`<small style="display:block;margin-top:8px">${su(o,by(S.refs,x.ref))} s por unidad${p&&p.qs[i]?` · ${hh(p.qs[i].a)} → ${hh(p.qs[i].b)}${p.qs[i].ex?' <b class=rd>⚠ fuera de jornada</b>':''}`:''}</small>`,'')).join('')}${myt(o)}`},
+// Ficha técnica: módulo a futuro (instrucciones, video, calidad); hoy muestra los datos de la operación
+ofic=o=>{const r=by(S.refs,o.ref),L=by(S.lotes,o.lote),soon=(t,d)=>`<div class="c soon"><span class=chip>Próximamente</span><b style="display:block">${t}</b><small>${d}</small></div>`;
+ return`<h2 style="margin:0">Ficha técnica</h2>${r?`<div class=c><span class=chip>Operación actual</span><div style="font-size:20px;font-weight:700;margin:6px 0">${E(r.n)}</div><small>${L?`Ref. ${E(L.n)} · ${E(L.col)} · ${E(L.t)}`:'Sin lote'} · Máquina: ${E(o.mq||'–')}</small><div class=om><div><b>${r.s}</b><small>SAM (min)</small></div><div><b>${su(o,r)} s</b><small>Por unidad</small></div><div><b>${Math.floor(60/r.s)}</b><small>Unid./hora al 100%</small></div><div><b>${Math.round(fx(o)*100)}%</b><small>Eficiencia objetivo</small></div></div></div>`:'<div class=c><b>Sin tarea asignada</b><small style="display:block;margin-top:6px">Cuando tengas una operación verás aquí su ficha.</small></div>'}
+ ${soon('Paso a paso','Video y fotos de cómo hacer la operación, con la máquina y los ajustes recomendados.')}${soon('¿Lo estoy haciendo bien?','Puntos de calidad y medidas para comparar tu trabajo con el estándar.')}${soon('Errores comunes','Defectos frecuentes de esta operación y cómo evitarlos.')}`},
+oaj=o=>{const c=CF(),ch=(k,v,t)=>`<button class="${(c[k]||'')===v?'pr':''}" data-a=cfs data-k=${k} data-v="${v}">${t}</button>`,
+ sw=(k,t,d)=>`<label class=swt><span>${t}<small style="display:block">${d}</small></span><input type=checkbox data-c=cf data-k=${k}${c[k]?' checked':''}></label>`;
+ return`<h2 style="margin:0">Ajustes</h2><div class=c><b>Perfil</b><div class=who style="margin:10px 0">${av(dnm(o))}<span><b style="font-size:16px">${E(dnm(o))}</b><small>${E(U.u)} · ${RL[U.rol]} · ${E(by(S.mods,o.m)?.n||'')} · ${E(o.mq||'')}</small></span></div><label class=fl>Nombre en mi pantalla<input data-c=cf data-k=nick maxlength=24 value="${E(c.nick||'')}" placeholder="${E(o.n)}"></label><small>Solo cambia cómo se ve en este dispositivo.</small></div>
+ <div class=c><b>Apariencia</b><div class=ap><small>Tema</small><div class=sel>${ch('theme','','Automático')}${ch('theme','dark','🌙 Oscuro')}${ch('theme','light','☀️ Claro')}</div></div>
+ <div class=ap><small>Color</small><div class=sel>${Object.entries(ACC).map(([k,v])=>`<button class="sw2${c.acc===k?' on':''}" style="background:${v}" data-a=cfs data-k=acc data-v=${k} title="${k}"></button>`).join('')}<button class="${c.acc?'':'pr'}" data-a=cfs data-k=acc data-v="">Original</button></div></div>
+ <div class=ap><small>Tamaño de la pantalla</small><div class=sel>${ch('sz','','Normal')}${ch('sz','1.15','Grande')}${ch('sz','1.3','Muy grande')}</div></div>
+ </div>
+ <div class=c><b>Al trabajar</b>${sw('snd','Sonido al marcar','Un pitido en cada unidad y un tono al completar la tarea.')}${sw('vib','Vibración','Vibra al marcar (depende del dispositivo).')}${sw('awake','Mantener pantalla encendida','Evita que la tablet se apague mientras trabajas.')}</div>
+ <div class=c><b>Cambiar contraseña</b><form data-f=password class=fm><input name=p type=password placeholder="Contraseña actual" required autocomplete=current-password><input name=n type=password placeholder="Nueva (mín. 6)" minlength=6 required autocomplete=new-password><input name=n2 type=password placeholder="Repite la nueva" minlength=6 required autocomplete=new-password><button class=pr>Guardar contraseña</button></form></div>
+ <div class=c><button data-a=cfr>Restablecer mis ajustes</button></div>`};
+function otab(o){const B={historial:ohist,linea:olin,ficha:ofic,ajustes:oaj}[me.ot]||ohist;return`<div class=ph>${osl()}${OT()}${B(o)}</div>`}
+// ---- Patinador: traslados de estibas. No hay tiempo estándar: cada ruta se compara con su propia mediana histórica (mínimo 3 viajes) ----
+const PST={p:'Pendiente',a:'Aceptada',c:'Cargada',e:'Entregada'},PC=['Baño','Batería','Espera de montacargas','Falla del equipo'],PI=['Estiba dañada','Ruta bloqueada','No encontré la estiba'],PPT=10,
+SO={c:0,a:1,p:2},ord=(a,b)=>SO[a.st]-SO[b.st]||(b.pri||0)-(a.pri||0)||(a.req||9e15)-(b.req||9e15)||a.ts-b.ts,
+ub=x=>by(S.ubic,x)?.n||'—',dst=x=>by(S.ubic,x.d)?.n||by(S.mods,x.mod)?.n||'—',fac=x=>Math.max(by(S.ubic,x.o)?.f||1,by(S.ubic,x.d)?.f||1),
+med=a=>{if(!a.length)return null;const s=a.slice().sort((x,y)=>x-y),h=s.length>>1;return s.length%2?s[h]:(s[h-1]+s[h])/2},
+rk=x=>(x.o||'')+'>'+(x.d||x.mod||''),mf=x=>x==null?'–':fmt(x),
+rmed=x=>{const a=S.movs.filter(z=>z.st==='e'&&z.tg&&z.te&&rk(z)===rk(x)).map(z=>(z.te-z.tg)/1e3);return a.length>=3?med(a):null},
+pq=p=>S.movs.filter(x=>x.pat===p.id&&x.st!=='e').sort(ord),pool=()=>S.movs.filter(x=>x.st==='p'&&!x.pat).sort(ord),
+route=x=>`<b>${E(ub(x.o))}</b> <span class=a2>→</span> <b>${E(dst(x))}</b>`,what=x=>`${x.lote?lbl(x.lote)+' · ':''}${x.est} estiba${x.est===1?'':'s'}`,
+ko=(t,v,c)=>`<div class=kt><small>${t}</small><b class="${c||''}">${v}</b></div>`,
+// KPIs de un patinador desde t0: viajes, estibas, ciclo (aceptada→entregada), % a tiempo, vs. mediana de su ruta, utilización (con traslado ÷ tiempo disponible, sin paros) y puntos (estibas × distancia)
+pk=(p,t0)=>{const L=S.movs.filter(x=>x.pat===p.id&&x.st==='e'&&x.te>=t0),A=S.movs.filter(x=>x.pat===p.id&&x.ta&&(x.te||now())>t0),f0=A.length?Math.max(t0,Math.min(...A.map(x=>x.ta))):0,
+ oc=A.reduce((a,x)=>a+(x.te||now())-Math.max(x.ta,t0),0),pr=f0?S.stops.filter(z=>z.op===p.id).reduce((a,z)=>a+Math.max(0,Math.min(z.e||now(),now())-Math.max(z.s,f0)),0):0,dp=f0?now()-f0-pr:0,
+ w=L.reduce((a,x)=>a+x.est*fac(x),0),rq=L.filter(x=>x.req),sd=f=>avg(L.map(f));
+ return{L,n:L.length,est:L.reduce((a,x)=>a+x.est,0),w,pp:w*PPT,rsp:sd(x=>(x.ta-x.ts)/1e3),rec:sd(x=>(x.tg-x.ta)/1e3),trn:sd(x=>(x.te-x.tg)/1e3),cyc:sd(x=>(x.te-x.ta)/1e3),
+  ot:rq.length?rq.filter(x=>x.te<=x.req).length/rq.length*100:null,er:avg(L.map(x=>{const m=rmed(x),t=(x.te-x.tg)/1e3;return m&&t>0?Math.min(150,m/t*100):null}).filter(v=>v!=null)),
+  ut:dp>6e4?Math.min(100,oc/dp*100):null,vh:dp>9e5?L.length/(dp/36e5):null}},
+stp=x=>`<div class=stp>${['p','a','c','e'].map((k,i)=>{const t=[x.ts,x.ta,x.tg,x.te][i];return`<span class="${t?'on':''}${x.st===k?' cu':''}"><i></i><small>${PST[k]}${t?' · '+hT(t):''}</small></span>`}).join('')}</div>`,
+ptab=()=>['inicio','historial','linea','ruta','ajustes'].includes(me.ot)?me.ot:'inicio',
+PT=()=>`<div class=otb>${[['inicio','Inicio'],['historial','Historial'],['linea','Cola'],['ruta','Rutas'],['ajustes','Ajustes']].map(([k,n])=>`<button class="${ptab()===k?'on':''}" data-a=otab data-v=${k}><svg viewBox="0 0 24 24">${IC[k]}</svg><span>${n}</span></button>`).join('')}</div>`,
+PBAR=(lb,c,op)=>`<div class=pbar><button data-a=rf title="Actualizar"><svg viewBox="0 0 24 24">${MI.refresh}</svg></button><button data-a=sheet data-v=pinc title="Incidencia"${c?'':' disabled'}><svg viewBox="0 0 24 24">${MI.down}</svg></button><button class=pr data-a=pav data-v="${c?c.id:''}"${c&&!op?'':' disabled'}>${lb}</button><button data-a=pflag class="${op?'al-rd':''}" title="${op?'Reanudar':'Paro'}"><svg viewBox="0 0 24 24">${op?MI.play:MI.flag}</svg></button><button data-a=sheet data-v=msg title="Mensajes"><svg viewBox="0 0 24 24">${MI.chat}</svg></button></div>`,
+PSH=()=>'<b>Motivo del paro</b>'+PC.map(c=>`<button data-a=pstp data-v="${c}">${c}</button>`).join(''),
+PIN=()=>{const c=pq(by(S.pats,me.pat)||{})[0];return'<b>Incidencia en el traslado</b>'+PI.map(i=>`<button data-a=psi data-v="${i}">${i}</button>`).join('')+(c&&c.inc?'<button data-a=psi data-v="">Quitar incidencia</button>':'')},
+PMV=()=>{const f=QF.pm||{};return`<div data-a=nop style="display:grid;gap:8px"><b>Pedir material</b><select data-c=pm data-k=o>${opts(S.ubic.filter(u=>!u.m),f.o,'¿De dónde? (opcional)')}</select><input type=number min=1 max=99 data-c=pm data-k=est value="${f.est||''}" placeholder="Estibas (1)"><input data-c=pm data-k=nota maxlength=200 value="${E(f.nota||'')}" placeholder="¿Qué necesitas? (tela, color, talla…)"><select data-c=pm data-k=pri><option value=0>Normal</option><option value=1${f.pri==='1'?' selected':''}>⚡ Urgente: la línea está parada</option></select><button class=pr data-a=pmsend>Enviar pedido</button></div>`},
+// Tablet del módulo: pedir material y ver cómo van los pedidos (y cuánto llevan esperando)
+mreq=m=>{const L=S.movs.filter(x=>x.mod===m.id&&(x.st!=='e'||x.te>=T0())).sort((a,b)=>b.ts-a.ts).slice(0,4);
+ return`<div class=c><div class=r2><b>Material</b><button class=pr data-a=sheet data-v=pmov>📦 Pedir material</button></div>${L.map(x=>`<div class=r3 style="font-size:13px"><span><span class=chip>${x.st==='c'?'En camino':PST[x.st]}</span> ${E(ub(x.o))}<small style="display:block">${what(x)}${x.nota?' · '+E(x.nota):''}</small></span><b ${x.st==='e'?'':`data-lt="${x.ts}"`}>${fmt(((x.te||now())-x.ts)/1e3)}</b></div>`).join('')||'<small style="display:block;margin-top:8px">Sin pedidos de material hoy.</small>'}</div>`},
+mcard=()=>{const A=S.movs.filter(x=>x.st!=='e'),pe=A.filter(x=>x.st==='p'),old=pe.length?Math.min(...pe.map(x=>x.ts)):0,al=old&&now()-old>6e5;if(!S.pats.length&&!A.length)return'';
+ return`<div class="c${al?' al-yl':''}" style="margin-top:14px"><div class=r2><div class=k style="letter-spacing:.1em;color:${al?'inherit':'var(--a2)'}">TRASLADOS · PATINADORES</div><a href="#traslados" style="color:inherit"><b>Ver todo ›</b></a></div><div class=tl><div>Pendientes<b>${pe.length}</b></div><div>En curso<b>${A.length-pe.length}</b></div></div>${old?`<div>Más viejo esperando <b data-lt="${old}">${fmt((now()-old)/1e3)}</b>${al?' ⚠':''}</div>`:'<small>Sin traslados pendientes.</small>'}</div>`},
+rutas=pid=>{const G={};S.movs.filter(x=>x.st==='e'&&x.tg&&x.te).forEach(x=>(G[rk(x)]=G[rk(x)]||[]).push(x));
+ return Object.values(G).sort((a,b)=>b.length-a.length).map(a=>{const x=a[0],md=a.length>=3?med(a.map(z=>(z.te-z.tg)/1e3)):null,mi=pid?avg(a.filter(z=>z.pat===pid).map(z=>(z.te-z.tg)/1e3)):null;
+  return`<div class=ar><span style="flex:1 1 220px">${route(x)}</span><span class=chip>${a.length} viaje${a.length===1?'':'s'}</span><span class=chip>Dist. ${fac(x)}</span><span class=chip>Mediana ${mf(md)}</span>${pid?`<span class=chip>Tú ${mf(mi)}</span>`:''}</div>`}).join('')||'<small style="display:block;margin-top:6px">Aún no hay traslados entregados.</small>'},
+cfgP=()=>{const li=(c,a,t)=>a.map(x=>`<div style="display:flex;gap:8px;border-bottom:1px solid var(--bd);padding:6px 0;align-items:center"><span style="flex:1">${t(x)}</span><button data-a=del data-c=${c} data-v="${x.id}">✕</button></div>`).join(''),
+ f=(t,i,c,l)=>`<div class=c style="margin-bottom:12px"><b>${t}</b><div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">${i}<button class=pr data-a=new data-c=${c}>Agregar</button></div>${l}</div>`;
+ return(S.ubic.length?'':'<div class=c style="margin-bottom:12px"><button class=pr data-a=seedp>Cargar ubicaciones y patinador de ejemplo</button></div>')+
+ f('Ubicaciones (distancia: 1 cerca · 2 media · 3 lejana)','<input placeholder="Bodega de telas"><input type=number min=1 max=3 placeholder="Distancia"><select>'+opts(S.mods,'','Es el frente del módulo…')+'</select>','ubic',li('ubic',S.ubic,x=>E(x.n)+' · dist. '+(x.f||1)+(x.m?' · frente de '+E(by(S.mods,x.m)?.n):'')))+
+ f('Patinadores','<input placeholder="Nombre"><input placeholder="Equipo (patín eléctrico…)">','pats',li('pats',S.pats,x=>E(x.n)+' · '+E(x.eq||'')))},
+spm=t=>{const n=t.dataset.c;QF[n]=QF[n]||{};QF[n][t.dataset.k]=t.value};
+IC.ruta='<circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M8 18h6a3 3 0 0 0 0-6h-4a3 3 0 0 1 0-6h6"/>';
+
+function patin(){const p=by(S.pats,me.pat),psl=U.rol==='patinador'?'':`<div class=sel><select data-c=pat>${opts(S.pats,me.pat,'Patinador…')}</select></div>`,t=ptab();
+ if(!p)return`<div class=ph><h1 class=pt>Vista de patinador</h1>${psl}<small>Elige un patinador.</small></div>`;
+ if(t==='inicio')return pini(p,psl);
+ const B={historial:phist,linea:pcola,ruta:q=>`<h2 style="margin:0">Rutas</h2><small>El tiempo esperado de cada ruta se aprende solo: es la mediana de los viajes entregados (mínimo 3).</small><div class=c>${rutas(q.id)}</div>`,ajustes:q=>oaj({n:q.n,mq:q.eq||'Patinador'})}[t];
+ return`<div class=ph>${psl}${PT()}${B(p)}${SH()}</div>`}
+function pini(p,psl){
+ const Q=pq(p),cur=Q[0],PL=pool(),h=pk(p,T0()),m=pk(p,M0()),op=S.stops.find(z=>z.op===p.id&&!z.e),rm=cur?rmed(cur):null,rest=Q.reduce((a,x)=>a+x.est,0),late=cur&&cur.req&&now()>cur.req,
+ lb={p:'Aceptar traslado',a:'Ya recogí la estiba',c:'Ya entregué la estiba'},tot=h.est+rest;
+ TM=cur&&cur.st!=='p'?{t:cur.st==='c'?cur.tg:cur.ta,k:rm||0}:{t:0,k:0};
+ const pa=op?`<div class="c al-rd"><div class=k style="color:#fff">PARO EN CURSO · ${E(op.c)}</div><div class=tmr data-lt="${op.s}">${fmt((now()-op.s)/1e3)}</div><small style="display:block;text-align:center;color:#fff">Toca Reanudar para continuar</small></div>`:'',
+ card=cur?`<div class=c${cur.pri?' style="border-color:var(--yl)"':''}><div class=r2><span><span class=chip>${PST[cur.st]}</span>${cur.pri?'<span class=chip style="color:var(--yl)">⚡ Urgente</span>':''}${cur.req?`<span class="chip${late?' rd':''}">Para las ${hT(cur.req)}</span>`:''}</span><b class=n2>${cur.est} <small>estiba${cur.est===1?'':'s'}</small></b></div><div style="font-size:clamp(20px,4.5vw,28px);font-weight:700;margin:10px 0">${E(ub(cur.o))} <span class=a2>→</span> ${E(dst(cur))}</div><small>${cur.lote?lbl(cur.lote):'Material sin lote'}${cur.src==='m'?' · pedido por '+E(by(S.mods,cur.mod)?.n||'módulo'):''}</small>${cur.nota?`<div class=nt style="margin-top:10px">${E(cur.nota)}</div>`:''}${cur.inc?`<div style="margin-top:8px"><span class="chip rd">⚠ ${E(cur.inc)}</span></div>`:''}${stp(cur)}</div>`
+  :`<div class=c><b>Sin traslados asignados</b><small style="display:block;margin-top:6px">${PL.length?'Hay traslados abiertos en planta: toma uno.':'Estás disponible. Esta pantalla se actualiza sola cuando te asignen uno.'}</small>${PL.slice(0,3).map(x=>`<div class=qi><span>${route(x)}<small style="display:block">${what(x)}${x.pri?' · ⚡ urgente':''}</small></span><button class=pr data-a=pav data-v="${x.id}">Tomar</button></div>`).join('')}</div>`,
+ rr=`<div class=rr><div class=rw>${ring(h.est,tot||1,'var(--rc)',`<b class="n a2">${h.est}</b><small>Estibas hoy</small><hr><div class=r4><span><b>${rest}</b><small>Por mover</small></span><span><b>${h.n}</b><small>Viajes</small></span></div>`)}</div><div class=rw>${ring(0,1,'#d9d8e3',`<b class=n2 id=tm>–</b><small>${rm?'Mediana ruta '+fmt(rm):'Aprendiendo la ruta'}</small>`,'tg')}</div></div>`,
+ kp=`<div class="g4 k4">${ko('Viajes hoy',h.n)}${ko('Estibas hoy',h.est)}${ko('Viajes / hora',h.vh==null?'–':h.vh.toFixed(1))}${ko('Ciclo promedio',mf(h.cyc))}${ko('A tiempo',P(h.ot),cl(h.ot))}${ko('Utilización',P(h.ut))}${ko('Vs. su ruta',P(h.er),cl(h.er))}<div class=kt><small>Puntos</small><p class=p3><span class=gr>D</span><span class=gr>+${nf(h.pp)}</span></p><p class=p3><span class=bl>M</span><span class=bl>+${nf(m.pp)}</span></p></div></div>`,
+ om=`<div class=c><div class=r2><b>Tiempos del ciclo (hoy)</b><span class=chip>${h.n} viaje${h.n===1?'':'s'}</span></div><div class=om><div><b>${mf(h.rsp)}</b><small>Respuesta</small></div><div><b>${mf(h.rec)}</b><small>Recogida</small></div><div><b>${mf(h.trn)}</b><small>Transporte</small></div><div><b>${mf(h.cyc)}</b><small>Ciclo total</small></div></div></div>`,
+ nx=Q.length>1?`<div class=c><div class=r2><b>Sigue</b><span>${route(Q[1])}</span></div>${Q.length>2?`<small>+${Q.length-2} más en tu cola</small>`:''}</div>`:'';
+ return`<div class=ph><h1 class=pt>Vista de patinador</h1>${psl}${PT()}${pa}${card}${rr}${kp}${om}${nx}${PBAR(cur?lb[cur.st]:'Sin traslado',cur,op)}${SH()}</div>`}
+const phist=p=>{const h=pk(p,T0()),m=pk(p,M0()),D={},tk=new Date().toDateString(),td=S.stops.filter(z=>z.op===p.id&&(z.e||now())>T0()),op=td.find(z=>!z.e),cs=td.filter(z=>z.e).reduce((a,z)=>a+(z.e-Math.max(z.s,T0()))/1e3,0);
+ m.L.slice().sort((a,b)=>b.te-a.te).forEach(x=>{const k=new Date(x.te).toDateString();(D[k]=D[k]||[]).push(x)});
+ return`<h2 style="margin:0">Mi historial</h2><div class=g4>${ko('Viajes hoy',h.n)}${ko('Ciclo hoy',mf(h.cyc))}${ko('Viajes del mes',m.n)}${ko('Ciclo del mes',mf(m.cyc))}<div class=kt style="grid-column:1/-1"><small>Puntos del mes</small><b>${nf(m.pp)} <span class=gr style="font-size:18px">≈ $${nf(m.pp*INC.val)}</span></b></div></div>
+ <div class=c><div class=r2><div><b>Tiempo de paro hoy</b><div class=k>${td.length} paro${td.length===1?'':'s'} · min:seg</div></div><b class=n2 id=pz data-b="${cs}" data-s="${op?Math.max(op.s,T0()):''}">${fmt(cs+(op?(now()-Math.max(op.s,T0()))/1e3:0))}</b></div>${td.filter(z=>z.e).slice(0,5).map(z=>`<div class=r3 style="font-size:13px"><span>${hT(z.s)} · ${E(z.c)}</span><b>${fmt((z.e-z.s)/1e3)}</b></div>`).join('')}</div>
+ <div class=c><div class=r2><b>Traslados entregados</b><span class=chip>${m.n} este mes</span></div>${Object.entries(D).map(([k,a])=>`<div style="margin-top:14px"><small style="text-transform:capitalize">${k===tk?'Hoy':new Date(a[0].te).toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long'})} · ${a.reduce((s,z)=>s+z.est,0)} estibas</small>${a.map(x=>`<div class=r3 style="font-size:13px"><span>✔ ${route(x)}<small style="display:block">${hT(x.ta)}–${hT(x.te)} · ${what(x)} · ciclo ${fmt((x.te-x.ta)/1e3)}${x.req?(x.te<=x.req?' · a tiempo':' · tarde'):''}${x.inc?' · ⚠ '+E(x.inc):''}</small></span><b>${fmt((x.te-x.tg)/1e3)}</b></div>`).join('')}</div>`).join('')||'<small style="display:block;margin-top:8px">Aún no has entregado traslados este mes.</small>'}</div>`},
+pcola=p=>{const Q=pq(p),PL=pool(),row=(x,tk)=>`<div class=c><div class=r2><div><span class=chip>${tk||PST[x.st]}</span>${x.pri?'<span class=chip style="color:var(--yl)">⚡ Urgente</span>':''}${x.req?`<span class=chip>Para las ${hT(x.req)}</span>`:''}<div style="font-size:17px;margin-top:6px">${route(x)}</div><small>${what(x)}${x.nota?' · '+E(x.nota):''}</small></div>${tk?`<button class=pr data-a=pav data-v="${x.id}">Tomar</button>`:''}</div></div>`;
+ return`<h2 style="margin:0">Mi cola de traslados</h2><small>${Q.length} asignado${Q.length===1?'':'s'}</small>${Q.map(x=>row(x)).join('')||'<div class=c><small>Sin traslados asignados.</small></div>'}<h2 style="margin:8px 0 0">Abiertos en planta</h2><small>Cualquier patinador puede tomarlos.</small>${PL.map(x=>row(x,'Abierto')).join('')||'<div class=c><small>No hay traslados abiertos.</small></div>'}`};
+// Oficina: crear y asignar traslados, KPIs de flota y rutas aprendidas
+function tras(){const A=S.movs.filter(x=>x.st!=='e').sort(ord),D=S.movs.filter(x=>x.st==='e'&&x.te>=T0()),pe=A.filter(x=>x.st==='p'),old=pe.length?Math.min(...pe.map(x=>x.ts)):0,rq=D.filter(x=>x.req),
+ ot=rq.length?rq.filter(x=>x.te<=x.req).length/rq.length*100:null,wm=avg(D.filter(x=>x.src==='m').map(x=>(x.te-x.ts)/1e3)),f=QF.mn||{},
+ PK=S.pats.map(p=>({p,h:pk(p,T0()),c:pq(p)[0],pa:S.stops.find(z=>z.op===p.id&&!z.e)})),ut=avg(PK.map(z=>z.h.ut).filter(v=>v!=null)),rec=S.movs.filter(x=>x.st==='e').sort((a,b)=>b.te-a.te).slice(0,15);
+ return`<div class="ph w"><h1 class=pt>Traslados</h1>
+ <div class=g4>${ko('Pendientes',pe.length)}${ko('En curso',A.length-pe.length)}${ko('Entregados hoy',D.length)}${ko('A tiempo hoy',P(ot),cl(ot))}${ko('Pendiente más viejo',old?`<span data-lt="${old}">${fmt((now()-old)/1e3)}</span>`:'–',old&&now()-old>6e5?'rd':'')}${ko('Espera de material (hoy)',mf(wm))}${ko('Utilización flota',P(ut))}${ko('Estibas hoy',D.reduce((a,x)=>a+x.est,0))}</div>
+ <div class=c><b>Nuevo traslado</b><div class=ar style="border:0"><select data-c=mn data-k=o>${opts(S.ubic,f.o,'Origen…')}</select><select data-c=mn data-k=d>${opts(S.ubic,f.d,'Destino…')}</select><select data-c=mn data-k=lote>${lopt(f.lote)}</select></div><div class=ar style="border:0"><select data-c=mn data-k=pat>${opts(S.pats,f.pat,'Abierto (cualquiera)')}</select><input type=number min=1 data-c=mn data-k=est value="${f.est||''}" placeholder="Estibas"><select data-c=mn data-k=pri><option value=0>Normal</option><option value=1${f.pri==='1'?' selected':''}>⚡ Urgente</option></select><input type=time data-c=mn data-k=req value="${f.req||''}" title="Hora requerida"><input data-c=mn data-k=nota value="${E(f.nota||'')}" placeholder="Nota"></div><button class=pr data-a=mnew>＋ Crear traslado</button>${S.ubic.length&&S.pats.length?'':'<small style="display:block;margin-top:8px">Primero crea ubicaciones y patinadores en Configuración.</small>'}</div>
+ <div class=c><div class=r2><b>Traslados activos</b><span class=chip>${A.length}</span></div>${A.map(x=>`<div class=ar><span style="flex:1 1 260px"><span class=chip>${PST[x.st]}</span>${x.pri?'<span class=chip style="color:var(--yl)">⚡</span>':''}${x.src==='m'?'<span class=chip>📦 Pedido</span>':''}${x.inc?`<span class="chip rd">⚠ ${E(x.inc)}</span>`:''}<div>${route(x)}</div><small>${what(x)}${x.req?' · para las '+hT(x.req):''}${x.nota?' · '+E(x.nota):''} · hace <b data-lt="${x.ts}">${fmt((now()-x.ts)/1e3)}</b></small></span>${x.st==='p'?`<select data-c=mpat data-v="${x.id}">${opts(S.pats,x.pat,'Abierto')}</select>`:`<span class=chip>${E(by(S.pats,x.pat)?.n||'')}</span>`}<button data-a=del data-c=movs data-v="${x.id}" title="Cancelar">✕</button></div>`).join('')||'<small style="display:block;margin-top:6px">No hay traslados activos.</small>'}</div>
+ <div class=c><b>Por patinador (hoy)</b>${PK.map(({p,h,c,pa})=>`<div class=ar><span class=who>${av(p.n)}<span>${E(p.n)}<small>${pa?'⏸ '+E(pa.c):c?PST[c.st]+' · '+E(ub(c.o))+' → '+E(dst(c)):'Disponible'}</small></span></span><span class=chip>${h.n} viajes</span><span class=chip>${h.est} estibas</span><span class=chip>ciclo ${mf(h.cyc)}</span><span class=chip>a tiempo ${P(h.ot)}</span><span class=chip>util. ${P(h.ut)}</span><b class="${cl(h.er)}">${P(h.er)}</b></div>`).join('')||'<small style="display:block;margin-top:6px">Crea patinadores en Configuración.</small>'}</div>
+ <div class=c><b>Rutas · tiempo de transporte aprendido</b><small style="display:block;margin:4px 0 6px">Mediana de los viajes entregados (mínimo 3). Con ella se mide «Vs. su ruta» sin definir un estándar.</small>${rutas(null)}</div>
+ <div class=c><b>Últimos entregados</b>${rec.map(x=>`<div class=ar><span class=who>${av(by(S.pats,x.pat)?.n||'?')}<span>${E(by(S.pats,x.pat)?.n||'—')}<small>${route(x)}</small></span></span><span class=chip>resp. ${mf((x.ta-x.ts)/1e3)}</span><span class=chip>recog. ${mf((x.tg-x.ta)/1e3)}</span><span class=chip>transp. ${mf((x.te-x.tg)/1e3)}</span><span class=chip>${x.est} est.</span><span class=chip>${hT(x.te)}</span></div>`).join('')||'<small style="display:block;margin-top:6px">Aún no hay entregas.</small>'}</div></div>`}
+const PACT={
+ async pav(b){if(!b.dataset.v)return;const r=await post('/api/mov/avanzar',{id:b.dataset.v,pat:me.pat}).catch(()=>null);
+  if(!r||!r.ok)return toast(r?(await r.json().catch(()=>({}))).e||'No se pudo avanzar.':'Sin conexión.');const x=by(S.movs,b.dataset.v);fb(x&&x.st==='c')},
+ pflag(){const z=S.stops.find(x=>x.op===me.pat&&!x.e);if(z)return act.close({dataset:{v:z.id}});sheet='pstop';render()},
+ pstp(b){sheet=null;add('stops',{m:null,op:me.pat,c:b.dataset.v,s:now(),e:null}).catch(e=>toast(emsg(e)));render()},
+ psi(b){sheet=null;const x=pq(by(S.pats,me.pat)||{})[0];if(x)post('/api/mov/inc',{id:x.id,pat:me.pat,c:b.dataset.v});render()},
+ async mnew(){const f=QF.mn||{};if(!f.o||!f.d)return alert('Elige origen y destino.');const d=by(S.ubic,f.d);document.activeElement?.blur();
+  await add('movs',{pat:f.pat||null,o:f.o,d:f.d,mod:d?.m||null,lote:f.lote||null,est:Math.max(1,+f.est||1),nota:(f.nota||'').trim(),pri:+f.pri||0,req:f.req?T0()+hm(f.req)*6e4:null});QF.mn={};render()},
+ async pmsend(){const f=QF.pm||{},m=by(S.mods,me.mod);if(!m)return;document.activeElement?.blur();const b={o:f.o||null,est:+f.est||1,nota:f.nota||'',pri:+f.pri||0};
+  const r=U.rol==='modulo'?await post('/api/mov/pedir',b).catch(()=>({ok:false})):await add('movs',{...b,mod:m.id,d:S.ubic.find(u=>u.m===m.id)?.id||null}).then(()=>({ok:true})).catch(()=>({ok:false}));
+  if(!r.ok)return toast('No se pudo enviar el pedido.');QF.pm={};sheet=null;toast('✔ Pedido enviado','ok');render()},
+ seedp(){[['Bodega de telas',3],['Corte',2],['Producto terminado',2]].forEach(([n,f])=>add('ubic',{n,f}));S.mods.forEach(m=>add('ubic',{n:'Frente a '+m.n,f:1,m:m.id}));add('pats',{n:'Patinador 1',eq:'Patín eléctrico'})}};
+const act={...PACT,
+ async bkgo(i){const v=i.value.trim();if(!v||BK.busy)return;BK.busy=1;i.disabled=true;
+  const r=await post('/api/resume',{code:v}).catch(()=>null);BK.busy=0;
+  if(r&&r.ok){BK.err='';return}
+  BK.err=r?r.status===429?'Demasiados intentos. Espera un minuto.':'Código incorrecto. Escanea el QR de tu módulo.':'Sin conexión. Intenta de nuevo.';
+  i.disabled=false;i.value='';const e=$('#bke');if(e)e.textContent=BK.err;i.focus()},
+ async qrv(b){const id=b.dataset.v,r=await fetch('/admin/qr/'+id);QRV=r.ok?{id,...await r.json()}:null;render()},
+ qrx(){QRV=null;render()},nop(){},
+ qrp(){const w=open('','_blank');if(!w)return;w.document.write(`<title>QR</title><body style="font-family:sans-serif;text-align:center"><h2>${E(by(S.mods,QRV.id)?.n||'')} · QR de pausas</h2><div style="width:320px;margin:auto">${QRV.svg}</div><p style="font-size:26px;letter-spacing:.12em">${E(QRV.code)}</p>`);w.document.close();w.print()},
+ async qrn(){if(!confirm('¿Generar un código nuevo? El QR ya impreso dejará de funcionar.'))return;const id=QRV.id;await post('/admin/qr/'+id+'/new',{});return act.qrv({dataset:{v:id}})},
+ pmo(b){me.pm=b.dataset.v;save();render()},
+ hvw(b){H.v=b.dataset.v;H.d=Math.min(H.d,new Date(H.y,H.m+1,0).getDate());render()},
+ hnv(b){const n=+b.dataset.v;if(H.v==='anio')H.y+=n;else if(H.v==='mes'){const x=new Date(H.y,H.m+n,1);H.y=x.getFullYear();H.m=x.getMonth();H.d=1}else{const x=new Date(H.y,H.m,H.d+n);H.y=x.getFullYear();H.m=x.getMonth();H.d=x.getDate()}render()},
+ hhoy(){const x=new Date();Object.assign(H,{y:x.getFullYear(),m:x.getMonth(),d:x.getDate()});render()},
+ hdia(b){const[y,m,d]=b.dataset.v.split('-');Object.assign(H,{v:'dia',y:+y,m:m-1,d:+d});render()},
+ hmes(b){H.m=+b.dataset.v;H.v='mes';render()},
+ async hpg(b){const[f,t,o]=b.dataset.v.split('|');if(!confirm('¿Borrar las marcaciones y paros'+(o?' de este operario':'')+' de este día? No se puede deshacer.'))return;await post('/admin/purge',{from:+f,to:+t,op:o||null});delete HC[H.y];render()},
+ async hrs(){if(prompt('Esto borra TODAS las marcaciones, paros, mensajes, colas y tareas actuales. Se conservan operarios, módulos, referencias, lotes y usuarios.\n\nEscribe BORRAR para continuar.')!=='BORRAR')return;await post('/admin/purge',{reset:true});HC={};render()},
+ qmax(b){const id=b.dataset.v,o=by(S.ops,id),f=QF[id]=QF[id]||{},p=plan(o),r=by(S.refs,f.ref);if(!p||!r)return alert('Elige la operación y define el horario del operario.');f.q=fit(o,r,p.free)||'';render()},
+ qfill(b){const[id,rf]=b.dataset.v.split(':'),o=by(S.ops,id),p=plan(o),f=QF[id]=QF[id]||{};if(!p)return;f.ref=rf;f.q=fit(o,by(S.refs,rf),p.free)||'';render()},
+ async qadd(b){const id=b.dataset.v,f=QF[id]||{},o=by(S.ops,id);if(!f.ref||!(+f.q>0))return alert('Elige la operación y las unidades.');
+  if(!o.ref||o.fin)await db.doc('ops/'+id).update({ref:f.ref,lote:f.lote||null,meta:+f.q});
+  else await add('cola',{op:id,ref:f.ref,lote:f.lote||null,meta:+f.q,ord:Math.max(0,...S.cola.filter(x=>x.op===id).map(x=>x.ord))+1});
+  QF[id]={};render()},
+ async mqadd(b){const id=b.dataset.v,f=QF[id]||{},m=by(S.mods,id);if(!f.ref||!(+f.q>0))return alert('Elige la referencia y las unidades.');
+  if(!m.ref||m.fin)await db.doc('mods/'+id).update({ref:f.ref,lote:f.lote||null,meta:+f.q});
+  else await add('cola',{mod:id,ref:f.ref,lote:f.lote||null,meta:+f.q,ord:Math.max(0,...S.cola.filter(x=>x.mod===id).map(x=>x.ord))+1});
+  QF[id]={};render()},
+ qdel(b){return db.doc('cola/'+b.dataset.v).delete()},
+ async qmv(b){const[id,d]=b.dataset.v.split(':'),x=S.cola.find(z=>z.id===id),L=S.cola.filter(z=>z.op===x.op&&z.mod===x.mod).sort((a,c)=>a.ord-c.ord),y=L[L.indexOf(x)+ +d];if(!y)return;
+  await Promise.all([db.doc('cola/'+x.id).update({ord:y.ord}),db.doc('cola/'+y.id).update({ord:x.ord})])},
+ tg(b){OPEN[b.dataset.v]=!OPEN[b.dataset.v];render()},
+ async gapl(){const g=me.gh||{},d={};for(const k of['hi','hs','di','df','ai','af'])if(g[k])d[k]=g[k];if(g.efo)d.efo=+g.efo;
+  if(!Object.keys(d).length||!confirm('¿Aplicar este horario a todos los operarios?'))return;await Promise.all(S.ops.map(o=>db.doc('ops/'+o.id).update(d)))},
+ async out(){await fetch('/auth/logout',{method:'POST'});sammuDB.reset();U=null;db=null;S.users=[];location.hash='';boot()},
+ utog(b){return adm('PATCH',b.dataset.v,{act:S.users.find(u=>u.id===b.dataset.v).act?0:1})},
+ upw(b){const p=prompt('Nueva contraseña (mínimo 6 caracteres)');if(p)return adm('PATCH',b.dataset.v,{p})},
+ udel(b){if(confirm('¿Eliminar este usuario?'))return adm('DELETE',b.dataset.v)},
+ log(b){if(VW==='modulo'){const m=by(S.mods,me.mod),r=by(S.refs,m?.ref);if(!m)return;if(!r)return toast('Este módulo aún no tiene una orden cargada.');if(m.fin||DNT)return toast(DONE_MSG_M,'ok');sheet=null;fb();return add('logs',{op:null,mod:m.id,ref:r.id,lote:m.lote||null,k:b.dataset.k||'p',q:1,ts:now(),sam:r.s}).catch(e=>toast(emsg(e),/100%/.test(emsg(e))?'ok':''))}const o=by(S.ops,me.op),r=by(S.refs,o?.ref);if(!o)return;if(!r)return toast('Aún no tienes una tarea asignada.');if(o.fin||DNT)return toast(DONE_MSG,'ok');if((b.dataset.k||'p')==='p'&&S.stops.some(x=>x.op===o.id&&!x.e))return;sheet=null;fb();add('logs',{op:o.id,mod:o.m,ref:r.id,lote:o.lote||null,k:b.dataset.k||'p',q:1,ts:now(),sam:r.s}).catch(e=>toast(emsg(e),/100%/.test(emsg(e))?'ok':''))},
+ modlog(){const m=by(S.mods,me.mod),r=by(S.refs,m?.ref);if(!m)return;if(!r)return toast('Este módulo aún no tiene una orden cargada.');if(m.fin||DNT)return toast(DONE_MSG_M,'ok');if(S.stops.some(x=>x.m===me.mod&&!x.op&&!x.e))return;fb();add('logs',{op:null,mod:m.id,ref:r.id,lote:m.lote||null,k:'p',q:1,ts:now(),sam:r.s}).catch(e=>toast(emsg(e),/100%/.test(emsg(e))?'ok':''))},
+ stop(b){sheet=null;const o=VW==='operario'?by(S.ops,me.op):null,m=o?o.m:me.mod,op=o?o.id:(VW==='modulo'?MS:null);MS=null;add('stops',{m,op,c:b.dataset.v,s:now(),e:null}).catch(e=>toast(emsg(e)))},
+ mop(b){const z=S.stops.find(x=>x.op===b.dataset.v&&!x.e);sheet=null;if(z){if(BRK.includes(z.c)){toast('Está en su '+z.c.toLowerCase()+': retoma con el QR.');return render()}return act.close({dataset:{v:z.id}})}MS=b.dataset.v;sheet='stop';render()},
+ flag(){if(VW==='modulo'){MS=null;sheet='who';return render()}const o=VW==='operario'?by(S.ops,me.op):null;const op=o?S.stops.find(x=>x.op===o.id&&!x.e):S.stops.find(x=>x.m===me.mod&&!x.op&&!x.e);if(op)act.close({dataset:{v:op.id}});else{sheet='stop';render()}},
+ close(b){db.doc('stops/'+b.dataset.v).update({e:now()})},
+ sheet(b){sheet=b.dataset.v||null;render()},rf(){location.reload()},otab(b){me.ot=b.dataset.v;save();scrollTo(0,0);render()},cfs(b){setCF(b.dataset.k,b.dataset.v);render()},cfr(){if(!confirm('¿Restablecer tus ajustes de pantalla?'))return;if(me.cfgs)delete me.cfgs[U.id];save();applyCfg();render()},
+ accept(b){me.seen=[...(me.seen||[]),b.dataset.v];save();render()},
+ mt(b){msgT=b.dataset.v;msgSel=msgT==='v'?[]:'';render()},
+ send(){const t=msgTxt.trim();if(!t)return;let to=[];const e=o=>ef(o,T0());
+  if(msgT==='p')to=msgSel?[msgSel]:[];else if(msgT==='m')to=S.ops.filter(o=>o.m===msgSel).map(o=>o.id);else if(msgT==='v')to=msgSel;
+  else if(msgT==='b')to=S.ops.filter(o=>e(o)!=null&&e(o)<70).map(o=>o.id);else to=S.ops.filter(o=>e(o)>100).map(o=>o.id);
+  if(!to.length)return;add('msgs',{to,txt:t,ts:now()});msgTxt='';render()},
+ del(b){db.doc(b.dataset.c+'/'+b.dataset.v).delete()},
+ new(b){const q=[...b.closest('.c').querySelectorAll('input,select')].map(i=>i.value.trim()),c=b.dataset.c;if(!q[0])return;
+  if(c==='refs'){if(!(+q[1]>0))return;add(c,{n:q[0],s:+q[1]})}else if(c==='ops'){if(!q[2])return;add(c,{n:q[0],mq:q[1],m:q[2]})}else if(c==='lotes'){if(!q[0]||!(+q[3]>0))return;add(c,{n:q[0],col:q[1],t:q[2],q:+q[3],m:q[4]||null})}else if(c==='ubic')add(c,{n:q[0],f:Math.min(3,Math.max(1,+q[1]||1)),m:q[2]||null});else if(c==='pats')add(c,{n:q[0],eq:q[1]});else add(c,{n:q[0]});
+  b.closest('.c').querySelectorAll('input').forEach(i=>i.value='')},
+ seedl(){[['698576-601','Rosado','S',100],['698576-601','Rosado','M',100],['698576-601','Negro','S',100]].forEach(([n,col,t,q])=>add('lotes',{n,col,t,q,m:S.mods[0]?.id||null}))},
+ async seed(){const m=[];for(const n of['Módulo 1','Módulo 2','Módulo 3','Módulo 4'])m.push((await add('mods',{n})).id);
+  [['Angélica G.','Máquina plana',0],['Denis M.','Fileteadora',0],['Julián R.','Recubridora',1],['Elizabeth P.','Máquina plana',1],['Carolina G.','Presilladora',2],['Luis M.','Ojaladora',2],['Ana R.','Máquina plana',3],['Sofía T.','Fileteadora',3]].forEach(([n,mq,i])=>add('ops',{n,mq,m:m[i]}));
+  [['4127 · Pegar cuello',.62],['4127 · Cerrar costado',.48],['4127 · Dobladillo',.55]].forEach(([n,s])=>add('refs',{n,s}))}};
+
+function render(){
+ if(['INPUT','TEXTAREA'].includes(document.activeElement?.tagName))return;
+ if(!U){applyCfg();A.innerHTML=loginView();return}
+ if(U.rol==='operario')me.op=U.op;if(U.rol==='modulo')me.mod=U.mod;if(U.rol==='patinador')me.pat=U.op;
+ const R=U.rol==='admin'?[['oficina','Oficina'],['asignacion','Asignación'],['operario','Por operario'],['modulo','Por módulo'],['traslados','Traslados'],['patinador','Por patinador'],['historico','Históricos'],['usuarios','Usuarios'],['config','Configuración']]:U.rol==='operario'?[['operario','Mi puesto']]:U.rol==='patinador'?[['patinador','Mi puesto']]:[['modulo','Mi módulo']],
+ h=location.hash.slice(1),r=R.some(x=>x[0]===h)?h:R[0][0],V={patinador:patin,traslados:tras,oficina:office,asignacion:()=>asig()+asigM(),operario:oper,modulo,usuarios,historico:hist,config:cfg}[r];VW=r;
+ A.innerHTML=`<nav><b class=br>sammu OS</b>${R.length>1?R.map(([k,t])=>`<a href="#${k}"${k===r?' class=on':''}>${t}</a>`).join(''):''}<span class=k style="padding:0 10px">${E(U.u)} · ${RL[U.rol]}</span><button data-a=out>Salir</button></nav>`+(db?(st?`<p class=k>${st}</p>`:'')+V():`<p>${st}</p>`);tick()}
+function tick(){bkTick();document.querySelectorAll('[data-lt]').forEach(e=>e.textContent=fmt((now()-e.dataset.lt)/1e3));const z=$('#pz');if(z)z.textContent=fmt(+z.dataset.b+(z.dataset.s?(now()-z.dataset.s)/1e3:0));const c=$('#clk');if(c)c.textContent=new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',hour12:false});
+ const t=$('#tm');if(t&&TM.t){const s=(now()-TM.t)/1e3;t.textContent=t.dataset.h?hms(s):String(Math.floor(s/60)).padStart(2,'0')+':'+(s%60).toFixed(1).padStart(4,'0');const g=$('#tg');if(g&&TM.k){const C=2*Math.PI*52;g.setAttribute('stroke-dasharray',Math.min(1,s/TM.k)*C+' '+C);g.setAttribute('stroke','#d9d8e3')}}}
+A.onclick=e=>{const b=e.target.closest('[data-a]');if(b&&db){act[b.dataset.a](b)}};
+A.onchange=e=>{const t=e.target,c=t.dataset.c;if(c==='pm'||c==='mn')return spm(t);if(c==='mpat')return db.doc('movs/'+t.dataset.v).update({pat:t.value||null});if(c==='cf'){t.blur();setCF(t.dataset.k,t.type==='checkbox'?t.checked:t.value.trim());render();return}if(['op','ref','mod','lote','pat'].includes(c)){me[c]=t.value;save();render()}else if(c==='mp'){msgSel=t.value;render()}else if(c==='mv'){msgSel=[...t.selectedOptions].map(o=>o.value)}else if(['asr','asl','asm'].includes(c)){const o=by(S.ops,t.dataset.v),L=by(S.lotes,t.value),d=c==='asr'?{ref:t.value||null}:c==='asl'?{lote:t.value||null,meta:L?L.q:null}:{meta:+t.value||null};if(c==='asm'&&o.fin&&d.meta>doneN(o))d.fin=null;db.doc('ops/'+o.id).update(d)}
+ else if(['msr','msl','msm'].includes(c)){const o=by(S.mods,t.dataset.v),L=by(S.lotes,t.value),d=c==='msr'?{ref:t.value||null}:c==='msl'?{lote:t.value||null,meta:L?L.q:null}:{meta:+t.value||null};if(c==='msm'&&o.fin&&d.meta>doneM(o))d.fin=null;db.doc('mods/'+o.id).update(d)}
+ else if(['mqr','mql','mqq'].includes(c)){const f=QF[t.dataset.v]=QF[t.dataset.v]||{};f[{mqr:'ref',mql:'lote',mqq:'q'}[c]]=t.value;if(c==='mql'){const L=by(S.lotes,t.value);if(L&&!f.q)f.q=L.q}render()}
+ else if(c==='sch'){t.blur();db.doc('ops/'+t.dataset.v).update({[t.dataset.k]:t.value?(t.type==='number'?+t.value:t.value):null})}
+ else if(c==='gh'){me.gh={...(me.gh||{}),[t.dataset.k]:t.value};save();const g=document.getElementById('gsum');if(g)g.textContent=gs()}
+ else if(['qr','ql','qq'].includes(c)){const f=QF[t.dataset.v]=QF[t.dataset.v]||{};f[{qr:'ref',ql:'lote',qq:'q'}[c]]=t.value;if(c==='ql'){const L=by(S.lotes,t.value);if(L&&!f.q)f.q=L.q}render()}};
+A.oninput=e=>{const t=e.target;if(t.dataset.c==='pm'||t.dataset.c==='mn')return spm(t);if(t.tagName==='TEXTAREA')msgTxt=t.value;else if(t.dataset.c==='mqq')(QF[t.dataset.v]=QF[t.dataset.v]||{}).q=t.value;else if(t.dataset.c==='qq'){(QF[t.dataset.v]=QF[t.dataset.v]||{}).q=t.value;const h=document.getElementById('qh-'+t.dataset.v);if(h)h.textContent=hint(by(S.ops,t.dataset.v))}};
+A.onsubmit=async e=>{e.preventDefault();const f=e.target,d=Object.fromEntries(new FormData(f)),k=f.dataset.f;if(d.rol==='patinador')d.op=d.pat;document.activeElement?.blur();
+ if(k==='password'){if(d.n!==d.n2)return toast('Las contraseñas nuevas no coinciden.');const r=await post('/auth/password',{p:d.p,n:d.n}),j=await r.json().catch(()=>({}));if(r.ok){f.reset();toast('✔ Contraseña actualizada','ok')}else toast(j.e||'No se pudo cambiar la contraseña.');return}
+ const r=await fetch(k==='nu'?'/admin/users':'/auth/'+k,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(d)}),j=await r.json().catch(()=>({}));
+ if(k==='nu'){if(!r.ok)alert(j.e||'Error');else f.reset();return loadUsers()}
+ if(r.ok){U=j;loginErr='';start()}else{loginErr=j.e||'No se pudo iniciar sesión.';render()}};
+addEventListener('hashchange',()=>{sheet=null;render()});document.addEventListener('visibilitychange',()=>{if(!document.hidden&&U)applyCfg()});setInterval(render,3e4);setInterval(tick,200);render();
+function start(){const d=window.sammuDB;if(!d){st='No se pudo cargar el cliente de datos.';return render()}
+ db=d;st='';applyCfg();const sub=(c,q)=>q.onSnapshot(s=>{S[c]=s.docs.map(x=>({id:x.id,...x.data()}));render()},e=>{st='Error de datos: '+E(e.message);render()});
+ ['refs','ops','mods','stops','lotes','cola','ubic','pats'].forEach(c=>sub(c,col(c)));sub('movs',col('movs').where('ts','>=',now()-35*864e5));sub('msgs',col('msgs').where('ts','>=',T0()));
+ TKI=false;S.tareas=[];   // historial del mes; si llega una tarea nueva del operario (la completó) se muestra el cierre y se recarga
+ col('tareas').where('ts','>=',M0()).onSnapshot(s=>{const L=s.docs.map(x=>({id:x.id,...x.data()}));
+  if(TKI&&U&&(U.rol==='operario'||U.rol==='modulo')){const n=L.filter(t=>(U.rol==='operario'?t.op===U.op:!t.op&&t.m===U.mod)&&t.fin>now()-3e4&&!S.tareas.some(z=>z.id===t.id)).sort((a,b)=>b.fin-a.fin)[0];if(n)showDone(n)}
+  S.tareas=L;TKI=true;render()},e=>{st='Error de datos: '+E(e.message);render()});
+ col('logs').where('ts','>=',M0()).onSnapshot(s=>{S.mlogs=s.docs.map(z=>({id:z.id,...z.data()}));S.logs=S.mlogs.filter(l=>l.ts>=T0());render()},e=>{st='Error de datos: '+E(e.message);render()});
+ if(U.rol==='admin')loadUsers();render()}
+async function boot(){
+ try{const r=await fetch('/auth/me');if(r.ok){U=await r.json();return start()}
+  setupMode=(await(await fetch('/auth/state')).json()).setup;st=''}catch(e){st='No se pudo conectar con el servidor.'}
+ render()}
+addEventListener('sammu:auth',()=>{if(!U)return;U=null;db=null;sammuDB.reset();loginErr='Tu sesión terminó. Ingresa de nuevo.';boot()});
+boot();
+</script><script src="asignacion.js"></script></body></html>

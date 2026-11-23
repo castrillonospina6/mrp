@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% load mes_sites %}
+{% block title %}Validación EAN{% endblock %}
+{% block crumbs %}<span>Pedidos</span><span class="sep">/</span><b>Validación EAN</b>{% endblock %}
+{% block extra_head %}
+<style>
+  .eq-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
+  .eq-bar input[name=q] { flex: 1 1 220px; min-width: 0; height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); }
+  .eq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 310px), 1fr)); gap: 14px; }
+  .eq-card { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; }
+  .eq-card.ok { border-color: color-mix(in srgb, var(--success) 40%, var(--border)); }
+  .eq-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 14px 16px 8px; }
+  .eq-num { font-size: 18px; font-weight: 700; }
+  .eq-cust { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .eq-prod { padding: 0 16px 12px; }
+  .eq-prod b { display: block; font-size: 15px; }
+  .eq-qty { font-size: 20px; font-weight: 700; margin-top: 4px; }
+  .eq-qty small { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .eq-dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; padding: 12px 16px; border-top: 1px solid var(--border); background: var(--surface-2); font-size: 13px; }
+  .eq-dl dt { color: var(--muted); }
+  .eq-dl dd { margin: 0; overflow-wrap: anywhere; }
+  .eq-foot { margin-top: auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 16px 14px; border-top: 1px solid var(--border); }
+  .eq-foot .btn { flex: 1 1 auto; justify-content: center; }
+  .eq-foot details { flex-basis: 100%; }
+  .eq-foot details > summary { list-style: none; cursor: pointer; color: var(--muted); font-size: 13px; }
+  .eq-foot details > summary::-webkit-details-marker { display: none; }
+  .eq-form { display: grid; gap: 8px; margin-top: 8px; }
+  .eq-form input { width: 100%; box-sizing: border-box; height: 36px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+  .eq-empty { padding: 40px 16px; text-align: center; color: var(--muted); background: var(--surface); border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); }
+  .eq-wait { font-weight: 600; }
+</style>
+{% endblock %}
+{% block content %}
+{% if no_site %}<div class="callout">No hay plantas activas.</div>{% else %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Validación EAN · {% if site %}{{ site.code }} · {{ site.name }}{% else %}todas las bodegas{% endif %}</div>
+    <h1>EAN de los pedidos</h1>
+    <p>Cada pedido nuevo llega aquí. Carga sus referencias (EAN) y cuántas unidades trae cada una: pegando desde Excel, subiendo el archivo del cliente, escaneando o copiando de otro pedido. Si el pedido no lleva código de barras, márcalo «No aplica».</p>
+  </div>
+</div>
+<div style="margin:-6px 0 14px">{% site_chips %}</div>
+
+{% if counts.pendientes and tab == "pendientes" %}<div class="callout warn" style="margin-bottom:16px">{{ counts.pendientes }} pedido{{ counts.pendientes|pluralize }} esperando sus EAN{% if oldest_wait %} · el más antiguo hace <b>{{ oldest_wait }}</b>{% endif %}.{% if can_edit and orders %} <a href="{% url 'eanes:order' orders.0.pk %}">Empezar por el más antiguo →</a>{% endif %}</div>{% endif %}
+
+<form method="get" class="eq-bar">
+  <input type="hidden" name="site" value="{{ site_param }}"><input type="hidden" name="tab" value="{{ tab }}">
+  <div class="segmented" role="group" aria-label="Vista">
+    <a class="{% if tab == 'pendientes' %}on{% endif %}" href="?site={{ site_param }}&tab=pendientes">Pendientes · {{ counts.pendientes }}</a>
+    <a class="{% if tab == 'cargados' %}on{% endif %}" href="?site={{ site_param }}&tab=cargados">Con EAN · {{ counts.cargados }}</a>
+    <a class="{% if tab == 'no_aplica' %}on{% endif %}" href="?site={{ site_param }}&tab=no_aplica">No aplica · {{ counts.no_aplica }}</a>
+  </div>
+  <input name="q" value="{{ q }}" placeholder="Pedido, cliente, producto, OP, OC o un EAN…" aria-label="Buscar">
+  <button class="sbtn" type="submit"><svg class="ico sm"><use href="#i-search"/></svg> Buscar</button>
+</form>
+
+<div class="eq-grid">
+{% for o in orders %}
+  <article class="eq-card {% if o.ean_ok %}ok{% endif %}">
+    <div class="eq-head">
+      <div><div class="eq-num mono">{{ o.number }}</div><div class="eq-cust">{{ o.customer.name|default:"Sin cliente" }}</div></div>
+      {% if tab == "pendientes" %}<span class="pill warn">Pendiente</span>
+      {% elif tab == "cargados" %}{% if o.ean_ok %}<span class="pill ok">Cuadra</span>{% else %}<span class="pill warn" title="Los EAN no suman la cantidad del pedido">No cuadra</span>{% endif %}
+      {% else %}<span class="pill">No aplica</span>{% endif %}
+    </div>
+    <div class="eq-prod"><b>{{ o.product.name }}</b><span class="muted mono">{{ o.product.sku }}</span>
+      <div class="eq-qty">{{ o.quantity|floatformat:"-2g" }} <small>{{ o.product.unit }}</small></div></div>
+    <dl class="eq-dl">
+      {% if tab == "pendientes" %}<dt>Esperando</dt><dd class="eq-wait">{{ o.waiting }}</dd>{% endif %}
+      {% if tab == "cargados" %}<dt>Referencias</dt><dd>{{ o.n_refs }} EAN · {{ o.ean_total|default:0|floatformat:"0g" }} unidades</dd>{% endif %}
+      {% if o.sheet and o.sheet.loaded_at and tab != "pendientes" %}<dt>Cargado</dt><dd>{{ o.sheet.loaded_at|date:"D d/m H:i" }}{% if o.sheet.loaded_by %} · {{ o.sheet.loaded_by.get_full_name|default:o.sheet.loaded_by.username }}{% endif %}</dd>{% endif %}
+      {% if o.sheet.note and tab == "no_aplica" %}<dt>Nota</dt><dd>{{ o.sheet.note }}</dd>{% endif %}
+      <dt>Inicia</dt><dd>{% if o.planned_start %}{{ o.planned_start|date:"D d/m H:i" }}{% else %}Sin programar{% endif %}</dd>
+      {% if o.external_op %}<dt>OP</dt><dd>{{ o.external_op }}</dd>{% endif %}
+      {% if o.purchase_order %}<dt>OC</dt><dd>{{ o.purchase_order }}</dd>{% endif %}
+      {% if o.reference %}<dt>Referencia</dt><dd>{{ o.reference }}</dd>{% endif %}
+      <dt>Estado</dt><dd><span class="badge {{ o.status }}">{{ o.get_status_display }}</span></dd>
+    </dl>
+    <div class="eq-foot">
+      <a class="{% if tab == 'pendientes' and can_edit %}btn{% else %}sbtn{% endif %}" href="{% url 'eanes:order' o.pk %}">{% if tab == "pendientes" and can_edit %}Cargar EAN{% else %}Ver EAN{% endif %}</a>
+      {% if tab == "pendientes" and can_edit %}
+      <details><summary>Este pedido no lleva código de barras…</summary>
+        <form method="post" action="{% url 'eanes:order' o.pk %}" class="eq-form">{% csrf_token %}<input type="hidden" name="action" value="not_apply">
+          <input name="note" maxlength="255" placeholder="Nota (opcional): apoyo, proceso interno…">
+          <button class="sbtn sm" type="submit">Marcar «No aplica EAN»</button>
+        </form></details>
+      {% endif %}
+    </div>
+  </article>
+{% empty %}
+  <div class="eq-empty" style="grid-column:1/-1">{% if q %}Ningún pedido coincide con «{{ q }}».{% elif tab == "pendientes" %}No hay pedidos esperando EAN. Llegan aquí apenas se crean.{% elif tab == "cargados" %}Todavía no hay pedidos con EAN cargados.{% else %}No hay pedidos marcados «No aplica».{% endif %}</div>
+{% endfor %}
+</div>
+{% endif %}
+{% endblock %}

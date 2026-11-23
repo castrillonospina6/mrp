@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% load mes_assets %}
+{% block title %}Listas de materiales{% endblock %}
+{% block crumbs %}<span>Insumos</span><span class="sep">/</span><b>Listas de materiales</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/staff.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Insumos</div>
+    <h1>Listas de materiales</h1>
+    <p>Cuánto insumo lleva cada unidad de producto. Cuando planeación envía un pedido a insumos, sus líneas de insumos salen
+      calculadas solas (cantidad del pedido × cantidad por unidad + desperdicio). {{ total }} producto{{ total|pluralize }} con lista.</p>
+  </div>
+  <div class="tools">
+    <a class="sbtn" href="{% url 'mes_core:bom_template' %}"><svg class="ico sm"><use href="#i-download"/></svg> Plantilla</a>
+    {% if can_edit %}<button class="btn" type="button" data-open="bom-imp"><svg class="ico sm"><use href="#i-upload"/></svg> Cargar desde Excel</button>{% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <form method="get" class="st-toolbar">
+    <input name="q" value="{{ q }}" placeholder="Busca un producto por código o nombre para ver o crear su lista…" aria-label="Buscar producto">
+    <button class="sbtn" type="submit"><svg class="ico sm"><use href="#i-search"/></svg> Buscar</button>
+    {% if q %}<a class="sbtn" href="?">Ver solo los que tienen lista</a>{% endif %}
+  </form>
+  <div class="table-wrap flat"><table>
+    <thead><tr><th>Producto</th><th class="num">Insumos</th><th>Actualizada</th><th></th></tr></thead>
+    <tbody>
+    {% for p in page %}
+      <tr><td><b class="mono">{{ p.sku }}</b> · {{ p.name }}</td>
+        <td class="num">{% if p.n %}{{ p.n }}{% else %}<span class="pill">Sin lista</span>{% endif %}</td>
+        <td>{{ p.last|date:"d/m/Y H:i"|default:"—" }}</td>
+        <td><a class="sbtn sm {% if not p.n and can_edit %}accent{% endif %}" href="{% url 'mes_core:bom_edit' p.pk %}">{% if p.n %}{% if can_edit %}Editar{% else %}Ver{% endif %}{% else %}Crear lista{% endif %}</a></td></tr>
+    {% empty %}
+      <tr><td colspan="4" class="st-empty">{% if q %}Ningún producto coincide con «{{ q }}».{% else %}Aún no hay listas de materiales. Busca un producto para crear la suya o cárgalas desde Excel.{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% if page.paginator.num_pages > 1 %}<div class="st-pager">Página {{ page.number }} de {{ page.paginator.num_pages }}
+    {% if page.has_previous %}<a class="sbtn sm" href="?q={{ q|urlencode }}&page={{ page.previous_page_number }}">Anterior</a>{% endif %}
+    {% if page.has_next %}<a class="sbtn sm" href="?q={{ q|urlencode }}&page={{ page.next_page_number }}">Siguiente</a>{% endif %}</div>{% endif %}
+</div>
+
+{% if can_edit %}
+<dialog class="dlg" id="bom-imp" style="width:min(560px,calc(100vw - 32px))">
+  <form method="post" action="{% url 'mes_core:bom_import' %}" enctype="multipart/form-data">{% csrf_token %}
+    <div class="dlg-h">Cargar listas de materiales</div>
+    <div class="dlg-b st-form">
+      <ol class="st-steps">
+        <li><a href="{% url 'mes_core:bom_template' %}">Descarga la plantilla</a>.</li>
+        <li>Una fila por insumo de cada producto: <b>producto</b>, <b>insumo</b> (códigos) y <b>cantidad por unidad</b>; opcional desperdicio % y etapa.</li>
+        <li>Cada producto del archivo queda solo con las líneas del archivo (se reemplaza su lista).</li>
+      </ol>
+      <input type="file" name="file" accept=".xlsx,.xlsm,.csv" required>
+    </div>
+    <div class="dlg-f"><button class="sbtn" type="button" data-close>Cancelar</button><button class="btn" type="submit">Cargar</button></div>
+  </form>
+</dialog>
+<script>
+  document.querySelectorAll("[data-open]").forEach((b) => b.addEventListener("click", () => document.getElementById(b.dataset.open).showModal()));
+  document.querySelectorAll("dialog [data-close]").forEach((b) => b.addEventListener("click", () => b.closest("dialog").close()));
+</script>
+{% endif %}
+{% endblock %}

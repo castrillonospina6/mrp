@@ -1,0 +1,199 @@
+{% load static mes_assets %}<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}MES{% endblock %} · MES Planta</title>
+  <meta name="color-scheme" content="light dark">
+  <script>
+    /* Tema guardado (auto / claro / oscuro) y barra lateral compacta, antes de pintar para evitar parpadeo */
+    (function () {
+      try {
+        var t = localStorage.getItem("mes.theme") || localStorage.getItem("theme");
+        if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+        if (localStorage.getItem("mes.sidebar") === "mini") document.documentElement.classList.add("sb-mini");
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%232f3e8f'/%3E%3Cpath d='M5 18V10l4 2.5V10l4 2.5V7l6 3v8z' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="{% asset 'mes_core/app.css' %}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-logo" viewBox="0 0 24 24"><path d="M4 20V10.5l5 3V10.5l5 3V7l6 3.2V20z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
+  <symbol id="i-factory" viewBox="0 0 24 24"><path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M17 18h1M12 18h1M7 18h1"/></symbol>
+  <symbol id="i-orders" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4M12 16h4M8 11h.01M8 16h.01"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-plus-sq" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h8M12 8v8"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+  <symbol id="i-gantt" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 7h8M9 12h9M7 17h6"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-blocks" viewBox="0 0 24 24"><rect x="14" y="3" width="7" height="7" rx="1"/><path d="M10 21V8a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5a1 1 0 0 0-1-1H3"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+  <symbol id="i-collapse" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 10l-2 2 2 2"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+  <symbol id="i-auto" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" /><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-timer" viewBox="0 0 24 24"><path d="M10 2h4M12 14l3-3"/><circle cx="12" cy="14" r="8"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></symbol>
+  <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></symbol>
+  <symbol id="i-expand" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></symbol>
+  <symbol id="i-cal-days" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></symbol>
+  <symbol id="i-branch" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="8" r="2.5"/><path d="M6 8.5v7M18 10.5c0 4-6 3-11 6"/></symbol>
+  <symbol id="i-clock-plus" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 0-9 9"/><path d="M12 7v5l3 2M19 16v6M16 19h6"/></symbol>
+  <symbol id="i-versions" viewBox="0 0 24 24"><rect x="7" y="3" width="13" height="16" rx="2"/><path d="M4 7v12a2 2 0 0 0 2 2h10"/><path d="m11 11 2 2 4-4"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></symbol>
+  <symbol id="i-split" viewBox="0 0 24 24"><path d="M16 3h5v5M8 3H3v5M21 3l-7 7M3 3l7 7M12 22v-8"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 5h18M6 12h12M10 19h4"/></symbol>
+  <symbol id="i-roll" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></symbol>
+  <symbol id="i-badge" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/><path d="m15 4 1.5-2M9 4 7.5 2"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4z"/><circle cx="7.5" cy="7.5" r="1.5"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/></symbol>
+</svg>
+
+{% if user.is_authenticated %}
+<div class="app" id="app">
+  <aside class="sidebar" id="sidebar" aria-label="Menú principal">
+    <div class="sb-brand">
+      <span class="sb-logo"><svg class="ico"><use href="#i-logo"/></svg></span>
+      <span class="sb-name"><b>MES Planta</b><span>Planeación de producción</span></span>
+      <button class="icon-btn sb-collapse" id="sb-collapse" type="button" title="Contraer menú" aria-label="Contraer menú"><svg class="ico"><use href="#i-collapse"/></svg></button>
+    </div>
+
+    <nav class="sb-nav">
+      {% if menu.capacity or menu.plant_board or menu.at_risk %}<div class="sb-sec">Operación</div>{% endif %}
+      {% if menu.capacity %}{% url 'mes_core:dashboard' as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="Capacidad de planta"><svg class="ico"><use href="#i-home"/></svg><span>Capacidad de planta</span></a>{% endif %}
+      {% if menu.capacity %}{% url 'mes_core:indicators' as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="Indicadores: OEE, OLE, OTIF y más"><svg class="ico"><use href="#i-target"/></svg><span>Indicadores</span></a>{% endif %}
+      {% if menu.plant_board %}{% url 'mes_core:plant_board' as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="Tablero de planta"><svg class="ico"><use href="#i-factory"/></svg><span>Tablero de planta</span></a>{% endif %}
+      {% if menu.at_risk %}{% url 'mes_core:at_risk' as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="Pedidos en riesgo (atrasados)"><svg class="ico"><use href="#i-alert"/></svg><span>Pedidos en riesgo</span></a>{% endif %}
+
+      {% if piso_menu %}<div class="sb-sec">Control de piso</div>
+      {% for item in piso_menu %}{% url item.url_name as u %}{% if item.url_name == "piso:tablet" %}<a class="sb-link" href="{{ u }}" target="_blank" rel="noopener" title="Abre la app de las tablets en otra pestaña"><svg class="ico"><use href="#i-external"/></svg><span>{{ item.label }}</span></a>{% else %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="{{ item.label }}"><svg class="ico"><use href="{% if item.url_name == 'piso:live' %}#i-trend{% elif item.url_name == 'piso:history' %}#i-cal-days{% elif item.url_name == 'piso:transfers' %}#i-box{% elif item.url_name == 'piso:overtime' %}#i-clock-plus{% else %}#i-grid{% endif %}"/></svg><span>{{ item.label }}</span></a>{% endif %}{% endfor %}{% endif %}
+
+      {% if menu.orders or perms.mes_core.add_workorder %}<div class="sb-sec">Pedidos</div>{% endif %}
+      {% url 'mes_core:order_create' as new_u %}{% url 'mes_core:order_list' as u %}
+      {% if menu.orders %}<a class="sb-link {% if u in request.path and request.path != new_u %}on{% endif %}" href="{{ u }}" title="Pedidos"><svg class="ico"><use href="#i-orders"/></svg><span>Pedidos</span></a>{% endif %}
+      {% if perms.mes_core.add_workorder %}<a class="sb-link {% if request.path == new_u %}on{% endif %}" href="{{ new_u }}" title="Nuevo pedido"><svg class="ico"><use href="#i-plus-sq"/></svg><span>Nuevo pedido</span></a>
+      {% url 'mes_core:order_import' as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="Cargar pedidos desde Excel"><svg class="ico"><use href="#i-upload"/></svg><span>Cargar pedidos</span></a>{% endif %}
+
+      {% if menu.planning_sec %}<div class="sb-sec">Planeación</div>{% endif %}
+      {% if perms.mes_core.plan_workorder %}{% url 'mes_core:planning_list' as u %}<a class="sb-link {% if u in request.path %}on{% endif %}" href="{{ u }}" title="Planeación por etapas"><svg class="ico"><use href="#i-layers"/></svg><span>Planeación</span>{% if nav_to_plan %}<em class="count">{{ nav_to_plan }}</em>{% endif %}</a>{% endif %}
+      {% if menu.scheduler %}{% url 'mes_core:scheduler' as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="Programador"><svg class="ico"><use href="#i-calendar"/></svg><span>Programador</span></a>{% endif %}
+      {% if menu.gantt %}{% url 'mes_core:plan' as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="Diagrama de Gantt"><svg class="ico"><use href="#i-gantt"/></svg><span>Gantt</span></a>{% endif %}
+      {% if menu.calendar %}{% url 'mes_core:work_calendar' as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="Calendario laboral"><svg class="ico"><use href="#i-cal-days"/></svg><span>Calendario laboral</span></a>{% endif %}
+
+      {% if perms.mes_core.supervise_crew or perms.mes_core.assign_supervisor or perms.mes_core.view_employee or perms.mes_core.view_staffmove %}
+      <div class="sb-sec">Personal</div>
+      {% if perms.mes_core.view_staffallocation %}{% url 'mes_core:global_capacity' as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="Capacidad global: toda la empresa"><svg class="ico"><use href="#i-trend"/></svg><span>Capacidad global</span></a>
+      {% url 'mes_core:staff_split' as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="Reparto del personal por bodega"><svg class="ico"><use href="#i-blocks"/></svg><span>Reparto del personal</span></a>{% endif %}
+      {% if perms.mes_core.view_staffmove %}{% url 'mes_core:staff_location' as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="¿Quién está dónde?"><svg class="ico"><use href="#i-factory"/></svg><span>¿Quién está dónde?</span></a>{% endif %}
+      {% if perms.mes_core.supervise_crew or perms.mes_core.assign_supervisor %}{% url 'mes_core:supervision_home' as u %}<a class="sb-link {% if request.path == u or '/supervision/operacion/' in request.path %}on{% endif %}" href="{{ u }}" title="Mi turno: asistencia y cuadrillas"><svg class="ico"><use href="#i-roll"/></svg><span>Mi turno</span>{% if nav_crew_missing %}<em class="count">{{ nav_crew_missing }}</em>{% endif %}</a>{% endif %}
+      {% if perms.mes_core.assign_supervisor %}{% url 'mes_core:supervisor_assign' as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="Asignar supervisores responsables"><svg class="ico"><use href="#i-badge"/></svg><span>Asignar supervisores</span>{% if nav_no_supervisor %}<em class="count">{{ nav_no_supervisor }}</em>{% endif %}</a>{% endif %}
+      {% if perms.mes_core.view_linesupervisor %}{% url 'mes_core:line_supervisors' as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="Supervisor por línea y turno"><svg class="ico"><use href="#i-sliders"/></svg><span>Supervisor por línea</span></a>{% endif %}
+      {% if perms.mes_core.view_employee %}{% url 'mes_core:employee_list' as u %}{% url 'mes_core:skills_matrix' as mx %}<a class="sb-link {% if u in request.path and mx not in request.path %}on{% endif %}" href="{{ u }}" title="Operarios"><svg class="ico"><use href="#i-users"/></svg><span>Operarios</span></a>
+      <a class="sb-link {% if request.path == mx %}on{% endif %}" href="{{ mx }}" title="Matriz de polivalencia"><svg class="ico"><use href="#i-grid"/></svg><span>Polivalencia</span></a>{% endif %}
+      {% if perms.mes_core.view_employeeskill %}{% url 'mes_core:skill_suggestions' as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="Sugerencias de nivel de polivalencia"><svg class="ico"><use href="#i-spark"/></svg><span>Sugerencias de nivel</span></a>{% endif %}
+      {% endif %}
+
+      {% if perms.mes_core.mark_goods %}
+      <div class="sb-sec">Logística</div>
+      {% url 'mes_core:goods_queue' as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="Pedidos por mercar"><svg class="ico"><use href="#i-box"/></svg><span>Mercar pedidos</span>{% if nav_to_pick %}<em class="count">{{ nav_to_pick }}</em>{% endif %}</a>
+      {% endif %}
+
+      {% if perms.mes_core.release_to_plant or perms.mes_core.view_supplystock %}
+      <div class="sb-sec">Insumos</div>
+      {% url 'mes_core:supplies_queue' as u %}<a class="sb-link {% if request.path == u or '/insumos/pedido/' in request.path %}on{% endif %}" href="{{ u }}" title="Pedidos por liberar a planta"><svg class="ico"><use href="#i-check"/></svg><span>Liberar a planta</span>{% if nav_to_release %}<em class="count">{{ nav_to_release }}</em>{% endif %}</a>
+      {% url 'mes_core:supply_inventory' as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="Inventario de insumos"><svg class="ico"><use href="#i-box"/></svg><span>Inventario</span>{% if nav_low_stock %}<em class="count">{{ nav_low_stock }}</em>{% endif %}</a>
+      {% url 'mes_core:supply_movements' as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="Movimientos de insumos"><svg class="ico"><use href="#i-versions"/></svg><span>Movimientos</span></a>
+      {% endif %}
+      {% if perms.mes_core.view_bomline %}{% url 'mes_core:bom_list' as u %}{% if not perms.mes_core.release_to_plant and not perms.mes_core.view_supplystock %}<div class="sb-sec">Insumos</div>{% endif %}<a class="sb-link {% if u in request.path %}on{% endif %}" href="{{ u }}" title="Listas de materiales por producto"><svg class="ico"><use href="#i-list"/></svg><span>Listas de materiales</span></a>{% endif %}
+
+      {% if perms.mes_core.plan_workorder or perms.mes_core.approve_plan %}
+      <div class="sb-sec">Decisiones</div>
+      {% if perms.mes_core.plan_workorder %}{% url 'mes_core:what_if' as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="Simulación «¿qué pasa si…?»"><svg class="ico"><use href="#i-branch"/></svg><span>Simulación</span></a>
+      {% url 'mes_core:overtime_suggestions' as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="Horas extra sugeridas"><svg class="ico"><use href="#i-clock-plus"/></svg><span>Horas extra sugeridas</span></a>{% endif %}
+      {% url 'mes_core:medium_term' as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="Mediano plazo y pronóstico"><svg class="ico"><use href="#i-trend"/></svg><span>Mediano plazo</span></a>
+
+      <div class="sb-sec">Control</div>
+      {% url 'mes_core:plan_versions' as u %}<a class="sb-link {% if u in request.path %}on{% endif %}" href="{{ u }}" title="Versiones del plan y aprobación"><svg class="ico"><use href="#i-versions"/></svg><span>Versiones y aprobación</span>{% if nav_to_approve %}<em class="count">{{ nav_to_approve }}</em>{% endif %}</a>
+      {% url 'mes_core:plan_adherence' as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="Plan vs. real"><svg class="ico"><use href="#i-target"/></svg><span>Plan vs. real</span></a>
+      {% endif %}
+
+      {% if mes_plugin_menu %}<div class="sb-sec">Módulos</div>
+      {% for item in mes_plugin_menu %}{% url item.url_name as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="{{ item.label }}"><svg class="ico"><use href="#i-box"/></svg><span>{{ item.label }}</span></a>{% endfor %}{% endif %}
+
+      {% if menu.config_sec %}<div class="sb-sec">Configuración</div>{% endif %}
+      {% if perms.mes_core.plan_workorder %}{% url 'mes_core:planning_rules' as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="Reglas de planeación"><svg class="ico"><use href="#i-sliders"/></svg><span>Reglas de planeación</span></a>{% endif %}
+      {% if perms.mes_core.view_servicetype %}{% url 'mes_core:service_type_list' as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="Tipos de servicio"><svg class="ico"><use href="#i-tag"/></svg><span>Tipos de servicio</span></a>{% endif %}
+      {% if perms.mes_core.change_shift %}{% url 'mes_core:shift_settings' as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="Turnos y personal"><svg class="ico"><use href="#i-clock"/></svg><span>Turnos y personal</span></a>{% endif %}
+      {% if menu.plugins %}{% url 'mes_core:plugins' as u %}<a class="sb-link {% if request.path == u %}on{% endif %}" href="{{ u }}" title="Módulos instalados"><svg class="ico"><use href="#i-blocks"/></svg><span>Módulos instalados</span></a>{% endif %}
+      {% if user.is_staff %}<a class="sb-link" href="{% url 'admin:index' %}" title="Administración"><svg class="ico"><use href="#i-settings"/></svg><span>Administración</span></a>{% endif %}
+    </nav>
+
+    <div class="sb-foot">
+      <div class="sb-user" title="{{ user.get_full_name|default:user.get_username }}">
+        <span class="avatar">{{ user.get_full_name|default:user.get_username|make_list|first|upper }}</span>
+        <span class="who"><b>{{ user.get_full_name|default:user.get_username }}</b><span>{{ nav_role }}</span></span>
+      </div>
+      <button class="sb-link" type="button" id="theme-btn" title="Tema: automático"><svg class="ico"><use href="#i-auto"/></svg><span>Tema: automático</span></button>
+      <form method="post" action="{% url 'logout' %}">{% csrf_token %}
+        <button class="sb-link" type="submit" title="Cerrar sesión"><svg class="ico"><use href="#i-logout"/></svg><span>Cerrar sesión</span></button>
+      </form>
+    </div>
+  </aside>
+  <div class="sb-overlay" id="sb-overlay"></div>
+
+  <div class="main-col">
+    <header class="topbar">
+      <button class="icon-btn sb-open" id="sb-open" type="button" aria-label="Abrir menú" aria-controls="sidebar"><svg class="ico"><use href="#i-menu"/></svg></button>
+      <div class="crumbs">{% block crumbs %}<b>{% block crumb_title %}{% endblock %}</b>{% endblock %}</div>
+      <span class="spacer"></span>
+      {% block topbar_tools %}{% endblock %}
+      {% url 'mes_core:inbox' as inbox_u %}<a class="icon-btn tb-bell" href="{{ inbox_u }}" title="Bandeja de avisos{% if nav_unread %}: {{ nav_unread }} sin leer{% endif %}" aria-label="Bandeja de avisos{% if nav_unread %}, {{ nav_unread }} sin leer{% endif %}"><svg class="ico"><use href="#i-bell"/></svg>{% if nav_unread %}<em class="tb-badge">{% if nav_unread > 99 %}99+{% else %}{{ nav_unread }}{% endif %}</em>{% endif %}</a>
+      <span class="tb-clock" title="Hora de la planta"><svg class="ico sm"><use href="#i-clock"/></svg><span class="d" id="tb-date"></span><b id="tb-time"></b></span>
+    </header>
+    <main class="content {% block main_class %}{% endblock %}" id="main">
+      {% if messages %}<ul class="messages">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+<div id="nprog" aria-hidden="true"></div>
+<script>window.MES_TZ = "{{ mes_tz }}";</script>
+<script src="{% asset 'mes_core/app.js' %}"></script>
+{# Navegación instantánea (Chrome / Edge): al pasar el mouse por un enlace —o al tocarlo en el celular— la página se #}
+{# prepara en segundo plano; al hacer clic ya está lista. Solo páginas de consulta: nada que haga una acción. #}
+<script type="speculationrules">
+{"prerender": [{"where": {"and": [
+  {"href_matches": "/*"},
+  {"not": {"href_matches": "/admin/*"}},
+  {"not": {"href_matches": "/salir/*"}},
+  {"not": {"href_matches": "/p/piso/"}},
+  {"not": {"selector_matches": "[download], [target=_blank], [data-no-prefetch], .no-prefetch, [href*='descargar'], [href*='.csv'], [href*='.xlsx'], [href*='/api/'], [href*='/liberar/'], [href*='imprimir'], a[href^='/avisos/']:not([href='/avisos/']):not([href^='/avisos/?'])"}}
+]}, "eagerness": "moderate"}]}
+</script>
+{% else %}
+<main class="content">{% block public_content %}{% endblock %}</main>
+{% endif %}
+</body>
+</html>

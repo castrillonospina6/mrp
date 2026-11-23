@@ -1,0 +1,1 @@
+{% if show %}<nav class="site-chips" aria-label="Bodega">{% for i in items %}<a href="{{ i.url }}" title="{{ i.title }}" {% if i.on %}class="on" aria-current="true"{% endif %}>{% if forloop.first and i.label == "Todas" %}<svg class="ico sm" aria-hidden="true"><use href="#i-grid"/></svg>{% endif %}{{ i.label }}</a>{% endfor %}</nav>{% endif %}

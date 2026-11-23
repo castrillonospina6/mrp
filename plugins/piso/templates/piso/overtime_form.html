@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}{% if call %}Editar convocatoria{% else %}Nueva convocatoria{% endif %}{% endblock %}
+{% block crumbs %}<a href="{% url 'piso:overtime' %}">Horas extra</a><span class="sep">/</span><b>{% if call %}{{ call.title }}{% else %}Nueva convocatoria{% endif %}</b>{% endblock %}
+{% block extra_head %}
+<style>
+  .of { display: grid; gap: 16px; max-width: 980px; }
+  .of label.f { display: grid; gap: 5px; font-size: 13px; font-weight: 600; color: var(--text-2); }
+  .of input[type=text], .of textarea, .of input[type=datetime-local] { width: 100%; }
+  .of-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 14px; }
+  .of-shifts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .of-shifts label { display: inline-flex; gap: 6px; align-items: center; padding: 6px 12px; border: 1px solid var(--border-strong);
+    border-radius: 999px; font-weight: 500; cursor: pointer; font-size: 13px; }
+  .of-shifts label:has(input:checked) { background: var(--primary-soft); border-color: var(--primary); color: var(--primary-ink); font-weight: 600; }
+  .of-shifts label.all:has(input:checked) { background: var(--primary); color: var(--on-primary); }
+  .of-shifts label .n { font-size: 11.5px; color: var(--muted); font-weight: 500; }
+  .of-shifts label:has(input:checked) .n { color: inherit; opacity: .8; }
+  .of-who { display: grid; gap: 12px; }
+  .of-who h4 { margin: 0 0 6px; font-size: 12.5px; color: var(--text-2); text-transform: uppercase; letter-spacing: .04em; }
+  .of-count { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: var(--radius); background: var(--surface-2, var(--surface-3)); font-size: 14px; }
+  .of-count b { font-size: 22px; line-height: 1; }
+  .of-quick { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 10px; }
+  .of-quick .q { border: 1px dashed var(--border-strong); border-radius: var(--radius); padding: 10px 12px; display: grid; gap: 6px; }
+  .of-quick .q b { font-size: 13px; }
+  .of-quick .t { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .of-quick input[type=time] { width: 112px; }
+  .od-t td, .od-t th { padding: 8px 10px; }
+  .od-t input { width: 100%; min-width: 0; }
+  .od-t input[type=number] { width: 84px; }
+  .od-kind { font-size: 12px; white-space: nowrap; }
+  @media (max-width: 640px) {
+    .od-t thead { display: none; }
+    .od-t tr { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .od-t td { border: 0; padding: 0; white-space: normal; }
+    .od-t td:first-child { grid-column: 1 / -1; }
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles"><div class="eyebrow">Horas extra</div>
+    <h1>{% if call %}Editar convocatoria{% else %}Nueva convocatoria{% endif %}</h1>
+    <p>Elige los días habilitados y su franja. Al enviarla, a cada persona convocada le aparece en la tablet para que
+      responda SÍ (qué días y hasta qué hora) o NO (con el motivo).</p></div>
+</div>
+{% if error %}<div class="callout bad" style="margin-bottom:14px">{{ error }}</div>{% endif %}
+
+<form method="post" class="of" id="otf">{% csrf_token %}
+  <div class="card"><div class="card-b of">
+    <div class="of-two">
+      <label class="f">Nombre<input type="text" name="title" maxlength="120" required placeholder="Ej.: Extras semana 48 (sábado y domingo)"
+        value="{% if post %}{{ post.title }}{% elif call %}{{ call.title }}{% endif %}"></label>
+      <label class="f">Responder hasta (opcional)<input type="datetime-local" name="respond_by"
+        value="{% if post %}{{ post.respond_by }}{% elif call.respond_by %}{{ call.respond_by|date:'Y-m-d\TH:i' }}{% endif %}">
+        <small class="helptext">Después de esa hora ya no se puede responder ni bloquea la tablet.</small></label>
+    </div>
+    <label class="f">Mensaje para el personal (opcional)<textarea name="note" rows="2" placeholder="Ej.: Necesitamos sacar el pedido de Hermeco antes del lunes.">{% if post %}{{ post.note }}{% elif call %}{{ call.note }}{% endif %}</textarea></label>
+    <div class="of-who"><b style="font-size:13px">¿A quién se convoca?</b>
+      <div><h4>Bodegas</h4>
+        <div class="of-shifts" id="of-sites">
+          <label class="all"><input type="checkbox" id="of-all" {% if not chosen_sites %}checked{% endif %}> Todas <span class="n">{{ audience_all }}</span></label>
+          {% for s, n in site_rows %}<label title="{{ s.code }}"><input type="checkbox" name="sites" value="{{ s.pk }}" {% if s.pk in chosen_sites %}checked{% endif %}> {{ s.name }} <span class="n">{{ n }}</span></label>{% endfor %}
+        </div>
+        <small class="muted">«Todas» = envío masivo a todo el personal con tablet, sin importar la bodega. Marca una o varias bodegas para convocar solo a su gente.</small>
+      </div>
+      {% if shift_rows %}<div><h4>Turnos <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:500">(opcional)</span></h4>
+        <div class="of-shifts">{% for sh, n in shift_rows %}<label><input type="checkbox" name="shifts" value="{{ sh.pk }}" data-site="{{ sh.site_id }}" {% if sh.pk in chosen %}checked{% endif %}> {{ sh.name }} <span class="n">{{ sh.site.name }} · {{ sh.start_time|time:"H:i" }}–{{ sh.end_time|time:"H:i" }} · {{ n }}</span></label>{% endfor %}</div>
+        <small class="muted">Sin marcar = todos los turnos.</small>
+      </div>{% endif %}
+      <div class="of-count" aria-live="polite"><b id="of-n">{{ audience_all }}</b><span id="of-txt">personas recibirán la convocatoria en la tablet</span></div>
+    </div>
+  </div></div>
+
+  <div class="card">
+    <div class="card-h"><h2>Días habilitados para extras</h2><span class="sub">solo estos días le aparecen a la persona</span></div>
+    <div class="card-b" style="display:grid;gap:14px">
+      <div class="of-quick">
+        <div class="q"><b>Entre semana (lunes a viernes)</b><div class="t">de <input type="time" id="qw-s" value="14:00"> a <input type="time" id="qw-e" value="18:00"></div></div>
+        <div class="q"><b>Sábado</b><div class="t">de <input type="time" id="qs-s" value="06:00"> a <input type="time" id="qs-e" value="14:00"></div></div>
+        <div class="q"><b>Domingo / festivo</b><div class="t">de <input type="time" id="qd-s" value="06:00"> a <input type="time" id="qd-e" value="14:00"></div></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+        <label class="f" style="font-weight:600">Semana del<input type="date" id="q-week"></label>
+        <button class="sbtn" type="button" data-q="weekdays">+ Lunes a viernes</button>
+        <button class="sbtn" type="button" data-q="sat">+ Sábado</button>
+        <button class="sbtn" type="button" data-q="sun">+ Domingo</button>
+        <button class="sbtn" type="button" data-q="one">+ Un día</button>
+      </div>
+      <div class="table-wrap flat"><table class="od-t">
+        <thead><tr><th>Fecha</th><th>Desde</th><th>Hasta</th><th>Personas necesarias</th><th></th></tr></thead>
+        <tbody id="od-rows"></tbody>
+      </table></div>
+      <p class="muted" id="od-empty" style="margin:0">Agrega días con los botones de arriba. Los festivos se reconocen solos con el calendario laboral.</p>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="btn" type="submit" name="send" value="1" onclick="return confirm('¿Enviar la convocatoria? A cada persona le aparecerá en la tablet y no podrá seguir hasta responder.')">Enviar a las tablets</button>
+    <button class="sbtn" type="submit" name="send" value="0">Guardar borrador</button>
+    <a class="sbtn" href="{% url 'piso:overtime' %}">Cancelar</a>
+  </div>
+</form>
+{{ days|json_script:"od-init" }}
+{{ people_map|json_script:"od-people" }}
+<script>
+(() => {
+  const body = document.getElementById("od-rows"), empty = document.getElementById("od-empty");
+  const WD = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+  const kind = (v) => { if (!v) return ""; const d = new Date(v + "T12:00"); return WD[d.getDay()]; };
+  const ymd = (d) => d.toLocaleDateString("en-CA");
+  function add(r) {
+    if (r.date && [...body.querySelectorAll("input[name=d_date]")].some((i) => i.value === r.date)) return;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td><div style="display:flex;gap:8px;align-items:center"><input type="date" name="d_date" required value="${r.date || ""}"><span class="od-kind muted"></span></div></td>
+      <td><input type="time" name="d_start" required value="${r.start || ""}" aria-label="Desde"></td>
+      <td><input type="time" name="d_end" required value="${r.end || ""}" aria-label="Hasta"></td>
+      <td><input type="number" name="d_needed" min="0" value="${r.needed || 0}" aria-label="Personas necesarias"></td>
+      <td><button class="sbtn sm" type="button" data-del title="Quitar">Quitar</button></td>`;
+    body.appendChild(tr); paint(); sort();
+  }
+  function paint() {
+    body.querySelectorAll("tr").forEach((tr) => { tr.querySelector(".od-kind").textContent = kind(tr.querySelector("input[name=d_date]").value); });
+    empty.hidden = !!body.children.length;
+  }
+  function sort() {
+    [...body.children].sort((a, b) => a.querySelector("input").value.localeCompare(b.querySelector("input").value)).forEach((tr) => body.appendChild(tr));
+  }
+  body.addEventListener("click", (e) => { if (e.target.closest("[data-del]")) { e.target.closest("tr").remove(); paint(); } });
+  body.addEventListener("change", () => { paint(); sort(); });
+  const week = document.getElementById("q-week");
+  const next = new Date(); next.setDate(next.getDate() + ((8 - next.getDay()) % 7 || 7)); week.value = ymd(next);   // próximo lunes
+  const val = (id) => document.getElementById(id).value;
+  document.querySelectorAll("[data-q]").forEach((b) => b.addEventListener("click", () => {
+    const mon = new Date((week.value || ymd(next)) + "T12:00");
+    mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
+    const at = (n) => { const d = new Date(mon); d.setDate(d.getDate() + n); return ymd(d); };
+    const q = b.dataset.q;
+    if (q === "weekdays") for (let i = 0; i < 5; i++) add({date: at(i), start: val("qw-s"), end: val("qw-e")});
+    if (q === "sat") add({date: at(5), start: val("qs-s"), end: val("qs-e")});
+    if (q === "sun") add({date: at(6), start: val("qd-s"), end: val("qd-e")});
+    if (q === "one") add({date: "", start: val("qw-s"), end: val("qw-e")});
+  }));
+  JSON.parse(document.getElementById("od-init").textContent).forEach(add);
+  paint();
+
+  // ¿A quién le llega? «Todas» o bodegas elegidas, y turnos: se cuenta en vivo
+  const PM = JSON.parse(document.getElementById("od-people").textContent);   // [bodega, turno, bodega del turno]
+  const all = document.getElementById("of-all");
+  const siteBoxes = [...document.querySelectorAll("input[name=sites]")];
+  const shiftBoxes = [...document.querySelectorAll("input[name=shifts]")];
+  function count() {
+    const ss = new Set(siteBoxes.filter((b) => b.checked).map((b) => +b.value));
+    const sh = new Set(shiftBoxes.filter((b) => b.checked).map((b) => +b.value));
+    const n = PM.filter(([s, t, ts]) => (!ss.size || ss.has(s) || ss.has(ts)) && (!sh.size || sh.has(t))).length;
+    document.getElementById("of-n").textContent = n;
+    document.getElementById("of-txt").textContent = n === 1 ? "persona recibirá la convocatoria en la tablet"
+      : n ? "personas recibirán la convocatoria en la tablet" : "personas: con esta selección no le llega a nadie";
+  }
+  all.addEventListener("change", () => { if (all.checked) siteBoxes.forEach((b) => (b.checked = false)); else if (!siteBoxes.some((b) => b.checked)) all.checked = true; count(); });
+  siteBoxes.forEach((b) => b.addEventListener("change", () => { all.checked = !siteBoxes.some((x) => x.checked); count(); }));
+  shiftBoxes.forEach((b) => b.addEventListener("change", count));
+  count();
+})();
+</script>
+{% endblock %}

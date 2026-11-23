@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Bandeja{% endblock %}
+{% block crumbs %}<b>Bandeja de avisos</b>{% endblock %}
+{% block extra_head %}
+<style>
+  .ib-list { list-style: none; margin: 0; padding: 0; }
+  .ib-item { border-top: 1px solid var(--border); }
+  .ib-item:first-child { border-top: 0; }
+  .ib-item a { display: grid; grid-template-columns: 10px 1fr auto; gap: 4px 12px; padding: 12px 16px; color: inherit; text-decoration: none; }
+  .ib-item a:hover { background: var(--surface-2); }
+  .ib-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; background: transparent; }
+  .ib-item.unread .ib-dot { background: var(--primary); }
+  .ib-item.unread .ib-t { font-weight: 700; }
+  .ib-t { color: var(--text); }
+  .ib-b { grid-column: 2; color: var(--muted); font-size: 13px; }
+  .ib-when { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .ib-kind { font-size: 11px; }
+  .ib-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .ib-bar select { height: 32px; }
+  .ib-empty { padding: 40px 16px; text-align: center; color: var(--muted); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Pendientes</div>
+    <h1>Bandeja de avisos</h1>
+    <p>Lo que te toca según tu rol: pedidos por planear, por liberar o por mercar, pedidos que llegan a tu línea, insumos bajo
+      el mínimo, asistencias sin confirmar, pedidos en riesgo y sugerencias de polivalencia. Al abrir un aviso se marca como leído.</p>
+  </div>
+  {% if n_unread %}<form method="post" action="{% url 'mes_core:inbox_read_all' %}" class="tools">{% csrf_token %}<button class="sbtn" type="submit">Marcar todo como leído ({{ n_unread }})</button></form>{% endif %}
+</div>
+<div class="card">
+  <form method="get" class="ib-bar">
+    <div class="segmented" role="group" aria-label="Vista">
+      <a class="{% if view == 'pendientes' %}on{% endif %}" href="?ver=pendientes{% if kind %}&tipo={{ kind }}{% endif %}">Sin leer · {{ n_unread }}</a>
+      <a class="{% if view != 'pendientes' %}on{% endif %}" href="?ver=todos{% if kind %}&tipo={{ kind }}{% endif %}">Todos</a>
+    </div>
+    <input type="hidden" name="ver" value="{{ view }}">
+    <select name="tipo" onchange="this.form.submit()" aria-label="Tipo"><option value="">Todos los tipos</option>
+      {% for k, label in kinds %}<option value="{{ k }}" {% if kind == k %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+  </form>
+  <ul class="ib-list">
+  {% for n in page %}
+    <li class="ib-item {% if not n.read_at %}unread{% endif %}"><a href="{% url 'mes_core:inbox_open' n.pk %}">
+      <span class="ib-dot"></span>
+      <span class="ib-t">{{ n.title }} <span class="pill ib-kind">{{ n.get_kind_display }}</span></span>
+      <span class="ib-when" title="{{ n.created_at|date:'d/m/Y H:i' }}">{{ n.created_at|timesince }}</span>
+      {% if n.body %}<span class="ib-b">{{ n.body }}</span>{% endif %}
+    </a></li>
+  {% empty %}
+    <li class="ib-empty">{% if view == 'pendientes' %}No tienes avisos pendientes.{% else %}Aún no tienes avisos.{% endif %}</li>
+  {% endfor %}
+  </ul>
+  {% if page.paginator.num_pages > 1 %}<div class="card-b">Página {{ page.number }} de {{ page.paginator.num_pages }}
+    {% if page.has_previous %}<a class="sbtn sm" href="?ver={{ view }}&tipo={{ kind }}&page={{ page.previous_page_number }}">Anterior</a>{% endif %}
+    {% if page.has_next %}<a class="sbtn sm" href="?ver={{ view }}&tipo={{ kind }}&page={{ page.next_page_number }}">Siguiente</a>{% endif %}</div>{% endif %}
+</div>
+{% endblock %}

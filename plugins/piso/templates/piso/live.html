@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% block title %}Piso en vivo{% endblock %}
+{% block crumbs %}<b>Piso en vivo</b>{% endblock %}
+{% block extra_head %}
+<style>
+  .pv-kpis { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 16px; }
+  .pv-cols { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) 340px; align-items: start; }
+  @media (max-width: 1100px) { .pv-cols { grid-template-columns: 1fr; } }
+  .pv-board { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); padding: 14px; }
+  .pv-card { border: 1px solid var(--border); border-radius: 14px; padding: 12px; background: var(--surface); display: grid; gap: 8px; min-width: 0; }
+  .pv-card.paro { background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
+  .pv-card.sin_marcar { background: var(--warning-soft); border-color: color-mix(in srgb, var(--warning) 45%, var(--border)); }
+  .pv-card.disponible { border-style: dashed; }
+  .pv-who { display: flex; gap: 8px; align-items: center; min-width: 0; }
+  .pv-who b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+  .pv-av { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 12px; flex: none; background: var(--primary); }
+  .pv-two { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .pv-two div { background: var(--surface-2); border-radius: 10px; padding: 8px; font-size: 12px; color: var(--muted); }
+  .pv-two b { display: block; font-size: 20px; color: var(--text); }
+  .pv-foot { font-size: 12.5px; color: var(--muted); min-height: 2.6em; }
+  .pv-foot b { color: var(--text); }
+  .pv-ok { color: var(--success) !important; } .pv-bad { color: var(--danger) !important; }
+  .pv-filter { display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 14px; border-bottom: 1px solid var(--border); align-items: center; }
+  .pv-filter input { height: 32px; min-width: 180px; flex: 1; }
+  .pv-list { list-style: none; margin: 0; padding: 0; }
+  .pv-list li { display: flex; gap: 8px; align-items: center; justify-content: space-between; padding: 10px 16px; border-top: 1px solid var(--border); font-size: 13px; }
+  .pv-list li:first-child { border-top: 0; }
+  .pv-msg { display: grid; gap: 8px; padding: 14px 16px; }
+  .pv-msg textarea { width: 100%; min-height: 70px; resize: vertical; }
+  .pv-msg select { width: 100%; }
+  .pv-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pv-chips button { border-radius: 999px; }
+  .pv-chips button.on { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+  .pv-bar { height: 6px; border-radius: 99px; background: var(--surface-3); overflow: hidden; }
+  .pv-bar i { display: block; height: 100%; background: var(--primary); }
+  .pv-lines { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); padding: 14px; }
+  #pv-board .pv-card { cursor: pointer; transition: box-shadow .12s, border-color .12s; }
+  #pv-board .pv-card:hover { border-color: var(--primary); }
+  #pv-board .pv-card.pick { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 35%, transparent); }
+  .pv-av { position: relative; }
+  .pv-av .on { position: absolute; right: -2px; bottom: -2px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--surface); background: #9aa0a6; }
+  .pv-av .on.yes { background: var(--success); }
+  .pv-net { font-size: 11.5px; }
+  .pv-picked { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pv-picked span { background: var(--surface-2); border-radius: 999px; padding: 3px 4px 3px 10px; font-size: 12.5px; display: inline-flex; gap: 4px; align-items: center; }
+  .pv-picked button { border: 0; background: none; cursor: pointer; color: var(--muted); font-size: 14px; padding: 0 4px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Control de piso · tiempo real</div>
+    <h1>Piso en vivo</h1>
+    <p>Lo que marcan los operarios en sus tablets, al instante. Cada operario ve la tarea que le asignaste en «Mi turno»; sus
+      unidades entran al pedido como reporte de producción. <span id="pv-scope"></span></p>
+  </div>
+  <div class="tools">
+    <a class="sbtn" href="{% url 'piso:tablet' %}" target="_blank" rel="noopener">Abrir la tablet</a>
+    <a class="sbtn" href="{% url 'piso:history' %}">Histórico</a>
+  </div>
+</div>
+<div class="pv-kpis" id="pv-kpis"></div>
+<div class="pv-cols">
+  <div style="display:grid;gap:16px;min-width:0">
+    <div class="card">
+      <div class="card-h"><h2>Tablero por operario</h2><span class="sub" id="pv-count"></span><span class="sub">· toca una tarjeta para escribirle</span>
+        <div class="tools"><span class="sub" id="pv-upd"></span></div></div>
+      <div class="pv-filter">
+        <input type="search" id="pv-q" placeholder="Buscar operario, operación o pedido…" aria-label="Buscar">
+        <div class="segmented" role="group" aria-label="Filtro" id="pv-f">
+          <a href="#" data-f="" class="on">Todos</a><a href="#" data-f="online">Conectados</a><a href="#" data-f="paro">En paro</a><a href="#" data-f="sin_marcar">Sin marcar</a><a href="#" data-f="disponible">Disponibles</a>
+        </div>
+      </div>
+      <div class="pv-board" id="pv-board"><p class="muted">Cargando…</p></div>
+    </div>
+    <div class="card"><div class="card-h"><h2>Líneas</h2><span class="sub">Operación en curso y unidades de hoy</span></div><div class="pv-lines" id="pv-lines"></div></div>
+  </div>
+  <div style="display:grid;gap:16px">
+    <div class="card"><div class="card-h"><h2>Paros abiertos</h2><span class="sub" id="pv-nstops"></span></div><ul class="pv-list" id="pv-stops"></ul></div>
+    <div class="card">
+      <div class="card-h"><h2>Mensajes a la planta</h2></div>
+      <div class="pv-msg">
+        <div class="pv-chips" id="pv-to">
+          <button type="button" class="sbtn sm on" data-to="p">Una persona</button><button type="button" class="sbtn sm" data-to="l">Una línea</button>
+          <button type="button" class="sbtn sm" data-to="v">Varias personas</button><button type="button" class="sbtn sm" data-to="b">Baja eficiencia</button>
+          <button type="button" class="sbtn sm" data-to="a">Alta eficiencia</button>
+        </div>
+        <div id="pv-dest"></div>
+        <textarea id="pv-text" maxlength="500" placeholder="Escribe el mensaje… (aparece encima de la pantalla de la tablet)"></textarea>
+        <label style="display:flex;gap:8px;align-items:center;font-size:13.5px"><input type="checkbox" id="pv-alarm" checked> 🔔 Con alarma (zumbido): suena y vibra hasta que lo acepte</label>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:8px">
+          <button class="btn" type="button" id="pv-send">Enviar ➤</button>
+          <button class="sbtn" type="button" id="pv-buzz" title="Llamar la atención sin escribir: suena la alarma con «¡Atención! Mira la pantalla»">🔔 Solo zumbido</button>
+        </div>
+        <small class="muted">Llega en segundos y el operario lo confirma con «Aceptar». Sin alarma, aparece en pantalla en silencio.</small>
+      </div>
+      <ul class="pv-list" id="pv-msgs"></ul>
+    </div>
+  </div>
+</div>
+<script id="pv-lines-data" type="application/json">[{% for wc in lines %}{"id": {{ wc.pk }}, "name": "{{ wc.code|escapejs }} · {{ wc.name|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]</script>
+<script>
+(function () {
+  const DATA = "{{ data_url|escapejs }}", PULSE = "{{ pulse_url|escapejs }}", MSG = "{% url 'piso:live_message' %}", CLOSE = "{% url 'piso:live_close_stop' 0 %}";
+  const LINES = JSON.parse(document.getElementById('pv-lines-data').textContent);
+  const $ = s => document.querySelector(s), E = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+  const P = v => v == null ? '–' : Math.round(v) + '%', cls = v => v == null ? '' : v >= 85 ? 'pv-ok' : v < 70 ? 'pv-bad' : '';
+  const q = n => n == null ? '–' : (+n).toLocaleString('es-CO', {maximumFractionDigits: 2});
+  const T = s => s ? new Date(s).getTime() : 0, fmt = s => { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  const hT = t => t ? new Date(t).toLocaleTimeString('es-CO', {hour: '2-digit', minute: '2-digit', hour12: false}) : '–';
+  const init = n => String(n || '?').split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const PAL = ['#5b3fd1', '#e8710a', '#12a150', '#2f7cf6', '#d6336c', '#2fb5a8'];
+  const csrf = () => { const m = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/); return m ? decodeURIComponent(m[1]) : ''; };
+  let D = null, pulse = '', last = 0, to = 'p', filt = '', skew = 0;
+  const picked = new Set();   // personas elegidas para el mensaje (tocando su tarjeta o en la lista)
+  const ago = t => { const m = Math.round((now() - T(t)) / 6e4); return m < 60 ? `hace ${m} min` : 'a las ' + hT(t); };
+  const now = () => Date.now() + skew;
+
+  function kpi(t, v, s, c) { return `<div class="kpi"><div class="k-h">${t}</div><div class="k-v ${c || ''}">${v}</div>${s ? `<div class="k-s">${s}</div>` : ''}</div>`; }
+  function render() {
+    if (!D) return;
+    const k = D.kpis;
+    $('#pv-scope').textContent = D.all ? 'Ves toda la planta.' : 'Ves solo las operaciones donde eres el supervisor responsable.';
+    $('#pv-kpis').innerHTML = kpi('Unidades hoy', q(k.good), `${q(k.scrap)} rechazos · ${q(k.rework)} reprocesos`) + kpi('Eficiencia', P(k.eff), 'Minutos estándar ÷ disponibles', cls(k.eff)) +
+      kpi('Trabajando', `${k.working} <small>/ ${k.people}</small>`, 'Con marcaciones recientes') + kpi('Conectados a la app', k.online, (() => { const m = D.cards.filter(c => c.sound === false).length; return m ? `<span class="pv-bad">🔇 ${m} sin sonido de alarma</span>` : 'Con la app abierta ahora'; })(), k.online ? 'pv-ok' : '') + kpi('Paros abiertos', k.open_stops, `${Math.round(k.stop_min)} min de paro hoy`, k.open_stops ? 'pv-bad' : '');
+    const term = ($('#pv-q').value || '').trim().toLowerCase();
+    const cards = D.cards.filter(c => (!filt || (filt === 'online' ? c.online : c.state === filt)) && (!term || [c.name, c.task && c.task.name, c.task && c.task.order, c.task && c.task.line].join(' ').toLowerCase().includes(term)));
+    $('#pv-count').textContent = `${cards.length} de ${D.cards.length}`;
+    $('#pv-board').innerHTML = cards.map((c, i) => {
+      let foot;
+      if (c.stop) foot = `<b class="pv-bad" data-lt="${c.stop.start}">${fmt((now() - T(c.stop.start)) / 1e3)}</b> · ${c.stop.is_break ? 'Pausa' : 'Paro'}: ${E(c.stop.cause)}`;
+      else if (c.state === 'disponible') foot = '<b>Disponible</b> · sin tarea asignada';
+      else if (c.state === 'sin_marcar') foot = `<b data-lt="${c.last_mark}">${fmt((now() - T(c.last_mark)) / 1e3)}</b> sin marcar`;
+      else if (c.state === 'sin_iniciar') foot = 'Aún no marca hoy';
+      else foot = `Última marcación ${hT(c.last_mark)}`;
+      const t = c.task;
+      const net = c.online ? (c.sound === false
+          ? '<span class="pv-net pv-bad" title="Su equipo no deja sonar las alarmas solo. En ese equipo: Ajustes › «Este equipo» (instalar la app o activar avisos).">● Conectado · 🔇 alarma sin sonido</span>'
+          : '<span class="pv-net pv-ok">● Conectado a la app</span>') : `<span class="pv-net muted">${c.role ? (c.seen ? 'Desconectado · visto ' + ago(c.seen) : 'Sin conectarse') : 'Sin acceso a la app'}</span>`;
+      return `<div class="pv-card ${c.state}${picked.has(String(c.id)) ? ' pick' : ''}" data-pick="${c.id}" title="Toca para enviarle un mensaje"><div class="pv-who"><span class="pv-av" style="background:${PAL[c.id % 6]}">${E(init(c.name))}<i class="on${c.online ? ' yes' : ''}"></i></span><span style="min-width:0"><b>${E(c.name)}</b><small class="muted">${t ? E(t.name) + ' · ' + E(t.order) : 'Sin tarea'}${c.queue ? ' · +' + c.queue + ' en cola' : ''}${c.role && c.role !== 'Operario' ? ' · ' + E(c.role) : ''}</small></span></div>${net}
+        ${t ? `<div class="pv-bar" title="${q(t.done)} de ${q(t.qty)}"><i style="width:${t.qty > 0 ? Math.min(100, t.done / t.qty * 100) : 0}%"></i></div>` : ''}
+        <div class="pv-two"><div>Eficiencia<b class="${cls(c.eff_day)}">${P(c.eff_day)}</b></div><div>OEE<b>${P(c.oee)}</b></div><div>Unidades<b>${q(c.good)}</b></div><div>Última hora<b class="${cls(c.eff_hour)}">${P(c.eff_hour)}</b></div></div>
+        <div class="pv-foot">${foot}${c.stop ? ` <button class="sbtn sm" data-close="${c.stop.id}">Cerrar</button>` : ''}</div></div>`;
+    }).join('') || '<p class="muted" style="grid-column:1/-1">Sin operarios para mostrar. Arma las cuadrillas en «Mi turno» para que el personal vea su tarea en la tablet.</p>';
+    $('#pv-lines').innerHTML = D.lines.map(l => `<div class="pv-card ${l.stop ? 'paro' : ''}"><div class="pv-who"><span class="pv-av">${E(l.code.slice(0, 3))}</span><span style="min-width:0"><b>${E(l.name)}</b><small class="muted">${l.task ? E(l.task.name) + ' · ' + E(l.task.order) : 'Sin operación'}</small></span></div>${l.tablet && l.tablet.online ? (l.tablet.sound === false ? '<span class="pv-net pv-bad">Tablet conectada · 🔇 alarma sin sonido</span>' : '<span class="pv-net pv-ok">● Tablet de la línea conectada</span>') : ''}${l.task ? `<div class="pv-bar"><i style="width:${l.task.qty > 0 ? Math.min(100, l.task.done / l.task.qty * 100) : 0}%"></i></div><small class="muted">${q(l.task.done)} / ${q(l.task.qty)} · ${q(l.good)} hoy</small>` : ''}${l.stop ? `<div class="pv-foot"><b class="pv-bad" data-lt="${l.stop.start}"></b> · Paro de línea: ${E(l.stop.cause)} <button class="sbtn sm" data-close="${l.stop.id}">Cerrar</button></div>` : ''}</div>`).join('') || '<p class="muted">Sin líneas con operaciones liberadas.</p>';
+    $('#pv-nstops').textContent = D.stops.length ? D.stops.length + ' abiertos' : '';
+    $('#pv-stops').innerHTML = D.stops.map(s => `<li><span><b>${E(s.employee || 'Toda la línea')}</b> · ${E(s.cause)}${s.is_break ? ' <span class="pill info">Pausa</span>' : ''}<br><small class="muted">${E(s.line || '')} · desde ${hT(s.start)}</small></span><span><b data-lt="${s.start}"></b> <button class="sbtn sm" data-close="${s.id}" title="${s.is_break ? 'Cierra la pausa sin el QR' : 'Cerrar el paro'}">Cerrar</button></span></li>`).join('') || '<li class="muted">Sin paros abiertos.</li>';
+    $('#pv-msgs').innerHTML = D.messages.map(m => `<li><span>${m.alarm ? '🔔 ' : ''}${E(m.text)}<br><small class="muted">${E(m.from)} → ${E(m.audience || '')} · ${hT(m.at)}</small></span></li>`).join('');
+    dest(); tick();
+    $('#pv-upd').textContent = 'Actualizado ' + hT(new Date().toISOString());
+  }
+  function dest() {
+    const box = $('#pv-dest'), keep = box.querySelector('select'), sel = keep ? [...keep.selectedOptions].map(o => o.value) : [];
+    if (keep && document.activeElement === keep) return;
+    if (to === 'p' || to === 'v') {   // personas: se eligen tocando su tarjeta en el tablero (o en la lista)
+      const byId = Object.fromEntries((D ? D.cards : []).map(c => [String(c.id), c]));
+      const chips = [...picked].map(id => { const c = byId[id]; return `<span>${c && c.online ? '<b class="pv-ok">●</b>' : ''}${E(c ? c.name : '…')}<button type="button" data-unpick="${id}" aria-label="Quitar" title="Quitar">×</button></span>`; }).join('');
+      const opts = (D ? D.cards : []).filter(c => !picked.has(String(c.id))).map(c => `<option value="${c.id}">${c.online ? '● ' : ''}${E(c.name)}</option>`).join('');
+      box.innerHTML = `<div class="pv-picked" style="margin-bottom:6px">${chips || `<small class="muted">${to === 'p' ? 'Toca la tarjeta del operario en el tablero' : 'Toca las tarjetas de los operarios'} (o elígelo en la lista).</small>`}</div><select data-add><option value="">${to === 'p' ? 'Elegir operario…' : 'Agregar operario…'}</option>${opts}</select>`;
+    }
+    else if (to === 'l') box.innerHTML = `<select data-to="l"><option value="">Línea…</option>${LINES.map(l => `<option value="${l.id}"${sel.includes(String(l.id)) ? ' selected' : ''}>${E(l.name)}</option>`).join('')}</select>`;
+    else box.innerHTML = `<small class="muted">${to === 'b' ? 'Operarios con eficiencia de hoy menor a 70 %.' : 'Operarios con eficiencia de hoy mayor a 100 %.'}</small>`;
+  }
+  function tick() { document.querySelectorAll('[data-lt]').forEach(e => { e.textContent = fmt((now() - T(e.dataset.lt)) / 1e3); }); }
+  // Una carga a la vez; solo se redibuja si algo cambió, y nunca con el mouse/dedo presionado sobre una tarjeta
+  // (si se redibuja en ese instante, el clic sobre la tarjeta se pierde).
+  let loading = false, lastTxt = '', down = false;
+  document.addEventListener('pointerdown', () => { down = true; }, true);
+  document.addEventListener('pointerup', () => setTimeout(() => { down = false; }, 60), true);
+  function paintSoon() { if (down) { setTimeout(paintSoon, 100); return; } render(); }
+  async function load() {
+    if (loading) return; loading = true;
+    try {
+      const r = await fetch(DATA, {credentials: 'same-origin'}); if (!r.ok) return;
+      const j = await r.json(); skew = T(j.now) - Date.now(); last = Date.now();
+      const txt = JSON.stringify({...j, now: 0});
+      if (txt === lastTxt && D) return;   // nada nuevo: no se toca la pantalla
+      lastTxt = txt; D = j; paintSoon();
+    } catch (e) { /* se reintenta */ } finally { loading = false; }
+  }
+  async function poll() {
+    if (document.hidden || loading) return;
+    try { const r = await fetch(PULSE + '?k=b,g', {credentials: 'same-origin'}); const j = await r.json(); if (j.v !== pulse || Date.now() - last > 30000) { pulse = j.v; load(); } } catch (e) { /* sin conexión */ }
+  }
+  async function post(url, body) {
+    const r = await fetch(url, {method: 'POST', credentials: 'same-origin', headers: {'content-type': 'application/json', 'X-CSRFToken': csrf()}, body: JSON.stringify(body || {})});
+    const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.e || 'No se pudo completar.'); return j;
+  }
+  document.addEventListener('click', async e => {
+    const c = e.target.closest('[data-close]');
+    if (c) { if (!confirm('¿Cerrar este paro ahora?')) return; try { await post(CLOSE.replace('/0/', '/' + c.dataset.close + '/')); load(); } catch (x) { alert(x.message); } return; }
+    const t = e.target.closest('#pv-to [data-to]');
+    if (t) { setTo(t.dataset.to); return; }
+    const u = e.target.closest('[data-unpick]');
+    if (u) { picked.delete(u.dataset.unpick); render(); return; }
+    const card = e.target.closest('#pv-board [data-pick]');
+    if (card && !e.target.closest('button, a')) {   // tocar la tarjeta = escribirle a esa persona
+      const id = card.dataset.pick;
+      if (to !== 'p' && to !== 'v') setTo('p');
+      if (to === 'p') { const only = picked.size === 1 && picked.has(id); picked.clear(); if (!only) picked.add(id); }
+      else if (picked.has(id)) picked.delete(id); else picked.add(id);
+      render();
+      if (picked.size) $('#pv-text').focus();
+      return;
+    }
+    const f = e.target.closest('#pv-f [data-f]');
+    if (f) { e.preventDefault(); filt = f.dataset.f; document.querySelectorAll('#pv-f a').forEach(a => a.classList.toggle('on', a === f)); render(); }
+  });
+  function setTo(v) {
+    to = v;
+    document.querySelectorAll('#pv-to button').forEach(b => b.classList.toggle('on', b.dataset.to === v));
+    if (v === 'p' && picked.size > 1) { const first = [...picked][0]; picked.clear(); picked.add(first); }
+    if (v !== 'p' && v !== 'v') picked.clear();
+    $('#pv-dest').innerHTML = ''; render();
+  }
+  document.addEventListener('change', e => {
+    const s = e.target.closest('#pv-dest select[data-add]');
+    if (!s || !s.value) return;
+    if (to === 'p') picked.clear();
+    picked.add(s.value); s.blur(); render();
+  });
+  $('#pv-q').addEventListener('input', render);
+  $('#pv-send').addEventListener('click', () => send(false));
+  $('#pv-buzz').addEventListener('click', () => send(true));
+  async function send(buzz) {   // buzz = «solo zumbido»: alarma sin escribir nada
+    const text = buzz ? '' : $('#pv-text').value.trim(), s = $('#pv-dest select');
+    if (!buzz && !text) return alert('Escribe el mensaje (o usa «Solo zumbido»).');
+    const body = {to, text, alarm: buzz || $('#pv-alarm').checked};
+    if (to === 'p' || to === 'v') { body.ids = [...picked]; if (!body.ids.length) return alert('Toca la tarjeta del operario a quien va el mensaje.'); }
+    if (to === 'l') { body.line = s && s.value; if (!body.line) return alert('Elige la línea.'); }
+    try { const r = await post(MSG, body); if (!buzz) $('#pv-text').value = ''; picked.clear(); alert(`${buzz ? 'Zumbido enviado' : 'Enviado'} a ${r.audience} (${r.n} persona${r.n === 1 ? '' : 's'}).`); load(); } catch (x) { alert(x.message); }
+  }
+  setInterval(poll, 3000); setInterval(tick, 1000); load();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,8 @@
+<dl class="in-apq">
+  <div title="{{ a_help }}"><dt>Disponibilidad</dt><dd>{% if a is None %}—{% else %}{{ a }} %{% endif %}</dd>
+    <span class="bar"><i style="width:{% if a is None %}0{% elif a > 100 %}100{% else %}{{ a }}{% endif %}%"></i></span></div>
+  <div title="minutos estándar producidos ÷ minutos-persona"><dt>Rendimiento</dt><dd>{% if p is None %}—{% else %}{{ p }} %{% endif %}</dd>
+    <span class="bar"><i style="width:{% if p is None %}0{% elif p > 100 %}100{% else %}{{ p }}{% endif %}%"></i></span></div>
+  <div title="buenas ÷ (buenas + rechazos + reprocesos)"><dt>Calidad</dt><dd>{% if q is None %}—{% else %}{{ q }} %{% endif %}</dd>
+    <span class="bar"><i style="width:{% if q is None %}0{% elif q > 100 %}100{% else %}{{ q }}{% endif %}%"></i></span></div>
+</dl>

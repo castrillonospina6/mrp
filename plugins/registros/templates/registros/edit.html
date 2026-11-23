@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Editar reporte #{{ r.pk }}{% endblock %}
+{% block crumbs %}<a href="{% url 'registros:records' %}">Registros de producción</a><span class="sep">/</span><b>Editar reporte #{{ r.pk }}</b>{% endblock %}
+{% block extra_head %}
+<style>
+  .ed-g { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 12px; }
+  .ed-g label, .ed-w label { display: grid; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--text-2); }
+  .ed-g input, .ed-g select, .ed-w input, .ed-w select { height: 38px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; width: 100%; box-sizing: border-box; }
+  .ed-w { display: grid; gap: 12px; margin-top: 12px; }
+  .ed-chk { display: flex !important; gap: 8px; align-items: center; font-size: 14px !important; color: var(--text) !important; }
+  .ed-chk input { width: auto !important; height: auto !important; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head"><div class="titles">
+  <div class="eyebrow">{{ order.number }} · {{ op.name }}</div>
+  <h1>Editar reporte #{{ r.pk }}</h1>
+  <p>{{ when|date:"D d/m/Y H:i" }} · {% if r.employee %}{{ r.employee.display_name }}{% elif r.source == "piso" %}Tablet de piso{% else %}{{ r.reported_by|default:"—" }}{% endif %}{% if r.comment %} · {{ r.comment }}{% endif %}</p>
+</div></div>
+
+<form method="post" class="card"><div class="card-b">{% csrf_token %}<input type="hidden" name="next" value="{{ back }}">
+  {% if multi %}<div class="callout" style="margin-bottom:12px">Este reporte se repartió entre varias personas: si cambias las unidades, la parte de cada una se ajusta en proporción.</div>{% endif %}
+  <div class="ed-g">
+    <label>Buenas<input type="number" name="qty_good" min="0" step="any" value="{{ good_total|stringformat:'s' }}" required></label>
+    <label>Merma / rechazo<input type="number" name="qty_scrap" min="0" step="any" value="{{ r.qty_scrap|stringformat:'s' }}"></label>
+    <label>Códigos sobrantes<input type="number" name="qty_leftover" min="0" step="any" value="{{ r.qty_leftover|stringformat:'s' }}"></label>
+    <label>Referencia (EAN)
+      {% if eans %}<select name="ean"><option value="">— sin referencia —</option>{% for e in eans %}<option value="{{ e.ean }}" {% if e.ean == r.ean %}selected{% endif %}>{{ e.ean }}{% if e.description %} · {{ e.description|truncatechars:30 }}{% endif %}</option>{% endfor %}</select>
+      {% else %}<input name="ean" value="{{ r.ean }}" inputmode="numeric" placeholder="Sin EAN">{% endif %}</label>
+    <label>Fecha<input type="date" name="fecha" value="{{ when|date:'Y-m-d' }}"></label>
+    <label>Hora<input type="time" name="hora" value="{{ when|time:'H:i' }}"></label>
+  </div>
+  <div class="ed-w">
+    <label>Pedido y etapa (para pasar el reporte a otra operación)
+      <select name="operation">{% for o in ops %}<option value="{{ o.pk }}" {% if o.pk == op.pk %}selected{% endif %}>{{ o.order.number }} · {{ o.sequence }}. {{ o.name }}{% if o.order_id != order.pk %} ({{ o.order.get_status_display|lower }}){% endif %}</option>{% endfor %}</select></label>
+    {% if not multi %}
+    <div class="ed-g">
+      <label>Operario<select name="employee"><option value="">— Ninguno (línea / MES) —</option>{% for e in people %}<option value="{{ e.pk }}" {% if e.pk == r.employee_id %}selected{% endif %}>{{ e.display_name }} · {{ e.document }}</option>{% endfor %}</select></label>
+      <label>…u otro operario (documento)<input name="doc" inputmode="numeric" placeholder="Documento"></label>
+    </div>
+    {% endif %}
+    <label>Comentario<input name="comment" maxlength="255" value="{{ r.comment }}"></label>
+    <label class="ed-chk"><input type="checkbox" name="finished" {% if r.finished %}checked{% endif %}> Este reporte cierra la operación</label>
+    <label>Motivo de la edición (obligatorio)<input name="reason" required maxlength="255" placeholder="Ej.: el supernumerario digitó mal las unidades"></label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn">Guardar corrección</button><a class="sbtn" href="{{ back }}">Cancelar</a></div>
+  </div>
+  {% if r.edited_at %}<p class="muted" style="margin:12px 0 0;font-size:13px">Última edición: {{ r.edited_at|date:"d/m/Y H:i" }} · {{ r.edited_by.get_full_name|default:r.edited_by.username|default:"—" }} · {{ r.edit_reason }}</p>{% endif %}
+</div></form>
+{% endblock %}

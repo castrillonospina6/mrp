@@ -1,0 +1,32 @@
+<section class="cw-mover" id="cw-mover">
+  <input type="hidden" name="mover_panel" value="1">
+  <div class="cw-mover-h">
+    <h3>¿Requiere patinador?</h3>
+    <div class="seg" role="radiogroup" aria-label="¿Requiere patinador?">
+      <label><input type="radio" name="mover_need" value="0" {% if not current %}checked{% endif %}> No</label>
+      <label><input type="radio" name="mover_need" value="1" {% if current %}checked{% endif %}> Sí</label>
+    </div>
+  </div>
+  <div class="cw-mover-b" {% if not current %}hidden{% endif %}>
+    <label class="cw-mover-pick">Persona que hará de patinador
+      <select name="mover" aria-label="Patinador de la operación">
+        <option value="">— Elige quién —</option>
+        {% if movers %}<optgroup label="Patinadores">{% for e in movers %}<option value="{{ e.pk }}" {% if current and current.pk == e.pk %}selected{% endif %}>{{ e.display_name }}</option>{% endfor %}</optgroup>{% endif %}
+        <optgroup label="Personal">{% for e in others %}<option value="{{ e.pk }}" {% if current and current.pk == e.pk %}selected{% endif %}>{{ e.display_name }}{% if e.pk not in with_app %} (sin acceso a la app){% endif %}</option>{% endfor %}</optgroup>
+      </select>
+    </label>
+    <p class="st-sub">Mientras dure esta operación, esa persona ve la app de planta como <b>patinador</b> y le llegan los
+      pedidos de material de la línea {{ op.work_center.code|default:"" }} (del supernumerario, de la tablet de la línea o de Traslados).
+      No cuenta en la cuadrilla. Al terminar la operación vuelve a su pantalla normal.</p>
+  </div>
+</section>
+<script>
+(() => {
+  const box = document.getElementById("cw-mover");
+  if (!box) return;
+  const body = box.querySelector(".cw-mover-b");
+  box.addEventListener("change", (e) => {
+    if (e.target.name === "mover_need") body.hidden = e.target.value !== "1";
+  });
+})();
+</script>

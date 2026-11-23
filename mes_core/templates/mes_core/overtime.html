@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load mes_assets mes_sites %}
+{% block title %}Horas extra sugeridas{% endblock %}
+{% block crumbs %}<span>Decisiones</span><span class="sep">/</span><b>Horas extra sugeridas</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/planner.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <h1>Horas extra sugeridas</h1>
+    <p>El sistema busca turnos sobrecargados en los próximos 7 días y días sin trabajo en las próximas 2 semanas, y simula
+      cada opción contra el plan actual. Están ordenadas por cuántos pedidos atrasados resuelven.</p>
+  </div>
+  <div class="tools">
+    {% site_chips %}
+    <a class="sbtn" href="{% url 'mes_core:work_calendar' %}?site={{ site.pk }}"><svg class="ico sm"><use href="#i-calendar"/></svg> Calendario laboral</a>
+  </div>
+</div>
+
+<div class="kpis">
+  <div class="kpi"><div class="k-h">Pedidos atrasados hoy</div><div class="k-v {% if base.late %}late{% endif %}">{{ base.late }}</div>
+    <div class="k-s">Con el plan reprogramado sin cambios</div></div>
+  <div class="kpi"><div class="k-h">Termina el último pedido</div><div class="k-v" style="font-size:20px">{{ base.end|date:"D d/m H:i"|default:"—" }}</div></div>
+  <div class="kpi"><div class="k-h">Opciones evaluadas</div><div class="k-v">{{ options|length }}</div></div>
+</div>
+
+{% for o in options %}
+<article class="card ot-opt {% if forloop.first and o.late_after < o.late_before %}best{% endif %}">
+  <div class="ot-main">
+    <div>
+      <div class="ot-kind">{% if o.change.kind == 'horas_extra' %}<span class="pill info">Horas extra</span>{% else %}<span class="pill ok">Turno adicional</span>{% endif %}
+        {% if forloop.first and o.late_after < o.late_before %}<span class="pill brand">Recomendada</span>{% endif %}</div>
+      <h3>{{ o.text }}</h3>
+      <p class="muted">{{ o.change.reason }} · aporta {{ o.change.added_hh }} horas-hombre</p>
+    </div>
+    <div class="ot-metrics">
+      <div><span>Atrasados</span><b>{{ o.late_before }} → <span class="{% if o.late_after < o.late_before %}pos{% elif o.late_after > o.late_before %}neg{% endif %}">{{ o.late_after }}</span></b></div>
+      <div><span>Adelanta</span><b>{{ o.hours_earlier|floatformat:"-1" }} h</b><small>suma de todos los pedidos</small></div>
+      <div><span>Último pedido</span><b>{{ o.end|date:"D d/m H:i"|default:"—" }}</b></div>
+    </div>
+  </div>
+  {% if o.fixed %}<p class="ot-fixed">Deja a tiempo: {{ o.fixed|join:", " }}</p>{% endif %}
+  <form method="post" class="ot-apply">{% csrf_token %}
+    <input type="hidden" name="site" value="{{ site.pk }}"><input type="hidden" name="change" value="{{ o.json }}">
+    <label><input type="checkbox" name="replan" checked> Reprogramar el plan después de agregarla</label>
+    <button class="btn" type="submit">Aplicar</button>
+  </form>
+</article>
+{% empty %}
+<div class="callout">No hay turnos sobrecargados ni días sin trabajo cercanos para proponer horas extra. La capacidad actual alcanza
+  o no hay turnos configurados.</div>
+{% endfor %}
+{% endblock %}

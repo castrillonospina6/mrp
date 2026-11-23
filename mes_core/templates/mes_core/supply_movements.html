@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load mes_assets staff_tags mes_sites %}
+{% block title %}Movimientos de insumos{% endblock %}
+{% block crumbs %}<span>Insumos</span><span class="sep">/</span><b>Movimientos</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/staff.css' %}">{% endblock %}
+{% block content %}
+{% if no_site %}<div class="callout">No hay plantas activas.</div>{% else %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Insumos · {{ site.code }}</div>
+    <h1>Movimientos de insumos</h1>
+    <p>Entradas, entregas a pedidos y ajustes por conteo. No se editan: son la trazabilidad del inventario.</p>
+  </div>
+  <div class="tools"><a class="sbtn" href="{% url 'mes_core:supply_inventory' %}?site={{ site.pk }}"><svg class="ico sm"><use href="#i-box"/></svg> Inventario</a></div>
+</div>
+<div style="margin:-6px 0 14px">{% site_chips %}</div>
+<div class="card">
+  <form method="get" class="st-toolbar">
+    <input type="hidden" name="site" value="{{ site.pk }}">
+    <select name="insumo" aria-label="Insumo"><option value="">Todos los insumos</option>
+      {% for s in stocks %}<option value="{{ s.pk }}" {% if stock_f == s.pk|stringformat:'s' %}selected{% endif %}>{{ s.product.name }} ({{ s.product.sku }})</option>{% endfor %}</select>
+    <select name="tipo" aria-label="Tipo"><option value="">Todos los tipos</option>
+      {% for v, l in kinds %}<option value="{{ v }}" {% if kind_f == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+    <button class="sbtn" type="submit">Filtrar</button>
+  </form>
+  <div class="table-wrap flat"><table>
+    <thead><tr><th>Fecha</th><th>Tipo</th><th>Insumo</th><th class="num">Cantidad</th><th class="num">Queda</th><th>Pedido</th><th>Entregado a</th><th>Registró</th><th>Nota</th></tr></thead>
+    <tbody>{% for m in page %}
+      <tr><td>{{ m.created_at|date:"d/m/Y H:i" }}</td>
+        <td><span class="pill {% if m.kind == 'entrada' %}ok{% elif m.kind == 'entrega' %}info{% else %}warn{% endif %}">{{ m.get_kind_display }}</span></td>
+        <td>{{ m.stock.product.name }} <small class="muted">{{ m.stock.product.sku }}</small></td>
+        <td class="num {% if m.qty < 0 %}late{% endif %}">{% if m.qty > 0 %}+{% endif %}{{ m.qty|floatformat:"-3g" }}</td>
+        <td class="num">{{ m.balance|floatformat:"-3g" }}</td>
+        <td>{% if m.order %}<a href="{% url 'mes_core:supply_order' m.order_id %}" class="mono">{{ m.order.number }}</a>{% else %}—{% endif %}</td>
+        <td>{{ m.deliver_to|uname }}</td><td>{{ m.user|uname }}</td><td style="white-space:normal">{{ m.note }}</td></tr>
+    {% empty %}<tr><td colspan="9" class="st-empty">Sin movimientos.</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% if page.paginator.num_pages > 1 %}
+  <div class="st-pager">Página {{ page.number }} de {{ page.paginator.num_pages }}
+    {% if page.has_previous %}<a class="sbtn sm" href="?{{ qs }}&page={{ page.previous_page_number }}">Anterior</a>{% endif %}
+    {% if page.has_next %}<a class="sbtn sm" href="?{{ qs }}&page={{ page.next_page_number }}">Siguiente</a>{% endif %}</div>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

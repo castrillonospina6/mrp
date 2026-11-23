@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+{% load mes_assets mes_sites %}
+{% block title %}Indicadores{% endblock %}
+{% block crumbs %}<span>Operación</span><span class="sep">/</span><b>Indicadores</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/indicators.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Operación · {{ scope.label }} · {{ per.label }}{% if per.live %} (hasta ahora){% endif %}</div>
+    <h1>Indicadores</h1>
+    <p>Qué tan bien se aprovechan las líneas (OEE) y la gente (OLE), dónde se pierde el tiempo y cómo le cumplimos al cliente.</p>
+  </div>
+  <div class="tools">
+    {% site_chips %}
+  </div>
+</div>
+
+{# ---------------------------------------------------------------- periodo: atajos, calendario y en vivo #}
+<section class="card in-period" aria-label="Periodo">
+  <nav class="in-presets" aria-label="Atajos de periodo">
+    {% for key, name in presets %}<a class="in-chip {% if per.preset == key %}on{% endif %}" href="?site={{ scope.param }}&periodo={{ key }}" {% if per.preset == key %}aria-current="true"{% endif %}>{% if key == "hoy" %}<i class="in-live-dot" aria-hidden="true"></i>{% endif %}{{ name }}</a>{% endfor %}
+  </nav>
+  <form class="in-range" method="get">
+    <input type="hidden" name="site" value="{{ scope.param }}">
+    <a class="sbtn sm" href="?site={{ scope.param }}&{{ prev_per.query }}" title="Periodo anterior: {{ prev_per.label }}" aria-label="Periodo anterior">‹</a>
+    <label>Desde <input type="date" name="desde" value="{{ per.start|date:'Y-m-d' }}" max="{{ today|date:'Y-m-d' }}" required></label>
+    <label>Hasta <input type="date" name="hasta" value="{{ per.end|date:'Y-m-d' }}" max="{% if per.end > today %}{{ per.end|date:'Y-m-d' }}{% else %}{{ today|date:'Y-m-d' }}{% endif %}" required></label>
+    <button class="sbtn sm accent" type="submit">Ver</button>
+    {% if next_per %}<a class="sbtn sm" href="?site={{ scope.param }}&{{ next_per.query }}" title="Periodo siguiente: {{ next_per.label }}" aria-label="Periodo siguiente">›</a>{% endif %}
+  </form>
+  {% if per.live %}
+  <div class="in-live" data-live data-every="60">
+    <span class="in-live-st"><i class="in-live-dot" aria-hidden="true"></i><b data-live-label>En vivo</b></span>
+    <span class="muted">actualizado a las <time data-live-at>{{ now|time:"H:i" }}</time> · <span data-live-next>se actualiza cada minuto</span></span>
+    <button class="sbtn sm" type="button" data-live-toggle aria-pressed="false">Pausar</button>
+  </div>
+  {% else %}
+  <div class="in-live off"><span class="muted">Histórico · {{ per.days }} día{{ per.days|pluralize }}</span>
+    <a class="sbtn sm" href="?site={{ scope.param }}&periodo=hoy"><i class="in-live-dot" aria-hidden="true"></i>Ver hoy en vivo</a></div>
+  {% endif %}
+  {% if period_warn %}<p class="in-note warn">{{ period_warn }}</p>{% endif %}
+</section>
+
+{# ---------------------------------------------------------------- OEE y OLE #}
+<div class="in-hero">
+  {% with e=eff.oee d=oee_delta sp=spark_oee %}
+  <section class="card in-big">
+    <div class="in-big-h"><h2>OEE <small>eficacia de las líneas</small></h2>
+      <span class="in-st {{ e.level }}">{{ e.level_label }}</span></div>
+    <div class="in-big-v"><b>{% if e.value is None %}—{% else %}{{ e.value }} %{% endif %}</b>
+      {% if d is not None %}<span class="in-delta {% if d > 0 %}up{% elif d < 0 %}down{% endif %}">{% if d > 0 %}▲ +{{ d }}{% elif d < 0 %}▼ {{ d }}{% else %}= 0{% endif %} pts vs. periodo anterior</span>{% endif %}</div>
+    {% include "mes_core/_in_apq.html" with a=e.availability p=e.performance q=e.quality a_help="tiempo produciendo ÷ tiempo planeado" %}
+    {% include "mes_core/_in_spark.html" with title="OEE · "|add:trend_title %}
+    <p class="in-foot">{{ e.run_h|floatformat:"0g" }} h produciendo de {{ e.planned_h|floatformat:"0g" }} h planeadas · {{ e.stops_h|floatformat:"-1g" }} h de paros de línea{% if e.over_std %} · <span class="warn">el rendimiento pasa del 100 %: revisa los tiempos estándar</span>{% endif %}</p>
+  </section>
+  {% endwith %}
+  {% with e=eff.ole d=ole_delta sp=spark_ole %}
+  <section class="card in-big">
+    <div class="in-big-h"><h2>OLE <small>eficacia de la gente</small></h2>
+      <span class="in-st {{ e.level }}">{{ e.level_label }}</span></div>
+    <div class="in-big-v"><b>{% if e.value is None %}—{% else %}{{ e.value }} %{% endif %}</b>
+      {% if d is not None %}<span class="in-delta {% if d > 0 %}up{% elif d < 0 %}down{% endif %}">{% if d > 0 %}▲ +{{ d }}{% elif d < 0 %}▼ {{ d }}{% else %}= 0{% endif %} pts vs. periodo anterior</span>{% endif %}</div>
+    {% include "mes_core/_in_apq.html" with a=e.availability p=e.performance q=e.quality a_help="tiempo productivo ÷ tiempo planeado de la gente" %}
+    {% include "mes_core/_in_spark.html" with title="OLE · "|add:trend_title %}
+    <p class="in-foot">{{ e.run_h|floatformat:"0g" }} h-persona productivas de {{ e.planned_h|floatformat:"0g" }} h-persona planeadas (reparto × turnos). Ahí caen ausencias, llegadas tarde, gente sin tarea, paros y pausas largas.</p>
+  </section>
+  {% endwith %}
+</div>
+
+{# ---------------------------------------------------------------- servicio y gente #}
+<div class="in-cards">
+  <section class="card in-kpi">
+    <h3>OTIF <small>a tiempo y completo</small></h3>
+    <b>{% if otif.otif is None %}—{% else %}{{ otif.otif }} %{% endif %}</b>
+    <span class="in-st {{ otif.level }}">{{ otif.level_label }}</span>
+    <p>{{ otif.n }} pedido{{ otif.n|pluralize }} terminado{{ otif.n|pluralize }} · a tiempo {{ otif.on_time|default_if_none:"—" }} % · completos {{ otif.in_full|default_if_none:"—" }} %</p>
+  </section>
+  <section class="card in-kpi">
+    <h3>Adherencia al plan</h3>
+    <b>{% if adherence.pct is None %}—{% else %}{{ adherence.pct }} %{% endif %}</b>
+    <span class="in-st {{ adherence.level }}">{{ adherence.level_label }}</span>
+    <p>{{ adherence.hit }} de {{ adherence.n }} operaciones terminaron a tiempo (hasta 30 min después de lo planeado)</p>
+  </section>
+  <section class="card in-kpi">
+    <h3>Puntualidad</h3>
+    {% if punctuality.installed %}
+    <b>{% if punctuality.pct is None %}—{% else %}{{ punctuality.pct }} %{% endif %}</b>
+    <span class="in-st {{ punctuality.level }}">{{ punctuality.level_label }}</span>
+    <p>{{ punctuality.late }} llegada{{ punctuality.late|pluralize }} tarde de {{ punctuality.n }}{% if punctuality.late %} · {{ punctuality.avg_late|floatformat:0 }} min en promedio · {{ punctuality.late_h|floatformat:"-1g" }} h perdidas{% endif %}</p>
+    {% else %}<b>—</b><p>Necesita el control de piso (llegadas en la tablet).</p>{% endif %}
+  </section>
+  <section class="card in-kpi">
+    <h3>Respuesta a horas extra</h3>
+    {% if overtime.installed %}
+    <b>{% if overtime.accept_pct is None %}—{% else %}{{ overtime.accept_pct }} %{% endif %}</b>
+    <span class="in-st {{ overtime.level }}">{{ overtime.level_label }}</span>
+    <p>aceptan · {{ overtime.calls }} convocatoria{{ overtime.calls|pluralize }} · {{ overtime.yes }} sí, {{ overtime.no }} no, {{ overtime.pending }} sin responder{% if overtime.coverage_pct is not None %} · cubre {{ overtime.coverage_pct }} % de lo pedido{% endif %}</p>
+    {% else %}<b>—</b><p>Necesita el control de piso (convocatorias).</p>{% endif %}
+  </section>
+</div>
+
+{# ---------------------------------------------------------------- OEE por línea #}
+<section class="card in-sec">
+  <div class="card-h"><h2>OEE por línea y OLE por bodega</h2><span class="sub">ordenado de peor a mejor: arriba lo que hay que atacar</span></div>
+  <div class="table-wrap flat"><table class="in-table">
+    <thead><tr><th>Línea</th><th class="num">Planeado</th><th class="num">Produciendo</th><th class="num">Disponibilidad</th><th class="num">Rendimiento</th><th class="num">Calidad</th><th>OEE</th></tr></thead>
+    <tbody>
+    {% for s in eff.sites %}
+      <tr class="in-site"><td><b>{{ s.site.code }}</b> <span class="muted">{{ s.site.name }}</span></td>
+        <td class="num">{{ s.oee.planned_h|floatformat:"0g" }} h</td><td class="num">{{ s.oee.run_h|floatformat:"0g" }} h</td>
+        <td class="num">{{ s.oee.availability|default_if_none:"—" }}{% if s.oee.availability is not None %} %{% endif %}</td>
+        <td class="num">{{ s.oee.performance|default_if_none:"—" }}{% if s.oee.performance is not None %} %{% endif %}</td>
+        <td class="num">{{ s.oee.quality|default_if_none:"—" }}{% if s.oee.quality is not None %} %{% endif %}</td>
+        <td>{% include "mes_core/_in_meter.html" with v=s.oee.value lv=s.oee.level %}
+          <small class="muted">OLE {% if s.ole.value is None %}—{% else %}{{ s.ole.value }} %{% endif %}</small></td></tr>
+      {% for r in eff.lines %}{% if r.site.pk == s.site.pk %}
+      <tr><td class="in-line"><b>{{ r.wc.code }}</b> <span class="muted">{{ r.wc.name }}</span></td>
+        <td class="num">{{ r.planned_h|floatformat:"-1g" }} h</td><td class="num">{{ r.run_h|floatformat:"-1g" }} h</td>
+        <td class="num">{{ r.availability|default_if_none:"—" }}{% if r.availability is not None %} %{% endif %}</td>
+        <td class="num {% if r.over_std %}warn{% endif %}">{{ r.performance|default_if_none:"—" }}{% if r.performance is not None %} %{% endif %}</td>
+        <td class="num">{{ r.quality|default_if_none:"—" }}{% if r.quality is not None %} %{% endif %}</td>
+        <td>{% include "mes_core/_in_meter.html" with v=r.value lv=r.level %}</td></tr>
+      {% endif %}{% endfor %}
+    {% empty %}
+      <tr><td colspan="7" class="muted">Sin operaciones planeadas ni producción en {{ per.noun }}.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+
+{# ---------------------------------------------------------------- paros y pausas #}
+<div class="in-two">
+  <section class="card in-sec">
+    <div class="card-h"><h2>¿Dónde se pierde el tiempo?</h2><span class="sub">paros de piso por motivo (Pareto)</span></div>
+    <div class="card-b">
+    {% if not stops.installed %}<p class="muted">Necesita el control de piso (paros registrados en la tablet).</p>
+    {% elif not stops.rows %}<p class="muted">Sin paros registrados {{ per.noun }}.</p>
+    {% else %}
+      <p class="in-note">{{ stops.total_min|floatformat:0 }} min de paros. {% with n=stops.rows|length %}Los motivos marcados explican el 80 % del tiempo perdido: empieza por ahí.{% endwith %}</p>
+      <ul class="in-pareto">
+      {% for r in stops.rows %}
+        <li class="{% if r.vital %}vital{% endif %}" title="{{ r.count }} paro{{ r.count|pluralize }} · {{ r.minutes|floatformat:0 }} min · {{ r.pct }} % del total · acumulado {{ r.cum_pct }} %{% if r.top_lines %} · líneas: {% for l, m in r.top_lines %}{{ l }} ({{ m|floatformat:0 }} min){% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}">
+          <span class="n">{{ r.cause }}</span>
+          <span class="v"><b>{{ r.minutes|floatformat:0 }} min</b> · {{ r.pct }} % <small class="muted">(acum. {{ r.cum_pct }} %)</small></span>
+          <span class="bar"><i style="width:{{ r.bar }}%"></i></span>
+          <small class="muted">{{ r.count }} paro{{ r.count|pluralize }}{% if r.top_lines %} · {% for l, m in r.top_lines %}{{ l }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</small>
+        </li>
+      {% endfor %}
+      </ul>
+    {% endif %}
+    </div>
+  </section>
+  <section class="card in-sec">
+    <div class="card-h"><h2>Pausas excedidas</h2><span class="sub">desayunos y almuerzos que pasaron de su fin previsto</span></div>
+    <div class="card-b">
+    {% if not breaks.installed %}<p class="muted">Necesita el control de piso (pausas con QR).</p>
+    {% elif not breaks.n %}<p class="muted">Sin pausas registradas {{ per.noun }}.</p>
+    {% else %}
+      <div class="in-mini">
+        <div><b>{{ breaks.over }}</b><span>de {{ breaks.n }} pausas se pasaron ({{ breaks.pct }} %)</span></div>
+        <div><b>{{ breaks.minutes|floatformat:0 }} min</b><span>de más en total</span></div>
+      </div>
+      <div class="in-cols">
+        <div><h4>Por línea</h4>{% include "mes_core/_in_breaks.html" with rows=breaks.by_line %}</div>
+        <div><h4>Por supervisor</h4>{% include "mes_core/_in_breaks.html" with rows=breaks.by_supervisor %}</div>
+      </div>
+    {% endif %}
+    </div>
+  </section>
+</div>
+
+{# ---------------------------------------------------------------- alistamiento y confiabilidad #}
+<div class="in-two">
+  <section class="card in-sec" id="alistamiento">
+    <div class="card-h"><h2>Alistamiento y cambios</h2><span class="sub">línea parada esperando a los patinadores · base para reducir tiempos de cambio (SMED)</span></div>
+    <div class="card-b">
+    {% with o=eff.oee %}
+      <div class="in-mini">
+        <div><b>{% if o.setup_pct is None %}—{% else %}{{ o.setup_pct|floatformat:"-1" }} %{% endif %}</b><span>del tiempo planeado con la línea en alistamiento ({{ o.setup_min|floatformat:0 }} min)</span></div>
+        <div><b>{{ o.n_setup }}</b><span>alistamiento{{ o.n_setup|pluralize }} registrado{{ o.n_setup|pluralize }}{% if o.setup_avg is not None %} · {{ o.setup_avg|floatformat:0 }} min c/u{% endif %}</span></div>
+        <div><b>{% if o.setup_plan_avg is None %}—{% else %}{{ o.setup_plan_avg|floatformat:0 }} min{% endif %}</b><span>planeado por cambio ({{ o.n_setup_plan }} operaci{{ o.n_setup_plan|pluralize:"ón,ones" }} con alistamiento)</span></div>
+      </div>
+      {% if not stops.installed %}<p class="in-note">Lo real necesita el control de piso; por ahora solo se ve lo planeado.</p>
+      {% elif not o.n_setup %}<p class="in-note">Aún no se registran alistamientos en piso. En la tablet, el paro de toda la línea con el motivo <b>«{{ setup_cause }}»</b> mide cuánto espera la línea a los patinadores.</p>{% endif %}
+    {% endwith %}
+    {% if setup_rows %}
+      <div class="table-wrap flat"><table class="in-table">
+        <thead><tr><th>Línea</th><th class="num">Cambios</th><th class="num">Real</th><th class="num">Promedio real</th><th class="num">Promedio planeado</th><th class="num">% del planeado</th></tr></thead>
+        <tbody>{% for r in setup_rows %}<tr>
+          <td><b>{{ r.wc.code }}</b></td><td class="num">{{ r.n_setup }}</td>
+          <td class="num">{{ r.setup_min|floatformat:0 }} min</td>
+          <td class="num {% if r.setup_avg is not None and r.setup_plan_avg is not None and r.setup_avg > r.setup_plan_avg %}warn{% endif %}">{% if r.setup_avg is None %}—{% else %}{{ r.setup_avg|floatformat:0 }} min{% endif %}</td>
+          <td class="num">{% if r.setup_plan_avg is None %}—{% else %}{{ r.setup_plan_avg|floatformat:0 }} min{% endif %}</td>
+          <td class="num">{% if r.setup_pct is None %}—{% else %}{{ r.setup_pct|floatformat:"-1" }} %{% endif %}</td>
+        </tr>{% endfor %}</tbody>
+      </table></div>
+    {% endif %}
+    </div>
+  </section>
+  <section class="card in-sec" id="mtbf">
+    <div class="card-h"><h2>MTBF / MTTR por línea</h2><span class="sub">cada cuánto para la línea y cuánto tarda en volver (sin alistamientos ni pausas)</span></div>
+    <div class="card-b">
+    {% if not stops.installed %}<p class="muted">Necesita el control de piso (paros de toda la línea).</p>
+    {% else %}{% with o=eff.oee %}
+      <div class="in-mini">
+        <div><b>{% if o.mtbf_h is None %}—{% else %}{{ o.mtbf_h|floatformat:1 }} h{% endif %}</b><span>MTBF: produciendo entre un paro y otro</span></div>
+        <div><b>{% if o.mttr_min is None %}—{% else %}{{ o.mttr_min|floatformat:0 }} min{% endif %}</b><span>MTTR: lo que dura cada paro</span></div>
+        <div><b>{{ o.n_fail }}</b><span>paro{{ o.n_fail|pluralize }} de toda la línea · {{ o.fail_min|floatformat:0 }} min</span></div>
+      </div>
+      {% if rel_rows %}
+      <div class="table-wrap flat"><table class="in-table">
+        <thead><tr><th>Línea</th><th class="num">Paros</th><th class="num">MTBF</th><th class="num">MTTR</th><th class="num">Parada</th></tr></thead>
+        <tbody>{% for r in rel_rows %}<tr>
+          <td><b>{{ r.wc.code }}</b> <span class="muted">{{ r.wc.name }}</span></td><td class="num">{{ r.n_fail }}</td>
+          <td class="num">{% if r.mtbf_h is None %}—{% else %}{{ r.mtbf_h|floatformat:1 }} h{% endif %}</td>
+          <td class="num">{{ r.mttr_min|floatformat:0 }} min</td><td class="num">{{ r.fail_min|floatformat:0 }} min</td>
+        </tr>{% endfor %}</tbody>
+      </table></div>
+      <p class="in-note">De peor a mejor: arriba la línea que para más seguido. MTBF bajo = paros frecuentes (atacar la causa); MTTR alto = cada paro tarda en resolverse (atacar la respuesta).</p>
+      {% else %}<p class="muted">Sin paros de toda la línea {{ per.noun }}.</p>{% endif %}
+    {% endwith %}{% endif %}
+    </div>
+  </section>
+</div>
+
+{# ---------------------------------------------------------------- TEEP #}
+<section class="card in-sec" id="teep">
+  <div class="card-h"><h2>TEEP: ¿horas extra u otro turno?</h2><span class="sub">OEE × la parte del calendario (24 h todos los días) que se usa · solo líneas con trabajo</span></div>
+  <div class="card-b in-teep">
+    {% with o=eff.oee rd=eff.reading %}
+    <div class="in-teep-v">
+      <b>{% if o.teep is None %}—{% else %}{{ o.teep }} %{% endif %}</b>
+      {% if teep_delta is not None %}<span class="in-delta {% if teep_delta > 0 %}up{% elif teep_delta < 0 %}down{% endif %}">{% if teep_delta > 0 %}▲ +{{ teep_delta }}{% elif teep_delta < 0 %}▼ {{ teep_delta }}{% else %}= 0{% endif %} pts vs. periodo anterior</span>{% endif %}
+      {% if rd.kind != "na" %}<span class="in-read {{ rd.kind }}">{{ rd.label }}</span><p>{{ rd.text }}</p>{% endif %}
+    </div>
+    <ul class="in-pareto in-steps">
+      {% for s in teep_steps %}
+      <li title="{{ s.h|floatformat:'0g' }} h{% if s.help %} · {{ s.help }} {{ s.pct|default_if_none:'—' }} %{% endif %}">
+        <span class="n">{{ s.name }}</span>
+        <span class="v"><b>{{ s.h|floatformat:"0g" }} h</b>{% if s.help %} · {{ s.help }} {{ s.pct|default_if_none:"—" }}{% if s.pct is not None %} %{% endif %}{% endif %}</span>
+        <span class="bar"><i style="width:{{ s.bar|stringformat:'s' }}%"></i></span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endwith %}
+  </div>
+  {% if teep_rows %}
+  <div class="table-wrap flat"><table class="in-table">
+    <thead><tr><th>Línea</th><th class="num">Turno</th><th class="num">Programado</th><th class="num">Carga del turno</th><th class="num">Utilización</th><th class="num">OEE</th><th class="num">TEEP</th><th>Lectura</th></tr></thead>
+    <tbody>{% for r in teep_rows %}<tr>
+      <td><b>{{ r.wc.code }}</b> <span class="muted">{{ r.site.code }}</span></td>
+      <td class="num">{{ r.shift_h|floatformat:"0g" }} h</td><td class="num">{{ r.planned_h|floatformat:"-1g" }} h</td>
+      <td class="num">{{ r.load|default_if_none:"—" }}{% if r.load is not None %} %{% endif %}</td>
+      <td class="num">{{ r.utilization|default_if_none:"—" }}{% if r.utilization is not None %} %{% endif %}</td>
+      <td class="num">{{ r.value|default_if_none:"—" }}{% if r.value is not None %} %{% endif %}</td>
+      <td class="num"><b>{{ r.teep|default_if_none:"—" }}</b>{% if r.teep is not None %} %{% endif %}</td>
+      <td title="{{ r.reading.text }}"><span class="in-read {{ r.reading.kind }}">{{ r.reading.label }}</span></td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% endif %}
+</section>
+
+{# ---------------------------------------------------------------- cliente y plan #}
+<div class="in-two">
+  <section class="card in-sec">
+    <div class="card-h"><h2>OTIF: pedidos que no cumplieron</h2><span class="sub">tarde o con faltante</span></div>
+    <div class="table-wrap flat"><table class="in-table">
+      <thead><tr><th>Pedido</th><th>Cliente</th><th>Compromiso</th><th>Terminó</th><th>Falló en</th></tr></thead>
+      <tbody>{% for m in otif.misses %}<tr>
+        <td><a href="{{ m.order.get_absolute_url }}"><b>{{ m.order.number }}</b></a></td>
+        <td>{{ m.order.customer.name|default:"—" }}</td>
+        <td>{{ m.order.due_date|date:"D d/m H:i" }}</td><td>{{ m.done_at|date:"D d/m H:i" }}</td>
+        <td>{% if not m.on_time %}<span class="in-st bad">{{ m.late_h|floatformat:1 }} h tarde</span>{% endif %}
+          {% if not m.in_full %}<span class="in-st warn" title="{{ m.reason }}">faltaron {{ m.short|floatformat:"-1g" }}</span>{% endif %}</td>
+      </tr>{% empty %}<tr><td colspan="5" class="muted">{% if otif.n %}Todos los pedidos terminados cumplieron.{% else %}No se terminaron pedidos {{ per.noun }}.{% endif %}</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+  <section class="card in-sec">
+    <div class="card-h"><h2>Adherencia al plan</h2><span class="sub">operaciones terminadas a tiempo</span></div>
+    <div class="card-b in-cols">
+      <div><h4>Por bodega</h4>{% include "mes_core/_in_rate.html" with rows=adherence.by_site %}</div>
+      <div><h4>Por supervisor</h4>{% include "mes_core/_in_rate.html" with rows=adherence.by_supervisor %}</div>
+    </div>
+  </section>
+</div>
+
+{# ---------------------------------------------------------------- gente #}
+<div class="in-two">
+  <section class="card in-sec">
+    <div class="card-h"><h2>Puntualidad por bodega</h2><span class="sub">llegada en la tablet frente a la entrada del turno (5 min de tolerancia)</span></div>
+    <div class="table-wrap flat"><table class="in-table">
+      <thead><tr><th>Bodega</th><th class="num">Llegadas</th><th class="num">Tarde</th><th class="num">Promedio tarde</th><th>A tiempo</th></tr></thead>
+      <tbody>{% for r in punctuality.by_site %}<tr><td><b>{{ r.name }}</b></td><td class="num">{{ r.n }}</td><td class="num">{{ r.late }}</td>
+        <td class="num">{% if r.late %}{{ r.avg_late|floatformat:0 }} min{% else %}—{% endif %}</td>
+        <td>{% include "mes_core/_in_meter.html" with v=r.pct lv=None %}</td></tr>
+      {% empty %}<tr><td colspan="5" class="muted">Sin llegadas registradas {{ per.noun }}.</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+  <section class="card in-sec">
+    <div class="card-h"><h2>Horas extra: respuesta del personal</h2></div>
+    <div class="card-b">
+    {% if not overtime.installed or not overtime.calls %}<p class="muted">Sin convocatorias enviadas {{ per.noun }}.</p>
+    {% else %}
+      <div class="in-mini">
+        <div><b>{{ overtime.response_pct|default_if_none:"—" }} %</b><span>respondió</span></div>
+        <div><b>{{ overtime.accept_pct|default_if_none:"—" }} %</b><span>de los que respondieron aceptó</span></div>
+        <div><b>{{ overtime.coverage_pct|default_if_none:"—" }}{% if overtime.coverage_pct is not None %} %{% endif %}</b><span>de las personas pedidas se cubrió{% if overtime.needed %} ({{ overtime.covered }} de {{ overtime.needed }}){% endif %}</span></div>
+      </div>
+      <div class="in-cols">
+        <div><h4>Motivos para decir que no</h4><ol class="in-list">{% for r, n in overtime.reasons %}<li><span>{{ r }}</span><b>{{ n }}</b></li>{% empty %}<li class="muted">Nadie dijo que no.</li>{% endfor %}</ol></div>
+        <div><h4>Convocatorias por bodega</h4><ol class="in-list">{% for s, n in overtime.by_site %}<li><span>{{ s }}</span><b>{{ n }}</b></li>{% endfor %}</ol></div>
+      </div>
+    {% endif %}
+    </div>
+  </section>
+</div>
+
+{# ---------------------------------------------------------------- tabla de tendencia y definiciones #}
+<section class="card in-sec">
+  <div class="card-h"><h2>Tendencia · {{ trend_title }}</h2><span class="sub">la misma información de las gráficas, en tabla · toca un periodo para verlo</span></div>
+  <div class="table-wrap flat"><table class="in-table">
+    <thead><tr><th>Periodo</th><th class="num">OEE</th><th class="num">Disponibilidad</th><th class="num">Rendimiento</th><th class="num">Calidad</th><th class="num">OLE</th><th class="num">TEEP</th><th class="num">Alistamiento</th><th class="num">MTBF</th><th class="num">MTTR</th></tr></thead>
+    <tbody>{% for t in trend %}<tr class="{% if t.start == per.start and t.end == per.end %}cur{% endif %}">
+      <td><a href="?site={{ scope.param }}&desde={{ t.start|date:'Y-m-d' }}&hasta={{ t.end|date:'Y-m-d' }}">{{ t.label }}</a></td>
+      <td class="num"><b>{{ t.oee|default_if_none:"—" }}</b>{% if t.oee is not None %} %{% endif %}</td>
+      <td class="num">{{ t.a|default_if_none:"—" }}{% if t.a is not None %} %{% endif %}</td>
+      <td class="num">{{ t.p|default_if_none:"—" }}{% if t.p is not None %} %{% endif %}</td>
+      <td class="num">{{ t.q|default_if_none:"—" }}{% if t.q is not None %} %{% endif %}</td>
+      <td class="num"><b>{{ t.ole|default_if_none:"—" }}</b>{% if t.ole is not None %} %{% endif %}</td>
+      <td class="num">{{ t.teep|default_if_none:"—" }}{% if t.teep is not None %} %{% endif %}</td>
+      <td class="num">{% if t.setup_pct is None %}—{% else %}{{ t.setup_pct|floatformat:"-1" }} %{% endif %}</td>
+      <td class="num">{% if t.mtbf_h is None %}—{% else %}{{ t.mtbf_h|floatformat:1 }} h{% endif %}</td>
+      <td class="num">{% if t.mttr_min is None %}—{% else %}{{ t.mttr_min|floatformat:0 }} min{% endif %}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  <details class="card-b in-defs"><summary>¿Cómo se calcula cada indicador?</summary>
+    <dl>
+      <dt>OEE</dt><dd>Disponibilidad × Rendimiento × Calidad de cada línea. <b>Disponibilidad</b> = tiempo produciendo (inicio real → fin real, menos paros de línea) ÷ tiempo planeado (horas hábiles con operación programada o trabajando, sin desayuno, almuerzo ni mantenimientos). <b>Rendimiento</b> = minutos estándar producidos ÷ minutos-persona produciendo. <b>Calidad</b> = buenas ÷ (buenas + rechazos + reprocesos). Clase mundial: 85 % o más.</dd>
+      <dt>OLE</dt><dd>La misma fórmula sobre la gente: tiempo planeado = personas del reparto × horas hábiles de cada turno; tiempo productivo = minutos-persona produciendo − paros individuales − pausas excedidas.</dd>
+      <dt>Alistamiento y cambios</dt><dd>Minutos de paro de toda la línea con motivo de alistamiento, cambio o esperando patinador ÷ tiempo planeado de la línea. Se compara el promedio real por cambio con el alistamiento que traían las operaciones: la diferencia es lo que se puede recortar con SMED.</dd>
+      <dt>MTBF / MTTR</dt><dd>Los demás paros de toda la línea (sin alistamientos ni pausas). <b>MTBF</b> = tiempo produciendo ÷ número de paros. <b>MTTR</b> = minutos de paro ÷ número de paros.</dd>
+      <dt>TEEP</dt><dd>OEE × tiempo planeado ÷ tiempo del calendario (24 × 7) = OEE × <b>carga del turno</b> (programado ÷ horas de turno) × <b>utilización</b> (horas de turno ÷ calendario). Turno lleno (90 % o más) con buen OEE: si faltan horas varios días, otro turno; si es puntual, horas extra. Turno lleno con OEE bajo: primero recuperar las pérdidas. Turno con holgura (menos de 60 %): no hacen falta horas extra. No lleva color de estado: un TEEP bajo con un solo turno es normal.</dd>
+      <dt>OTIF</dt><dd>Pedidos terminados en el periodo antes del compromiso y sin cierre con faltante ÷ pedidos terminados.</dd>
+      <dt>Adherencia al plan</dt><dd>Operaciones que debían terminar en el periodo y terminaron hasta 30 min después de su fin planeado ÷ operaciones que debían terminar.</dd>
+      <dt>Puntualidad</dt><dd>Llegadas confirmadas en la tablet hasta 5 min después de la entrada del turno ÷ llegadas.</dd>
+      <dt>Respuesta a horas extra</dt><dd>De las convocatorias enviadas en el periodo: % que respondió, % que aceptó y % de las personas pedidas que se cubrió.</dd>
+      <dt>Colores</dt><dd>Bien / A vigilar / Crítico. OEE y OLE: 85 % y 60 %. OTIF: 95 % y 85 %. Adherencia: 90 % y 75 %. Puntualidad: 95 % y 85 %. Aceptación de horas extra: 70 % y 40 %.</dd>
+    </dl>
+  </details>
+</section>
+<script src="{% asset 'mes_core/indicators.js' %}" defer></script>
+{% endblock %}

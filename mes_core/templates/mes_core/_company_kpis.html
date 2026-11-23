@@ -1,0 +1,108 @@
+{% with c=company %}
+<section class="co-band" aria-label="Indicadores de la empresa">
+  <div class="co-head">
+    <h2>Empresa · {% if c.day == today_date %}hoy{% else %}{{ c.day|date:"l d/m" }}{% endif %}</h2>
+    <span class="cap-help">Una sola bolsa de personal para todas las bodegas · jornada de {{ c.jornada|floatformat:2 }} h ({{ c.jornada_hm }}){% if c.ref_shift %}: turno {{ c.ref_shift.name }} {{ c.ref_shift.start_time|time:"H:i" }}–{{ c.ref_shift.end_time|time:"H:i" }} descontando desayuno y almuerzo{% if perms.mes_core.change_shift %} (<a href="{% url 'mes_core:shift_settings' %}?site={{ c.ref_shift.site_id }}">cambiar en Turnos</a>){% endif %}{% endif %}</span>
+    <span class="co-links">
+      {% if perms.mes_core.view_staffallocation %}<a class="sbtn sm" href="{% url 'mes_core:staff_split' %}">Reparto</a>
+      <a class="sbtn sm" href="{% url 'mes_core:global_capacity' %}">Semana por bodega</a>{% endif %}
+      {% if perms.mes_core.view_staffmove %}<a class="sbtn sm" href="{% url 'mes_core:staff_location' %}">¿Quién está dónde?</a>{% endif %}
+    </span>
+  </div>
+
+  <div class="co-grid">
+    <div class="cap-kpi green">
+      <span class="k-ico"><svg class="ico"><use href="#i-users"/></svg></span>
+      <h3>Personal total</h3>
+      <b>{{ c.pool }}</b>
+      <p>Operarios activos de toda la empresa · {{ c.present }} presentes</p>
+    </div>
+    <div class="cap-kpi blue">
+      <span class="k-ico"><svg class="ico"><use href="#i-blocks"/></svg></span>
+      <h3>Libres para repartir</h3>
+      <b class="{% if c.free < 0 %}neg{% endif %}">{{ c.free }}</b>
+      <p>{% if c.free < 0 %}El reparto supera la bolsa{% else %}De {{ c.pool }}{% endif %} · {{ c.allocated }} repartidos en bodegas</p>
+      <span class="co-meter"><i style="width:{{ c.allocated_pct }}%"></i></span>
+    </div>
+    <div class="cap-kpi red {% if c.absent %}has{% endif %}">
+      <span class="k-ico"><svg class="ico"><use href="#i-alert"/></svg></span>
+      <h3>Ausencias</h3>
+      <b>{{ c.absent }}</b>
+      <p>{% if c.absent_pct is not None %}{{ c.absent_pct|floatformat:1 }} % de ausentismo{% endif %} · confirmadas en Mi turno</p>
+    </div>
+    <div class="cap-kpi blue">
+      <span class="k-ico"><svg class="ico"><use href="#i-clock"/></svg></span>
+      <h3>Capacidad disponible</h3>
+      <b>{{ c.potential_h|floatformat:"0g" }} h</b>
+      <p>{{ c.present }} presentes × {{ c.jornada|floatformat:2 }} h · repartida {{ c.allocated_h|floatformat:"0g" }} h · libre {{ c.free_h|floatformat:"0g" }} h</p>
+    </div>
+
+    <div class="cap-kpi sand {% if c.occ_pct and c.occ_pct > 100 %}over{% endif %}">
+      <span class="k-ico"><svg class="ico"><use href="#i-timer"/></svg></span>
+      <h3>Programado {% if c.day == today_date %}hoy{% else %}ese día{% endif %}</h3>
+      <b>{{ c.req_h|floatformat:"0g" }} h</b>
+      <p>{% if c.occ_pct is None %}Sin capacidad para comparar{% else %}{{ c.occ_pct }} % de la capacidad disponible{% endif %}</p>
+      <span class="co-meter {% if c.occ_pct and c.occ_pct > 100 %}over{% elif c.occ_pct and c.occ_pct >= 85 %}tight{% endif %}"><i style="width:{{ c.occ_bar }}%"></i></span>
+    </div>
+    <div class="cap-kpi sand">
+      <span class="k-ico"><svg class="ico"><use href="#i-calendar"/></svg></span>
+      <h3>Próximos 7 días</h3>
+      <b>{% if c.week_pct is None %}—{% else %}{{ c.week_pct }} %{% endif %}</b>
+      <p>{{ c.week_req|floatformat:"0g" }} h programadas de {{ c.week_potential|floatformat:"0g" }} h de la bolsa ({{ c.week_cap|floatformat:"0g" }} h repartidas)</p>
+    </div>
+    <div class="cap-kpi blue">
+      <span class="k-ico"><svg class="ico"><use href="#i-layers"/></svg></span>
+      <h3>Trabajo sin programar</h3>
+      <b>{{ c.backlog_hh|floatformat:"0g" }} h</b>
+      <p>{% if c.backlog_days is None %}horas-hombre en el backlog{% elif c.backlog_days < 1 %}Menos de una jornada de toda la bolsa{% else %}≈ {{ c.backlog_days|floatformat:1 }} días de capacidad de toda la bolsa{% endif %}</p>
+    </div>
+    <div class="cap-kpi sand">
+      <span class="k-ico"><svg class="ico"><use href="#i-clock-plus"/></svg></span>
+      <h3>Horas extra · 7 días</h3>
+      <b>{{ c.ot_hours|floatformat:"-1g" }} h</b>
+      <p>{% if c.ot_n %}{{ c.ot_n }} franja{{ c.ot_n|pluralize }}{% if c.ot_hh %} · ≈ {{ c.ot_hh|floatformat:"0g" }} horas-hombre{% endif %}{% else %}Sin horas extra programadas{% endif %}</p>
+    </div>
+  </div>
+
+  <div class="co-perf">
+    <div class="co-perf-h"><h3>Eficiencia y servicio · últimos 30 días</h3>
+      <a class="sbtn sm" href="{% url 'mes_core:indicators' %}?site=todas">Ver indicadores</a></div>
+    <div class="co-stats co-ind">
+      {% with i=c.ind %}
+      <a href="{% url 'mes_core:indicators' %}?site=todas" title="Disponibilidad {{ i.oee.availability|default_if_none:'—' }} % × rendimiento {{ i.oee.performance|default_if_none:'—' }} % × calidad {{ i.oee.quality|default_if_none:'—' }} %">
+        <b>{% if i.oee.value is None %}—{% else %}{{ i.oee.value }} %{% endif %}</b><span>OEE de las líneas</span><em class="in-st {{ i.oee.level }}">{{ i.oee.level_label }}</em></a>
+      <a href="{% url 'mes_core:indicators' %}?site=todas" title="Eficacia de la gente: reparto × turnos frente a lo producido">
+        <b>{% if i.ole.value is None %}—{% else %}{{ i.ole.value }} %{% endif %}</b><span>OLE de la gente</span><em class="in-st {{ i.ole.level }}">{{ i.ole.level_label }}</em></a>
+      <a href="{% url 'mes_core:indicators' %}?site=todas" title="{{ i.otif.n }} pedidos terminados">
+        <b>{% if i.otif.otif is None %}—{% else %}{{ i.otif.otif }} %{% endif %}</b><span>OTIF (a tiempo y completo)</span><em class="in-st {{ i.otif.level }}">{{ i.otif.level_label }}</em></a>
+      <a href="{% url 'mes_core:indicators' %}?site=todas" title="{{ i.adherence.hit }} de {{ i.adherence.n }} operaciones a tiempo">
+        <b>{% if i.adherence.pct is None %}—{% else %}{{ i.adherence.pct }} %{% endif %}</b><span>Adherencia al plan</span><em class="in-st {{ i.adherence.level }}">{{ i.adherence.level_label }}</em></a>
+      <a href="{% url 'mes_core:indicators' %}?site=todas">
+        <b>{% if i.punctuality.pct is None %}—{% else %}{{ i.punctuality.pct }} %{% endif %}</b><span>Puntualidad</span>{% if i.punctuality.level_label %}<em class="in-st {{ i.punctuality.level }}">{{ i.punctuality.level_label }}</em>{% endif %}</a>
+      <a href="{% url 'mes_core:indicators' %}?site=todas">
+        <b>{% if i.overtime.accept_pct is None %}—{% else %}{{ i.overtime.accept_pct }} %{% endif %}</b><span>Aceptan horas extra</span>{% if i.overtime.level_label %}<em class="in-st {{ i.overtime.level }}">{{ i.overtime.level_label }}</em>{% endif %}</a>
+      <a href="{% url 'mes_core:indicators' %}?site=todas#teep" title="OEE × carga del turno {{ i.oee.load|default_if_none:'—' }} % × utilización del calendario {{ i.oee.utilization|default_if_none:'—' }} %">
+        <b>{% if i.oee.teep is None %}—{% else %}{{ i.oee.teep }} %{% endif %}</b><span>TEEP (uso del calendario)</span></a>
+      <a href="{% url 'mes_core:indicators' %}?site=todas#alistamiento" title="{{ i.oee.n_setup }} alistamientos registrados · {{ i.oee.setup_min|floatformat:0 }} min">
+        <b>{% if i.oee.setup_pct is None %}—{% else %}{{ i.oee.setup_pct|floatformat:"-1" }} %{% endif %}</b><span>En alistamiento (esperando patinador)</span></a>
+      <a href="{% url 'mes_core:indicators' %}?site=todas#mtbf" title="{{ i.oee.n_fail }} paros de toda la línea">
+        <b>{% if i.oee.mtbf_h is None %}—{% else %}{{ i.oee.mtbf_h|floatformat:1 }} h{% endif %}</b><span>MTBF: cada cuánto para una línea</span></a>
+      <a href="{% url 'mes_core:indicators' %}?site=todas#mtbf">
+        <b>{% if i.oee.mttr_min is None %}—{% else %}{{ i.oee.mttr_min|floatformat:0 }} min{% endif %}</b><span>MTTR: cuánto tarda en volver</span></a>
+      {% endwith %}
+    </div>
+    <h3>Desempeño de la empresa · últimos {{ c.eff.days }} días</h3>
+    <div class="co-stats">
+      <div title="Minutos estándar producidos ÷ minutos-hombre trabajados (lo reportado en las operaciones)">
+        <b class="{% if c.eff.efficiency_pct is not None and c.eff.efficiency_pct < 80 %}warn{% endif %}">{% if c.eff.efficiency_pct is None %}—{% else %}{{ c.eff.efficiency_pct }} %{% endif %}</b><span>Rendimiento real de la gente</span></div>
+      <div title="Unidades buenas ÷ horas-hombre trabajadas"><b>{{ c.eff.units_per_hh|default_if_none:"—" }}</b><span>Unidades por hora-hombre</span></div>
+      <div><b>{% if c.eff.quality_pct is None %}—{% else %}{{ c.eff.quality_pct|floatformat:1 }} %{% endif %}</b><span>Calidad (buenas ÷ total)</span></div>
+      <div><b>{% if c.on_time_pct is None %}—{% else %}{{ c.on_time_pct }} %{% endif %}</b><span>Pedidos a tiempo ({{ c.done_30 }} terminados)</span></div>
+      <a href="{% url 'mes_core:order_list' %}"><b>{{ c.open_count }}</b><span>Pedidos abiertos</span></a>
+      <a href="{% url 'mes_core:order_list' %}" class="{% if c.late %}bad{% endif %}"><b>{{ c.late }}</b><span>Atrasados · {{ c.at_risk }} en riesgo</span></a>
+    </div>
+    {% if not c.eff.ops %}<p class="cap-help">El rendimiento, la productividad y la calidad salen de lo que se reporta en piso (inicio, fin y unidades de cada operación); aún no hay reportes en estos días.</p>{% endif %}
+    {% if c.unlimited_sites %}<p class="cap-help">Sin reparto ni operarios configurados (no suman capacidad repartida): {% for s in c.unlimited_sites %}{{ s.code }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
+  </div>
+</section>
+{% endwith %}

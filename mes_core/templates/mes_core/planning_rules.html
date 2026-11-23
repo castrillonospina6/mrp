@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% load mes_assets mes_sites %}
+{% block title %}Reglas de planeación{% endblock %}
+{% block crumbs %}<span>Configuración</span><span class="sep">/</span><b>Reglas de planeación</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/planner.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <h1>Reglas de planeación</h1>
+    <p>Cómo decide el «Plan automático» qué va primero, qué no se mueve, cómo agrupa productos y si el plan necesita aprobación.</p>
+  </div>
+  <div class="tools">
+    {% site_chips %}
+  </div>
+</div>
+{% if not configured %}<div class="callout warn" style="margin-bottom:16px">Esta planta aún usa el orden clásico (prioridad → compromiso → antigüedad).
+  Al guardar las reglas, el plan automático usa el puntaje de abajo.</div>{% endif %}
+
+<div class="pr-layout">
+  <form method="post" class="card">{% csrf_token %}
+    <input type="hidden" name="action" value="rules"><input type="hidden" name="site" value="{{ site.pk }}">
+    <div class="card-h"><h2>Prioridad del backlog</h2><span class="sub">Peso de 0 (no cuenta) a 10 (cuenta mucho)</span></div>
+    <div class="card-b pr-weights">
+      <label><span><b>Fecha compromiso</b><small>Más cerca o vencida = antes</small></span>
+        <input type="range" name="w_due" min="0" max="10" value="{{ rules.w_due }}" oninput="this.nextElementSibling.value=this.value"><output>{{ rules.w_due }}</output></label>
+      <label><span><b>Nivel del cliente</b><small>VIP &gt; Oro &gt; Plata &gt; Bronce</small></span>
+        <input type="range" name="w_tier" min="0" max="10" value="{{ rules.w_tier }}" oninput="this.nextElementSibling.value=this.value"><output>{{ rules.w_tier }}</output></label>
+      <label><span><b>Antigüedad del pedido</b><small>Más días esperando = antes</small></span>
+        <input type="range" name="w_age" min="0" max="10" value="{{ rules.w_age }}" oninput="this.nextElementSibling.value=this.value"><output>{{ rules.w_age }}</output></label>
+      <label><span><b>Prioridad manual</b><small>1 urgente … 5 muy baja</small></span>
+        <input type="range" name="w_priority" min="0" max="10" value="{{ rules.w_priority }}" oninput="this.nextElementSibling.value=this.value"><output>{{ rules.w_priority }}</output></label>
+    </div>
+    <div class="card-h"><h2>Rendimiento de la gente</h2><span class="sub">Nadie trabaja todo el turno al 100 % del estándar</span></div>
+    <div class="card-b pr-opts">
+      <label>Rendimiento por defecto (%)<input type="number" name="default_efficiency" min="10" max="150" value="{{ rules.default_efficiency }}">
+        <small>Con este rendimiento se planea si la etapa o la línea no tienen uno propio. 100 = el tiempo estándar exacto; lo realista suele
+          estar entre 80 y 90 %. Cada línea puede tener su rendimiento medido (Administración → Centros de trabajo) y la planeación por etapas
+          muestra el medido de los últimos 30 días.</small></label>
+      <label>Rendimiento en horas extra (%)<input type="number" name="overtime_efficiency" min="10" max="100" value="{{ rules.overtime_efficiency }}">
+        <small>Cuánto rinde una hora extra frente a una hora normal (cansancio). Al sugerir horas extra se suma ese margen: con 90 %,
+          si faltan 0,9 h se proponen 1 h.</small></label>
+    </div>
+    <div class="card-h"><h2>Plan congelado</h2></div>
+    <div class="card-b pr-opts">
+      <label>Horas congeladas desde ahora<input type="number" name="frozen_hours" min="0" max="336" value="{{ rules.frozen_hours }}">
+        <small>Lo que empieza dentro de este horizonte no lo mueve el plan automático; moverlo a mano pide confirmación. 0 = sin congelar. Típico: 24 o 48.</small></label>
+    </div>
+    <div class="card-h"><h2>Cambios de producto y división</h2></div>
+    <div class="card-b pr-opts">
+      <label class="chk"><input type="checkbox" name="group_changeovers" {% if rules.group_changeovers %}checked{% endif %}>
+        <span><b>Agrupar productos de la misma familia</b><small>Entre pedidos de urgencia parecida, junta los de la misma familia para perder menos tiempo en cambios.</small></span></label>
+      <label>Cambio entre familias por defecto (min)<input type="number" name="default_changeover_minutes" min="0" max="600" value="{{ rules.default_changeover_minutes }}">
+        <small>Se usa cuando la tabla de abajo no tiene un tiempo específico.</small></label>
+      <label class="chk"><input type="checkbox" name="allow_split" {% if rules.allow_split %}checked{% endif %}>
+        <span><b>Dividir operaciones largas entre líneas</b><small>Si una operación dura más que el límite y hay varias líneas del mismo tipo, se reparte en paralelo.</small></span></label>
+      <label>Dividir si dura más de (horas)<input type="number" name="split_threshold_hours" min="1" max="500" value="{{ rules.split_threshold_hours }}"></label>
+    </div>
+    <div class="card-h"><h2>Aprobación</h2></div>
+    <div class="card-b pr-opts">
+      <label class="chk"><input type="checkbox" name="require_approval" {% if rules.require_approval %}checked{% endif %}>
+        <span><b>Liberar a planta solo con plan aprobado</b><small>Planeación propone una versión del plan; el jefe de planta la aprueba en
+          <a href="{% url 'mes_core:plan_versions' %}?site={{ site.pk }}">Versiones del plan</a> y ahí los pedidos pasan a insumos, que los libera a planta.</small></span></label>
+    </div>
+    <div class="card-h"><h2>Liberación a planta</h2></div>
+    <div class="card-b pr-opts">
+      <label class="chk"><input type="checkbox" name="auto_release" {% if rules.auto_release %}checked{% endif %}>
+        <span><b>Liberación automática a planta</b><small>Cuando insumos entrega el 100 % de las líneas de un pedido, sus insumos quedan liberados
+          solos (sin pulsar «Liberar»). Apagada, insumos libera a mano. En los dos casos el pedido pasa a planta solo cuando
+          <b>insumos y logística</b> (pedido mercado) liberaron; trabajan en paralelo y el supervisor espera a ambos.</small></span></label>
+    </div>
+    <div class="card-h"><h2>Avisos automáticos</h2></div>
+    <div class="card-b pr-opts">
+      <label>Tolerancia de atraso (%)<input type="number" name="risk_tolerance_pct" min="0" max="90" value="{{ rules.risk_tolerance_pct }}">
+        <small>Una operación queda «en riesgo» si lo reportado va más de este % por debajo de lo programado a esa hora.</small></label>
+      <label>Plazo para confirmar asistencia (min)<input type="number" name="attendance_grace_minutes" min="0" max="600" value="{{ rules.attendance_grace_minutes }}">
+        <small>Minutos después del inicio del turno. Si el supervisor no ha confirmado, se avisa a él y al jefe de planta (60 = turno de 6:00 → aviso a las 7:00).</small></label>
+    </div>
+    <div class="card-b"><button class="btn" type="submit">Guardar reglas</button></div>
+  </form>
+
+  <section class="card">
+    <div class="card-h"><h2>Así queda el orden hoy</h2><span class="sub">Pedidos abiertos con más puntaje</span></div>
+    <div class="table-wrap flat"><table>
+      <thead><tr><th>#</th><th>Pedido</th><th class="num">Puntaje</th><th class="num">Compromiso</th><th class="num">Cliente</th><th class="num">Antigüedad</th><th class="num">Prioridad</th></tr></thead>
+      <tbody>{% for r in ranked %}
+        <tr><td class="muted">{{ forloop.counter }}</td>
+          <td><a href="{{ r.order.get_absolute_url }}"><b>{{ r.order.number }}</b></a> <span class="muted">{{ r.order.product.name|truncatechars:22 }}</span></td>
+          <td class="num"><span class="score"><span class="trk"><i style="width:{% widthratio r.score 125 100 %}%"></i></span><b>{{ r.score|floatformat:0 }}</b></span></td>
+          <td class="num">{{ r.due }}%</td><td class="num">{{ r.tier }}%</td><td class="num">{{ r.age }}%</td><td class="num">{{ r.priority }}%</td></tr>
+      {% empty %}<tr class="empty-row"><td colspan="7">No hay pedidos abiertos.</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+</div>
+
+<div class="pr-layout" style="margin-top:20px">
+  <section class="card">
+    <div class="card-h"><h2>Tiempos de cambio entre familias</h2><span class="sub">Minutos que pierde una línea al pasar de una familia a otra</span></div>
+    <form method="post" class="card-b pr-co-form">{% csrf_token %}
+      <input type="hidden" name="action" value="changeover_add"><input type="hidden" name="site" value="{{ site.pk }}">
+      <label>Tipo de línea<select name="kind"><option value="">Todas</option>{% for k in kinds %}<option value="{{ k }}">{{ k }}</option>{% endfor %}</select></label>
+      <label>De familia<input name="from_family" list="families" required maxlength="60"></label>
+      <label>A familia<input name="to_family" list="families" required maxlength="60"></label>
+      <label>Minutos<input type="number" name="minutes" min="0" required></label>
+      <button class="btn" type="submit">Agregar</button>
+      <datalist id="families">{% for f in families %}<option value="{{ f }}">{% endfor %}</datalist>
+    </form>
+    <div class="table-wrap flat"><table>
+      <thead><tr><th>Tipo de línea</th><th>De</th><th>A</th><th class="num">Minutos</th><th></th></tr></thead>
+      <tbody>{% for c in changeovers %}
+        <tr><td>{{ c.work_center_kind|default:"Todas" }}</td><td>{{ c.from_family }}</td><td>{{ c.to_family }}</td><td class="num">{{ c.minutes }}</td>
+          <td class="num"><form method="post">{% csrf_token %}<input type="hidden" name="action" value="changeover_delete">
+            <input type="hidden" name="id" value="{{ c.pk }}"><input type="hidden" name="site" value="{{ site.pk }}">
+            <button class="btn ghost sm" type="submit" aria-label="Eliminar">Eliminar</button></form></td></tr>
+      {% empty %}<tr class="empty-row"><td colspan="5">Sin tiempos específicos: se usa el cambio por defecto ({{ rules.default_changeover_minutes }} min).</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <div class="card-h"><h2>Familias de producto</h2><span class="sub">Productos con pedidos en esta planta</span></div>
+    <form method="post">{% csrf_token %}
+      <input type="hidden" name="action" value="families"><input type="hidden" name="site" value="{{ site.pk }}">
+      <div class="table-wrap flat pr-fam"><table>
+        <thead><tr><th>Producto</th><th>Familia</th></tr></thead>
+        <tbody>{% for p in products %}
+          <tr><td><b>{{ p.sku }}</b> <span class="muted">{{ p.name|truncatechars:30 }}</span></td>
+            <td><input name="fam_{{ p.pk }}" value="{{ p.family }}" list="families" maxlength="60" placeholder="Sin familia"></td></tr>
+        {% empty %}<tr class="empty-row"><td colspan="2">Aún no hay productos con pedidos.</td></tr>{% endfor %}</tbody>
+      </table></div>
+      {% if products %}<div class="card-b"><button class="btn" type="submit">Guardar familias</button></div>{% endif %}
+    </form>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load mes_assets mes_sites %}
+{% block title %}Supervisor por línea y turno{% endblock %}
+{% block crumbs %}<span>Personal</span><span class="sep">/</span><b>Supervisor por línea y turno</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/staff.css' %}">
+<style>.ls-table select { width: 100%; min-width: 150px; } .ls-table td:first-child { white-space: nowrap; }</style>{% endblock %}
+{% block content %}
+{% if no_site %}<div class="callout">No hay plantas activas.</div>{% else %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Personal · {{ site.code }} · {{ site.name }}</div>
+    <h1>Supervisor por línea y turno</h1>
+    <p>Define una vez quién responde por cada línea en cada turno. Toda operación que se programe en esa línea y turno queda
+      con ese supervisor sola; planeación solo corrige excepciones en <a href="{% url 'mes_core:supervisor_assign' %}?site={{ site.pk }}">Asignar supervisores</a>
+      (lo que se elige a mano ya no lo cambia la regla).</p>
+  </div>
+  <div class="tools">{% site_chips %}</div>
+</div>
+
+{% if not supervisors %}<div class="callout warn" style="margin-bottom:16px">No hay usuarios con el rol Supervisor. Créalos en Administración y agrégalos al grupo «Supervisor».</div>{% endif %}
+
+<div class="card">
+  <form method="post">{% csrf_token %}<input type="hidden" name="site" value="{{ site.pk }}">
+    <div class="table-wrap flat"><table class="ls-table">
+      <thead><tr><th>Línea</th>{% for sh in shifts %}<th>{{ sh.name }}<br><small class="muted">{{ sh.start_time|time:"H:i" }}–{{ sh.end_time|time:"H:i" }}</small></th>{% endfor %}</tr></thead>
+      <tbody>
+      {% for row in grid %}
+        <tr><td><b>{{ row.line.code }}</b><br><small class="muted">{{ row.line.name }}</small></td>
+          {% for c in row.cells %}<td><select name="r_{{ row.line.pk }}_{{ c.shift.pk }}" {% if not can_edit %}disabled{% endif %} aria-label="{{ row.line.code }} {{ c.shift.name }}">
+            <option value="">— Sin regla —</option>
+            {% for pk, label in supervisors %}<option value="{{ pk }}" {% if c.rule.supervisor_id == pk %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select></td>{% endfor %}</tr>
+      {% empty %}
+        <tr><td colspan="{{ shifts|length|add:1 }}" class="st-empty">La planta no tiene líneas activas.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% if can_edit and grid %}<div class="card-b" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button class="btn" type="submit">Guardar y aplicar a lo programado</button>
+      <span class="muted" style="font-size:13px">Al guardar se asigna a las operaciones abiertas de hoy en adelante que no tengan supervisor elegido a mano.</span>
+    </div>{% endif %}
+  </form>
+</div>
+{% endif %}
+{% endblock %}

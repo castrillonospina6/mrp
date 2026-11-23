@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load mes_assets mes_sites %}
+{% block title %}Sugerencias de nivel{% endblock %}
+{% block crumbs %}<span>Personal</span><span class="sep">/</span><a href="{% url 'mes_core:skills_matrix' %}">Polivalencia</a><span class="sep">/</span><b>Sugerencias de nivel</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/staff.css' %}">{% endblock %}
+{% block content %}
+{% if no_site %}<div class="callout">No hay plantas activas.</div>{% else %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Polivalencia · {{ site.code }}</div>
+    <h1>Sugerencias de nivel</h1>
+    <p>Con las horas que cada operario ha trabajado en cada competencia (cuadrillas de operaciones con producción reportada, último
+      año), el sistema propone subirle el nivel. Tú solo apruebas o descartas; lo descartado no se vuelve a proponer.
+      {% if team %}Ves las de tu equipo.{% endif %}</p>
+    <p class="muted" style="font-size:13px">Horas para sugerir: {% for label, h in thresholds %}{{ label }} desde {{ h|floatformat:"0" }} h{% if not forloop.last %} · {% endif %}{% endfor %}.</p>
+  </div>
+  <div class="tools">{% site_chips %}</div>
+</div>
+<div class="card">
+  <div class="table-wrap flat"><table>
+    <thead><tr><th>Operario</th><th>Competencia</th><th class="num">Horas</th><th>Nivel hoy</th><th>Sugerido</th>{% if can_decide %}<th></th>{% endif %}</tr></thead>
+    <tbody>
+    {% for s in rows %}
+      <tr><td><b>{{ s.employee.display_name }}</b><br><small class="muted">Doc. {{ s.employee.document }}</small></td>
+        <td>{{ s.skill.name }}</td>
+        <td class="num"><b>{{ s.hours|floatformat:"-1" }} h</b></td>
+        <td>{{ s.current_label|capfirst }}</td>
+        <td><span class="pill ok">{{ s.level_label }}</span></td>
+        {% if can_decide %}<td><form method="post" style="display:flex;gap:6px;flex-wrap:wrap">{% csrf_token %}
+          <input type="hidden" name="site" value="{{ site.pk }}"><input type="hidden" name="employee" value="{{ s.employee.pk }}">
+          <input type="hidden" name="skill" value="{{ s.skill.pk }}"><input type="hidden" name="level" value="{{ s.level }}">
+          <input type="hidden" name="hours" value="{{ s.hours }}">
+          <button class="btn sm" name="decision" value="aprobar" type="submit">Subir a {{ s.level_label|lower }}</button>
+          <button class="sbtn sm" name="decision" value="descartar" type="submit">Descartar</button>
+        </form></td>{% endif %}</tr>
+    {% empty %}
+      <tr><td colspan="6" class="st-empty">No hay sugerencias pendientes. Aparecen cuando los operarios acumulan horas en una competencia
+        (deben estar en la cuadrilla de operaciones con producción reportada).</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endif %}
+{% endblock %}

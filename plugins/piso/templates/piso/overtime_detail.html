@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}{{ call.title }}{% endblock %}
+{% block crumbs %}<a href="{% url 'piso:overtime' %}">Horas extra</a><span class="sep">/</span><b>{{ call.title }}</b>{% endblock %}
+{% block extra_head %}
+<style>
+  .ot-k { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .ot-k > div { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px 14px; }
+  .ot-k b { display: block; font-size: 26px; line-height: 1.1; }
+  .ot-k small { color: var(--muted); }
+  .ot-prog { height: 10px; border-radius: 99px; background: var(--surface-3); overflow: hidden; display: flex; margin: -4px 0 18px; }
+  .ot-prog i { display: block; height: 100%; }
+  .ot-days { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 12px; margin-bottom: 16px; }
+  .ot-day .card-h { gap: 6px 10px; }
+  .ot-day ul { list-style: none; margin: 0; padding: 0; }
+  .ot-day li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px dashed var(--border); font-size: 13.5px; }
+  .ot-day li:last-child { border-bottom: 0; }
+  .ot-day li span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ot-day .nums { display: flex; gap: 14px; margin-bottom: 8px; flex-wrap: wrap; }
+  .ot-day .nums b { font-size: 18px; }
+  .ot-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 12px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles"><div class="eyebrow">Horas extra · {{ target }} · <span class="pill {% if call.status == 'enviada' %}info{% elif call.status == 'cerrada' %}{% else %}warn{% endif %}">{{ call.get_status_display }}</span></div>
+    <h1>{{ call.title }}</h1>
+    <p>{% if call.sent_at %}Enviada {{ call.sent_at|date:"d/m/Y H:i" }}{% else %}Borrador: aún no la ve nadie{% endif %}{% if call.respond_by %} · responder hasta {{ call.respond_by|date:"d/m H:i" }}{% endif %}
+      · convocados: {% if target == "Todas las bodegas" %}todo el personal con tablet de todas las bodegas{% else %}{{ target }}{% endif %}{% if call.note %}<br>«{{ call.note }}»{% endif %}</p></div>
+  <div class="tools">
+    <a class="sbtn" href="{% url 'piso:overtime_xlsx' call.pk %}" data-no-prefetch>Descargar Excel</a>
+    {% if can_edit %}
+      {% if call.status == 'borrador' %}
+        <a class="sbtn" href="{% url 'piso:overtime_edit' call.pk %}">Editar</a>
+        <form method="post" onsubmit="return confirm('¿Enviar la convocatoria a las tablets?')">{% csrf_token %}<input type="hidden" name="action" value="send"><button class="btn">Enviar a las tablets</button></form>
+        <form method="post" onsubmit="return confirm('¿Eliminar este borrador?')">{% csrf_token %}<input type="hidden" name="action" value="delete"><button class="btn danger">Eliminar</button></form>
+      {% elif call.status == 'enviada' %}
+        {% if new_people %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="send"><button class="sbtn" title="Personas que tienen acceso a la tablet desde después del envío">Convocar a {{ new_people }} nuevo{{ new_people|pluralize }}</button></form>{% endif %}
+        <form method="post" onsubmit="return confirm('¿Cerrar la convocatoria? Ya no se podrá responder y deja de bloquear las tablets.')">{% csrf_token %}<input type="hidden" name="action" value="close"><button class="sbtn">Cerrar convocatoria</button></form>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+<div class="ot-k">
+  <div><b>{{ s.total }}</b><small>Convocados</small></div>
+  <div><b>{{ s.answered }}</b><small>Respondieron ({{ s.pct }} %)</small></div>
+  <div><b style="color:var(--warning)">{{ s.pending|length }}</b><small>Faltan por responder</small></div>
+  <div><b style="color:var(--success)">{{ s.yes|length }}</b><small>Dijeron SÍ</small></div>
+  <div><b style="color:var(--danger)">{{ s.no|length }}</b><small>Dijeron NO</small></div>
+  {% for k in s.by_kind %}<div><b>{{ k.people }} <small style="font-size:13px">· {{ k.hours }} h</small></b><small>{{ k.kind }} ({{ k.days }} día{{ k.days|pluralize }})</small></div>{% endfor %}
+</div>
+{% if s.total %}<div class="ot-prog" title="Sí {{ s.yes|length }} · No {{ s.no|length }} · Faltan {{ s.pending|length }}">
+  <i style="width:{% widthratio s.yes|length s.total 100 %}%;background:var(--success)"></i><i style="width:{% widthratio s.no|length s.total 100 %}%;background:var(--danger)"></i></div>{% endif %}
+
+<h2 class="section-title" style="margin-top:0">Por día</h2>
+<div class="ot-days">
+{% for row in s.days %}
+  <div class="card ot-day">
+    <div class="card-h"><h2>{{ row.label }}</h2><span class="pill {% if row.day.kind == 'Entre semana' %}{% else %}brand{% endif %}">{{ row.day.kind }}</span>
+      <span class="sub">{{ row.day.start|time:"H:i" }}–{{ row.day.end|time:"H:i" }} ({{ row.window_hours }} h)</span></div>
+    <div class="card-b">
+      <div class="nums"><span><b>{{ row.count }}</b>{% if row.day.needed %} / {{ row.day.needed }}{% endif %} <small class="muted">personas</small></span>
+        <span><b>{{ row.hours }}</b> <small class="muted">horas ofrecidas</small></span>
+        {% if row.missing %}<span class="pill bad">Faltan {{ row.missing }}</span>{% elif row.day.needed and row.count >= row.day.needed %}<span class="pill ok">Completo</span>{% endif %}</div>
+      <ul>{% for emp, until, h in row.people %}<li><span>{{ emp.display_name }}{% if emp.shift_id %} <small class="muted">· {{ emp.shift.name }}</small>{% endif %}</span><span class="muted">hasta <b style="color:var(--text)">{{ until|time:"H:i" }}</b> · {{ h }} h</span></li>
+      {% empty %}<li class="muted">Nadie aún.</li>{% endfor %}</ul>
+    </div>
+  </div>
+{% endfor %}
+</div>
+
+<div class="ot-two">
+  <div class="card"><div class="card-h"><h2>Dijeron NO</h2><span class="sub">{{ s.no|length }}</span></div>
+    <div class="table-wrap flat"><table><thead><tr><th>Persona</th><th>Motivo</th><th>Cuándo</th></tr></thead><tbody>
+      {% for r in s.no %}<tr><td>{{ r.employee.display_name }}</td><td style="white-space:normal">{{ r.reason }}</td><td class="muted">{{ r.answered_at|date:"d/m H:i" }}</td></tr>
+      {% empty %}<tr><td colspan="3" class="empty">Nadie ha dicho que no.</td></tr>{% endfor %}</tbody></table></div></div>
+  <div class="card"><div class="card-h"><h2>Faltan por responder</h2><span class="sub">{{ s.pending|length }} · la tablet no les deja seguir hasta que respondan</span></div>
+    <div class="table-wrap flat"><table><thead><tr><th>Persona</th><th>Turno</th></tr></thead><tbody>
+      {% for r in s.pending %}<tr><td>{{ r.employee.display_name }}</td><td class="muted">{{ r.employee.shift.name|default:"—" }}</td></tr>
+      {% empty %}<tr><td colspan="2" class="empty">{% if call.status == 'borrador' %}Aún no se envía.{% else %}Todos respondieron.{% endif %}</td></tr>{% endfor %}</tbody></table></div></div>
+</div>
+{% endblock %}

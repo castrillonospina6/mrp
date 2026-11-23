@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% load staff_tags mes_sites %}
+{% block title %}Pedidos en riesgo{% endblock %}
+{% block crumbs %}<span>Control</span><span class="sep">/</span><b>Pedidos en riesgo</b>{% endblock %}
+{% block extra_head %}
+<style>
+  .rk-list { display: grid; gap: 12px; }
+  .rk { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--warning); border-radius: var(--radius-lg); padding: 14px 16px; }
+  .rk.over { border-left-color: var(--danger); }
+  .rk-h { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline; justify-content: space-between; }
+  .rk-h b { font-size: 15px; }
+  .rk-m { color: var(--muted); font-size: 13px; }
+  .rk-bar { display: flex; align-items: center; gap: 10px; margin: 10px 0 6px; font-size: 13px; }
+  .rk-bar .track { position: relative; flex: 1; max-width: 420px; height: 8px; border-radius: 99px; background: var(--surface-3); overflow: hidden; }
+  .rk-bar .exp { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--warning) 35%, transparent); }
+  .rk-bar .act { position: absolute; inset: 0 auto 0 0; background: var(--primary); }
+  .rk ul { margin: 6px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .rk-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+</style>
+{% endblock %}
+{% block content %}
+{% if no_site %}<div class="callout">No hay plantas activas.</div>{% else %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Control · {% if site %}{{ site.code }} · {{ site.name }}{% else %}todas las bodegas{% endif %}</div>
+    <h1>Pedidos en riesgo</h1>
+    <p>Operaciones en planta cuyo avance reportado va más de {{ tolerance }} % por debajo de lo programado a esta hora (en horas
+      hábiles). Para cada una, el sistema sugiere cómo recuperarla. La tolerancia se cambia en Reglas de planeación.</p>
+  </div>
+  <div class="tools">
+    <div class="segmented" role="group" aria-label="Alcance">
+      <a class="{% if not mine %}on{% endif %}" href="?site={{ site_param }}&mios=0">{% if site %}Toda la bodega{% else %}Todo{% endif %}</a>
+      <a class="{% if mine %}on{% endif %}" href="?site={{ site_param }}&mios=1">Mis operaciones</a>
+    </div>
+  </div>
+</div>
+<div style="margin:-6px 0 14px">{% site_chips %}</div>
+
+<div class="rk-list">
+{% for r in rows %}{% with op=r.op %}
+  <article class="rk {% if r.overdue %}over{% endif %}">
+    <div class="rk-h">
+      <span><b class="mono">{{ op.order.number }}</b> · <b>{{ op.name }}</b>
+        <span class="pill {% if r.overdue %}bad{% else %}warn{% endif %}">{{ r.label }} · {{ r.behind_pct }} % abajo</span></span>
+      <span class="rk-m">{{ op.work_center.code|default:"Sin línea" }} · {{ op.planned_start|date:"D d/m H:i" }} → {{ op.planned_end|date:"D d/m H:i" }} ·
+        {% if op.supervisor %}{{ op.supervisor|uname }}{% else %}sin supervisor{% endif %} · {{ op.crew }} operario{{ op.crew|pluralize }}</span>
+    </div>
+    <div class="rk-m">{{ op.order.product.name }}{% if op.order.customer %} · {{ op.order.customer.name }}{% endif %}</div>
+    <div class="rk-bar">
+      <span class="track"><span class="exp" style="width:{% widthratio r.expected op.qty 100 %}%"></span><span class="act" style="width:{% widthratio r.actual op.qty 100 %}%"></span></span>
+      <span>Reportado <b>{{ r.actual|floatformat:"-2g" }}</b> · debía llevar <b>{{ r.expected|floatformat:"0g" }}</b> de {{ op.qty|floatformat:"-2g" }}</span>
+    </div>
+    <ul>{% for s in r.suggestions %}<li>{{ s }}</li>{% endfor %}</ul>
+    <div class="rk-actions">
+      <a class="sbtn sm" href="{{ op.order.get_absolute_url }}">Abrir pedido</a>
+      {% if can_plan %}<a class="sbtn sm" href="{% url 'mes_core:scheduler' %}?site={{ op.order.site_id }}">Reprogramar</a>{% endif %}
+      {% if op.supervisor_id == user.pk or can_plan %}<a class="sbtn sm" href="{% url 'mes_core:crew_assign' op.pk %}">Cuadrilla</a>{% endif %}
+    </div>
+  </article>
+{% endwith %}{% empty %}
+  <div class="callout">Nada en riesgo: todo lo que está en planta va al ritmo programado{% if mine %} en tus operaciones{% endif %}.</div>
+{% endfor %}
+</div>
+{% endif %}
+{% endblock %}

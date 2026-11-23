@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load mes_sites %}
+{% block title %}Horas extra{% endblock %}
+{% block crumbs %}<span>Control de piso</span><span class="sep">/</span><b>Horas extra</b>{% endblock %}
+{% block extra_head %}
+<style>
+  .ot-list { display: grid; gap: 12px; }
+  .ot-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 18px; align-items: center; padding: 14px 18px;
+    text-decoration: none; color: inherit; }
+  .ot-row:hover { text-decoration: none; border-color: var(--border-strong); }
+  .ot-row h3 { margin: 0 0 4px; font-size: 15px; }
+  .ot-days { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .ot-nums { display: grid; grid-template-columns: repeat(4, minmax(64px, auto)); gap: 4px 14px; text-align: right; }
+  .ot-nums b { display: block; font-size: 20px; line-height: 1.1; }
+  .ot-nums small { font-size: 11.5px; }
+  .ot-bar { grid-column: 1 / -1; height: 6px; border-radius: 99px; background: var(--surface-3); overflow: hidden; display: flex; }
+  .ot-bar i { display: block; height: 100%; }
+  @media (max-width: 640px) { .ot-row { grid-template-columns: minmax(0, 1fr); } .ot-nums { text-align: left; grid-template-columns: repeat(4, 1fr); } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles"><div class="eyebrow">Control de piso · planeación</div><h1>Horas extra</h1>
+    <p>Convoca al personal desde aquí: le aparece en la tablet y no puede seguir hasta responder <b>SÍ</b> (días y hasta qué
+      hora) o <b>NO</b> (motivo). Sirve para planear sábados, domingos, festivos y extras entre semana.</p></div>
+  <div class="tools">
+    {% if can_edit %}<a class="btn" href="{% url 'piso:overtime_new' %}{% if site %}?site={{ site.pk }}{% endif %}" data-no-prefetch>+ Nueva convocatoria</a>{% endif %}
+  </div>
+</div>
+<div style="margin:-6px 0 14px">{% site_chips %}</div>
+
+<div class="ot-list">
+{% for c in calls %}
+  <a class="card ot-row" href="{% url 'piso:overtime_detail' c.pk %}">
+    <div style="min-width:0">
+      <h3>{{ c.title }} <span class="pill {% if c.status == 'enviada' %}info{% elif c.status == 'cerrada' %}{% else %}warn{% endif %}">{{ c.get_status_display }}</span></h3>
+      <small class="muted"><b>{{ c.target }}</b> · creada {{ c.created_at|date:"d/m H:i" }}{% if c.sent_at %} · enviada {{ c.sent_at|date:"d/m H:i" }}{% endif %}{% if c.respond_by %} · responder hasta {{ c.respond_by|date:"d/m H:i" }}{% endif %}</small>
+      <div class="ot-days">{% for d in c.days.all %}<span class="pill {% if d.kind == 'Entre semana' %}{% else %}brand{% endif %}">{{ d.kind }} {{ d.date|date:"d/m" }} · {{ d.start|time:"H:i" }}–{{ d.end|time:"H:i" }}</span>{% endfor %}</div>
+    </div>
+    <div class="ot-nums">
+      <span><b>{{ c.n }}</b><small class="muted">convocados</small></span>
+      <span><b style="color:var(--success)">{{ c.yes }}</b><small class="muted">sí</small></span>
+      <span><b style="color:var(--danger)">{{ c.no }}</b><small class="muted">no</small></span>
+      <span><b style="color:var(--warning)">{{ c.pend }}</b><small class="muted">faltan</small></span>
+    </div>
+    {% if c.n %}<div class="ot-bar" title="Sí {{ c.yes }} · No {{ c.no }} · Faltan {{ c.pend }}">
+      <i style="width:{% widthratio c.yes c.n 100 %}%;background:var(--success)"></i><i style="width:{% widthratio c.no c.n 100 %}%;background:var(--danger)"></i></div>{% endif %}
+  </a>
+{% empty %}
+  <div class="card"><div class="card-b muted">Aún no hay convocatorias de horas extra{% if site %} en {{ site.name }}{% endif %}.{% if can_edit %} Crea la primera con «Nueva convocatoria».{% endif %}</div></div>
+{% endfor %}
+</div>
+{% endblock %}

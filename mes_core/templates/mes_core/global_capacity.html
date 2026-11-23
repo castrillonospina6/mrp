@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% load mes_assets %}
+{% block title %}Capacidad global{% endblock %}
+{% block crumbs %}<span>Operación</span><span class="sep">/</span><b>Capacidad global</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/workforce.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Operación · toda la empresa · semana del {{ start|date:"d/m/Y" }}</div>
+    <h1>Capacidad global</h1>
+    <p>Una sola bolsa de personal para todas las bodegas: cuántas personas hay, cómo están repartidas y cuántas horas-hombre
+      dan frente a lo programado.</p>
+  </div>
+  <div class="tools">
+    <a class="sbtn sm" href="?semana={{ prev|date:'Y-m-d' }}" aria-label="Semana anterior">‹</a>
+    <a class="sbtn sm" href="?">Esta semana</a>
+    <a class="sbtn sm" href="?semana={{ next|date:'Y-m-d' }}" aria-label="Semana siguiente">›</a>
+    {% if perms.mes_core.view_staffallocation %}<a class="sbtn sm" href="{% url 'mes_core:staff_split' %}">Reparto del personal</a>{% endif %}
+    {% if perms.mes_core.view_staffmove %}<a class="sbtn sm" href="{% url 'mes_core:staff_location' %}">¿Quién está dónde?</a>{% endif %}
+  </div>
+</div>
+
+<div class="grid wf-kpis">
+  <div class="kpi"><div class="k-h">Personal total<span class="k-ico"><svg class="ico"><use href="#i-users"/></svg></span></div>
+    <div class="k-v">{{ pool }}</div><div class="k-s">operarios activos de toda la empresa</div></div>
+  <div class="kpi"><div class="k-h">Repartidos {% if today_tot.day == today %}hoy{% else %}{{ today_tot.day|date:"D d" }}{% endif %}</div>
+    <div class="k-v">{{ today_tot.people }} <small>de {{ pool }}</small></div>
+    <div class="k-s"><span class="wf-meter"><i style="width:{{ today_tot.people_pct }}%"></i></span></div></div>
+  <div class="kpi"><div class="k-h">Sin repartir</div>
+    <div class="k-v {% if today_tot.free_people < 0 %}neg{% endif %}">{{ today_tot.free_people }}</div>
+    <div class="k-s">{% if today_tot.free_people < 0 %}se repartieron más personas de las que hay{% else %}disponibles para mover a donde haga falta{% endif %}</div></div>
+  <div class="kpi"><div class="k-h">Ausentes</div>
+    <div class="k-v">{{ today_tot.absent_people }}</div><div class="k-s">con ausencia confirmada en Mi turno</div></div>
+  <div class="kpi"><div class="k-h">Horas-hombre de la semana</div>
+    <div class="k-v">{{ week_req|floatformat:"0g" }} <small>/ {{ week_cap|floatformat:"0g" }} h</small></div>
+    <div class="k-s">{% if week_pct is not None %}<span class="pill {% if week_lvl == 'bad' %}bad{% elif week_lvl == 'warn' %}warn{% else %}ok{% endif %}">{{ week_pct }} % ocupado</span>{% endif %} programadas / disponibles</div></div>
+</div>
+
+{% if unlimited_sites %}<div class="callout warn wf-gap">{{ unlimited_sites|length }} bodega{{ unlimited_sites|length|pluralize }} sin reparto ni operarios configurados
+  ({% for s in unlimited_sites %}{{ s.code }}{% if not forloop.last %}, {% endif %}{% endfor %}): cuentan sin límite y no suman horas.
+  {% if perms.mes_core.change_staffallocation %}<a href="{% url 'mes_core:staff_split' %}">Repártelas</a>.{% endif %}</div>{% endif %}
+
+<div class="card">
+  <div class="card-h"><h2>Por día y bodega</h2><span class="sub">personas · horas-hombre programadas / disponibles</span></div>
+  <div class="table-wrap flat"><table class="wf-table">
+    <thead><tr><th>Bodega</th>{% for d in days %}<th class="{% if d == today %}today{% endif %}">{{ d|date:"D" }} <b>{{ d|date:"d" }}</b></th>{% endfor %}<th>Semana</th></tr></thead>
+    <tbody>
+      <tr class="wf-total"><td><b>Toda la empresa</b><br><small class="muted">bolsa de {{ pool }}</small></td>
+        {% for t in totals %}<td class="{% if t.day == today %}today{% endif %}">
+          <div class="wf-cell"><span class="p"><b>{{ t.people }}</b> pers.{% if t.free_people > 0 %} · <span class="muted">{{ t.free_people }} libres</span>{% elif t.free_people < 0 %} · <span class="neg">{{ t.free_people }}</span>{% endif %}</span>
+            <span class="h">{{ t.req_h|floatformat:"0g" }} / {{ t.cap_h|floatformat:"0g" }} h</span>
+            <span class="bar {{ t.lvl }}"><i style="width:{{ t.bar }}%"></i></span>
+            <span class="pct">{% if t.occ_pct is not None %}{{ t.occ_pct }} %{% else %}—{% endif %}{% if t.absent_people %} · {{ t.absent_people }} aus.{% endif %}</span></div></td>{% endfor %}
+        <td><div class="wf-cell"><span class="h">{{ week_req|floatformat:"0g" }} / {{ week_cap|floatformat:"0g" }} h</span>
+          <span class="pct">{% if week_pct is not None %}{{ week_pct }} %{% else %}—{% endif %}</span></div></td></tr>
+      {% for r in rows %}
+      <tr><td><b>{{ r.site.code }}</b><br><small class="muted">{{ r.site.name }}</small></td>
+        {% for c in r.cells %}<td class="{% if c.day == today %}today{% endif %}">
+          {% if c.off %}<span class="muted wf-off">No trabaja</span>
+          {% elif c.unlimited %}<div class="wf-cell"><span class="p muted">sin límite</span><span class="h">{{ c.req_h|floatformat:"0g" }} h prog.</span></div>
+          {% else %}<div class="wf-cell" title="{% for s in c.shifts %}{{ s.shift.name }}: {% if s.off %}{{ s.off }}{% else %}{{ s.people }} pers.{% if s.absent %} ({{ s.absent }} aus.){% endif %} · {{ s.req_h|floatformat:0 }}/{{ s.cap_h|floatformat:0 }} h{% endif %}&#10;{% endfor %}">
+            <span class="p"><b>{{ c.people }}</b> pers.{% if c.absent %} · <span class="muted">{{ c.absent }} aus.</span>{% endif %}</span>
+            <span class="h">{{ c.req_h|floatformat:"0g" }} / {{ c.cap_h|floatformat:"0g" }} h</span>
+            <span class="bar {{ c.lvl }}"><i style="width:{{ c.bar }}%"></i></span>
+            <span class="pct">{% if c.occ_pct is not None %}{{ c.occ_pct }} %{% else %}—{% endif %}</span></div>{% endif %}</td>{% endfor %}
+        <td><div class="wf-cell"><span class="h">{{ r.week_req|floatformat:"0g" }} / {{ r.week_cap|floatformat:"0g" }} h</span></div></td></tr>
+      {% empty %}
+      <tr><td colspan="9" class="muted">No hay bodegas con turnos configurados.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  <div class="card-b wf-note">
+    <b>Cómo se calcula.</b> Personas de cada bodega = el <a href="{% url 'mes_core:staff_split' %}">reparto del personal</a>
+    de ese día y turno (o, si no hay reparto, los operarios configurados en el turno). Horas-hombre disponibles = personas
+    presentes × horas hábiles del turno (sin desayuno ni almuerzo) + horas extra. Programadas = cuadrilla × duración de
+    cada operación dentro del turno. «Libres» = personal total − ausentes − repartidos: gente que se puede mover a donde haga falta.
+    {% if no_shift_sites %}<br>Bodegas sin turnos (no suman): {% for s in no_shift_sites %}{{ s.code }}{% if not forloop.last %}, {% endif %}{% endfor %}.{% endif %}
+  </div>
+</div>
+{% endblock %}

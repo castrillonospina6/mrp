@@ -1,0 +1,385 @@
+{% extends "base.html" %}
+{% load static mes_assets mes_sites %}
+{% block title %}Turnos{% endblock %}
+{% block crumbs %}<span>Configuración</span><span class="sep">/</span><b>Turnos y personal</b>{% endblock %}
+{% block body_class %}scheduler-page{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/scheduler.css' %}"><link rel="stylesheet" href="{% asset 'mes_core/planning.css' %}">{% endblock %}
+{% block content %}
+<div class="pl-head pl-head-row">
+  <div>
+    <div class="sch-eyebrow">Configuración · jornada laboral</div>
+    <h1 class="sch-title">Turnos de {{ site.name }}</h1>
+    <p class="pl-lead">Estos datos alimentan el cálculo de horas-hombre, operarios y duración en Planeación, y el programador.</p>
+  </div>
+  {% site_chips %}
+</div>
+
+<form method="post" class="pl-form" id="shift-form" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="pl-error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+  <div class="pl-grid2 wide-right">
+    <section class="pl-card">
+      <h2>Jornada</h2>
+      <div class="pl-fields">
+        {% include "mes_core/_field.html" with field=form.first_start %}
+        {% include "mes_core/_field.html" with field=form.duration_hours %}
+        {% include "mes_core/_field.html" with field=form.end_time %}
+        {% include "mes_core/_field.html" with field=form.count %}
+      </div>
+      <h3>Descansos <small>(del primer turno; en los demás se ubican a la misma distancia del inicio)</small></h3>
+      <p class="pl-note" style="margin-top:0">Un horario = todos descansan a la vez. <b>Varios horarios = grupos escalonados</b>:
+        cada persona sale en uno de ellos y la línea sigue andando; a cada operario se le descuenta el tiempo de un solo grupo.</p>
+      <div class="brk-pair">
+        <div><b class="brk-title">Desayuno</b>
+          {% include "mes_core/_break_list.html" with prefix="breakfast" rows=breakfast_rows label="desayuno" empty="Sin desayuno." %}</div>
+        <div><b class="brk-title">Almuerzo</b>
+          {% include "mes_core/_break_list.html" with prefix="lunch" rows=lunch_rows label="almuerzo" empty="Sin almuerzo." %}</div>
+      </div>
+      <h3>Personal</h3>
+      <div class="pl-fields one">{% include "mes_core/_field.html" with field=form.operators_total %}</div>
+      <p class="pl-note">Planeación descuenta de esta bolsa las cuadrillas que vas programando y te avisa cuándo se liberan.
+        Si un turno tiene otra cantidad de personas, escríbela en la tabla de la derecha.</p>
+    </section>
+
+    <section class="pl-card">
+      <h2>Vista previa de turnos</h2>
+      <div class="table-wrap"><table class="pl-table" id="preview">
+        <thead><tr><th>Turno</th><th>Horario</th><th>Desayuno</th><th>Almuerzo</th><th class="num">Horas hábiles</th><th class="num">Operarios</th><th class="num">HH / turno</th></tr></thead>
+        <tbody></tbody>
+        <tfoot><tr><th colspan="4">Total por día</th><th class="num" id="t-hours"></th><th class="num" id="t-ops"></th><th class="num" id="t-hh"></th></tr></tfoot>
+      </table></div>
+      <div id="op-inputs" hidden>
+        {{ form.operators_1 }}{{ form.operators_2 }}{{ form.operators_3 }}{{ form.operators_4 }}
+      </div>
+      <p class="pl-note" id="preview-msg"></p>
+      <p class="pl-note">HH / turno = horas hábiles × operarios: la capacidad de trabajo que ofrece cada turno.
+        Deja «Operarios» vacío para usar el total de la planta, o escribe otro número si ese turno tiene distinta gente.</p>
+    </section>
+  </div>
+  <div class="pl-actions">
+    <button class="sbtn accent" type="submit">Guardar turnos</button>
+    <a class="sbtn" href="{% url 'admin:mes_core_site_change' site.pk %}">Ajuste fino por turno (admin)</a>
+  </div>
+</form>
+
+<section class="pl-card" style="margin-top:20px" id="traslape">
+  <h2>Turnos de traslape</h2>
+  <p class="pl-lead" style="margin:-6px 0 14px">Turnos que se cruzan con los demás, por ejemplo <b>11:00–19:00</b> para cubrir almuerzos y
+    cambios de turno. Cada uno tiene su horario, su personal y sus propios descansos (puede no tener desayuno). En las horas en que
+    se cruza, su gente se suma a la del otro turno. «Guardar turnos» de arriba no los modifica.</p>
+  {% if overlap_error %}<div class="pl-error">{{ overlap_error }}</div>{% endif %}
+  <form method="post" id="ov-form">{% csrf_token %}
+    <input type="hidden" name="action" value="overlap">
+    <div class="ov-list">{% for r in overlap_rows %}{% include "mes_core/_overlap_card.html" %}{% endfor %}</div>
+    <p class="muted ov-none" {% if overlap_rows %}hidden{% endif %}>No hay turnos de traslape en {{ site.code }}.</p>
+    <div class="pl-actions" style="margin-top:12px">
+      <button class="sbtn" type="button" id="ov-add">+ Agregar turno de traslape</button>
+      <button class="sbtn accent" type="submit">Guardar traslapes</button>
+    </div>
+  </form>
+  <template id="ov-tpl">{% include "mes_core/_overlap_card.html" with r=new_overlap %}</template>
+  {{ base_shifts|json_script:"base-shifts" }}
+</section>
+<style>
+  .brk-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 14px 22px; margin: 8px 0 14px; }
+  .brk-title { display: block; font-size: 13px; margin-bottom: 6px; }
+  .brk-list { display: flex; flex-direction: column; gap: 6px; }
+  .brk-row { display: flex; align-items: center; gap: 6px; }
+  .brk-row input { width: 112px; }
+  .brk-del { border: 0; background: transparent; color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer; width: 30px; height: 30px; border-radius: 6px; }
+  .brk-del:hover { background: var(--danger-soft); color: var(--danger); }
+  .brk-empty { margin: 0; font-size: 13px; }
+  .brk-tools { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-top: 8px; font-size: 12.5px; }
+  .brk-gen { display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+  .brk-gen .pl-mini { width: 60px; }
+  .brk-gen input[type=time] { width: 108px; }
+  .ov-card { border: 1px solid var(--border); border-left: 3px solid #d97706; border-radius: var(--radius-lg); padding: 14px 16px; margin-bottom: 12px; background: var(--surface); }
+  .ov-head { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; }
+  .ov-head label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+  .ov-head input[name$="_name"] { width: 180px; }
+  .ov-head .ov-remove { margin-left: auto; }
+  .ov-info { font-size: 12.5px; margin: 8px 0 2px; }
+  .ov-removed-note { display: none; font-size: 13px; }
+  .ov-card.removed { opacity: .6; border-left-color: var(--border-strong); }
+  .ov-card.removed .brk-pair, .ov-card.removed .ov-info { display: none; }
+  .ov-card.removed .ov-removed-note { display: inline; }
+</style>
+
+<section class="pl-card" style="margin-top:20px" id="dias">
+  <h2>Días laborables por turno</h2>
+  <p class="pl-lead" style="margin:-6px 0 14px">Marca los días en que trabaja cada turno. Los días sin marcar no se programan
+    (el programador, el Gantt y la capacidad los muestran como «No laboral»). Para fechas puntuales usa el
+    <a href="{% url 'mes_core:work_calendar' %}?site={{ site.pk }}">Calendario laboral</a> (festivos, horas extra, turnos adicionales).</p>
+  {% if wd_rows %}
+  <form method="post" class="wd-form">{% csrf_token %}
+    <input type="hidden" name="action" value="weekdays">
+    <div class="table-wrap flat"><table class="wd-table">
+      <thead><tr><th>Turno</th>{% for i, short, name, on in wd_rows.0.days %}<th class="c" title="{{ name }}">{{ short }}</th>{% endfor %}<th>Resumen</th></tr></thead>
+      <tbody>{% for row in wd_rows %}
+        <tr><td><i class="wd-dot" style="background:{{ row.shift.color }}"></i><b>{{ row.shift.name }}</b>
+            <span class="muted">{{ row.shift.start_time|time:"H:i" }}–{{ row.shift.end_time|time:"H:i" }}</span></td>
+          {% for i, short, name, on in row.days %}<td class="c"><label class="wd-chip" title="{{ name }}">
+            <input type="checkbox" name="wd_{{ row.shift.pk }}_{{ i }}" {% if on %}checked{% endif %}><span>{{ short }}</span></label></td>{% endfor %}
+          <td class="muted">{{ row.shift.weekdays_label }}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <button class="btn" type="submit">Guardar días laborables</button>
+      <button class="sbtn" type="button" data-wd="0123456">Todos los días</button>
+      <button class="sbtn" type="button" data-wd="012345">Lunes a sábado</button>
+      <button class="sbtn" type="button" data-wd="01234">Lunes a viernes</button>
+    </div>
+  </form>
+  <style>
+    .wd-table th.c, .wd-table td.c { text-align: center; width: 52px; padding-left: 4px; padding-right: 4px; }
+    .wd-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+    .wd-chip { display: inline-grid; place-items: center; cursor: pointer; position: relative; }
+    .wd-chip input { position: absolute; opacity: 0; pointer-events: none; }
+    .wd-chip span { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; font-weight: 650; font-size: 13px;
+      border: 1px solid var(--border-strong); color: var(--muted); background: var(--surface); }
+    .wd-chip input:checked + span { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+    .wd-chip input:focus-visible + span { box-shadow: var(--focus); }
+  </style>
+  <script>
+    document.querySelectorAll("[data-wd]").forEach((b) => b.addEventListener("click", () => {
+      const days = b.dataset.wd;
+      document.querySelectorAll('.wd-form input[type=checkbox]').forEach((c) => {
+        c.checked = days.includes(c.name.split("_").pop());
+      });
+    }));
+  </script>
+  {% else %}<p class="muted">Primero configura los turnos.</p>{% endif %}
+</section>
+
+<section class="pl-card" style="margin-top:20px" id="llegada">
+  <h2>Llegada a la terminal (tablet de planta)</h2>
+  <p class="pl-lead" style="margin:-6px 0 14px">Hora máxima para que cada persona confirme su llegada en la tablet. Quien confirme
+    hasta esa hora queda <b>Presente</b>; después, <b>Llegó tarde</b>, de forma automática (en «Mi turno» el supervisor lo ve y
+    lo puede corregir). Vacío = sin límite: siempre «Presente».</p>
+  {% if ci_rows %}
+  <form method="post" class="ci-form">{% csrf_token %}
+    <input type="hidden" name="action" value="checkin">
+    <div class="table-wrap flat"><table class="pl-table ci-table">
+      <thead><tr><th>Turno</th><th>Inicio</th><th>Llegada hasta</th><th>Margen</th></tr></thead>
+      <tbody>{% for sh in ci_rows %}
+        <tr data-start="{{ sh.start_time|time:'H:i' }}"><td><i class="wd-dot" style="background:{{ sh.color }}"></i><b>{{ sh.name }}</b>{% if sh.is_overlap %} <span class="pl-chip">traslape</span>{% endif %}</td>
+          <td>{{ sh.start_time|time:"H:i" }}</td>
+          <td><input type="time" name="ci_{{ sh.pk }}" value="{{ sh.checkin_deadline|time:'H:i' }}" aria-label="Llegada hasta · {{ sh.name }}"></td>
+          <td class="muted ci-gap"></td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <button class="btn" type="submit">Guardar horas de llegada</button>
+      <button class="sbtn" type="button" data-ci="0">A la hora de inicio</button>
+      <button class="sbtn" type="button" data-ci="10">Inicio + 10 min</button>
+      <button class="sbtn" type="button" data-ci="15">Inicio + 15 min</button>
+      <button class="sbtn" type="button" data-ci="">Sin límite</button>
+    </div>
+  </form>
+  <script>
+    (() => {
+      const mins = (v) => { const [h, m] = v.split(":").map(Number); return h * 60 + m; };
+      const hhmm = (n) => { n = ((n % 1440) + 1440) % 1440; return String(Math.floor(n / 60)).padStart(2, "0") + ":" + String(n % 60).padStart(2, "0"); };
+      const paint = () => document.querySelectorAll(".ci-table tbody tr").forEach((tr) => {
+        const v = tr.querySelector("input").value, g = tr.querySelector(".ci-gap");
+        if (!v) { g.textContent = "Sin límite"; return; }
+        let d = mins(v) - mins(tr.dataset.start); if (d < -720) d += 1440; if (d > 720) d -= 1440;
+        g.textContent = d === 0 ? "A la hora de inicio" : d > 0 ? `${d} min después del inicio` : `${-d} min antes del inicio`;
+      });
+      document.querySelectorAll("[data-ci]").forEach((b) => b.addEventListener("click", () => {
+        document.querySelectorAll(".ci-table tbody tr").forEach((tr) => {
+          tr.querySelector("input").value = b.dataset.ci === "" ? "" : hhmm(mins(tr.dataset.start) + Number(b.dataset.ci));
+        });
+        paint();
+      }));
+      document.querySelector(".ci-form").addEventListener("input", paint);
+      paint();
+    })();
+  </script>
+  {% else %}<p class="muted">Primero configura los turnos.</p>{% endif %}
+</section>
+
+<section class="pl-card" style="margin-top:20px">
+  <h2>Turnos por línea</h2>
+  <p class="pl-note">Una línea sin turnos asignados trabaja todos los de la planta. Para cambiarlo, edita la línea en Administración.</p>
+  <div class="table-wrap"><table class="pl-table">
+    <thead><tr><th>Línea</th><th>Tipo</th><th class="num">Estaciones</th><th>Turnos</th><th></th></tr></thead>
+    <tbody>{% for wc in lines %}
+      <tr><td><b>{{ wc.code }}</b> · {{ wc.name }}</td><td><code>{{ wc.kind }}</code></td><td class="num">{{ wc.capacity }}</td>
+        <td>{% for s in wc.shifts.all %}{% if s.active %}<span class="pl-chip">{{ s.name }}</span>{% endif %}{% empty %}<span class="muted">Todos</span>{% endfor %}</td>
+        <td><a href="{% url 'admin:mes_core_workcenter_change' wc.pk %}">Editar</a></td></tr>
+    {% empty %}<tr><td colspan="5" class="muted">Sin líneas activas.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const toMin = (v) => { if (!v) return null; const [h, m] = v.split(":").map(Number); return h * 60 + m; };
+  const fmt = (m) => { m = ((m % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; };
+  const span = (a, b) => { const d = b - a; return d > 0 ? d : d + 1440; };
+  const nameFor = (m) => { const h = Math.floor((((m % 1440) + 1440) % 1440) / 60); return h >= 5 && h < 12 ? "Mañana" : h >= 12 && h < 19 ? "Tarde" : "Noche"; };
+  const num = (n) => n.toLocaleString("es", { maximumFractionDigits: 2 });
+  let syncing = false;
+
+  function syncEnd() { // duración → hora fin
+    if (syncing) return; syncing = true;
+    const s = toMin($("id_first_start").value), d = parseFloat(($("id_duration_hours").value || "").replace(",", "."));
+    if (s !== null && d > 0) $("id_end_time").value = fmt(s + Math.round(d * 60));
+    syncing = false; render();
+  }
+  function syncDuration() { // hora fin → duración
+    if (syncing) return; syncing = true;
+    const s = toMin($("id_first_start").value), e = toMin($("id_end_time").value);
+    if (s !== null && e !== null) $("id_duration_hours").value = +(span(s, e) / 60).toFixed(2);
+    syncing = false; render();
+  }
+
+  // Grupos de un descanso (filas de la lista) como {off, len} respecto al inicio del turno
+  const groupsOf = (prefix, start) => [...document.querySelectorAll(`.brk[data-prefix="${prefix}"] .brk-row`)].map((r) => {
+    const [a, b] = r.querySelectorAll("input");
+    const x = toMin(a.value), y = toMin(b.value);
+    return x === null || y === null || x === y ? null : { off: span(start ?? 0, x) % 1440, len: span(x, y) };
+  }).filter(Boolean);
+  const avgLen = (gs) => (gs.length ? Math.round(gs.reduce((acc, g) => acc + g.len, 0) / gs.length) : 0);
+  const groupsText = (gs, s) => {
+    if (!gs.length) return "—";
+    if (gs.length === 1) return `${fmt(s + gs[0].off)}–${fmt(s + gs[0].off + gs[0].len)}`;
+    const lens = new Set(gs.map((g) => g.len));
+    return `${gs.length} grupos: ${gs.map((g) => fmt(s + g.off)).join(", ")}${lens.size === 1 ? ` · ${gs[0].len} min` : ""}`;
+  };
+
+  function render() {
+    const start = toMin($("id_first_start").value), dur = Math.round(parseFloat(($("id_duration_hours").value || "0").replace(",", ".")) * 60);
+    const count = Math.max(1, Math.min(4, parseInt($("id_count").value || "1", 10)));
+    const brk = [groupsOf("breakfast", start), groupsOf("lunch", start)];
+    const tbody = $("preview").querySelector("tbody");
+    const msg = [];
+    if (start === null || !(dur > 0)) { tbody.innerHTML = ""; return; }
+    if (count * dur > 1440) msg.push(`${count} turnos de ${num(dur / 60)} h suman más de 24 h.`);
+    brk.forEach((gs, i) => gs.forEach((b) => {
+      if (b.off <= 0 || b.off + b.len > dur) msg.push(`Un horario de ${i ? "almuerzo" : "desayuno"} (${fmt(start + b.off)}) queda fuera del primer turno.`);
+    }));
+    const def = parseInt($("id_operators_total").value || "0", 10) || 0;
+    let totH = 0, totOps = 0, totHH = 0; const seen = {};
+    const rows = [];
+    for (let k = 0; k < count; k++) {
+      const s = start + k * dur, base = nameFor(s);
+      seen[base] = (seen[base] || 0) + 1;
+      const name = seen[base] > 1 ? `${base} ${seen[base]}` : base;
+      const brkTxt = brk.map((gs) => groupsText(gs, s));
+      const eff = dur - brk.reduce((acc, gs) => acc + avgLen(gs), 0);
+      const inp = $(`id_operators_${k + 1}`);
+      const own = parseInt(inp.value || "0", 10) || 0;
+      const ops = own || def;
+      totH += eff / 60; totOps += ops; totHH += (eff / 60) * ops;
+      rows.push(`<tr><td><b>${name}</b></td><td>${fmt(s)}–${fmt(s + dur)}</td><td>${brkTxt[0]}</td><td>${brkTxt[1]}</td>
+        <td class="num">${num(eff / 60)} h</td>
+        <td class="num"><input class="pl-mini" type="number" min="0" data-k="${k + 1}" value="${own || ""}" placeholder="${def || "∞"}" title="Vacío = total de la planta"></td>
+        <td class="num">${ops ? num((eff / 60) * ops) : "sin límite"}</td></tr>`);
+    }
+    tbody.innerHTML = rows.join("");
+    $("t-hours").textContent = `${num(totH)} h`;
+    $("t-ops").textContent = totOps || "—";
+    $("t-hh").textContent = totHH ? `${num(totHH)} HH` : "—";
+    $("preview-msg").textContent = msg.join(" ");
+    $("preview-msg").classList.toggle("bad", msg.length > 0);
+  }
+  $("preview").addEventListener("change", (e) => {  // al salir del campo, para no perder el foco al escribir
+    const k = e.target.dataset.k; if (!k) return;
+    $(`id_operators_${k}`).value = e.target.value;
+    render();
+  });
+  $("id_operators_total").addEventListener("input", render);
+  ["id_first_start", "id_duration_hours"].forEach((i) => $(i).addEventListener("input", syncEnd));
+  $("id_end_time").addEventListener("input", syncDuration);
+  $("id_count").addEventListener("input", render);
+  $("shift-form").addEventListener("input", (e) => { if (e.target.closest(".brk")) render(); });
+  $("shift-form").addEventListener("brk-change", render);
+  syncEnd();
+
+  // ---- Listas de horarios (desayuno / almuerzo): agregar, quitar y generar grupos escalonados
+  const rowHtml = (prefix, label, a = "", b = "") =>
+    `<div class="brk-row"><input type="time" name="${prefix}_start" value="${a}" aria-label="${label} desde">` +
+    `<span class="muted">a</span><input type="time" name="${prefix}_end" value="${b}" aria-label="${label} hasta">` +
+    `<button type="button" class="brk-del" aria-label="Quitar horario">×</button></div>`;
+  const changed = (box) => {
+    box.querySelector(".brk-empty").hidden = !!box.querySelector(".brk-row");
+    box.closest("form").dispatchEvent(new Event("brk-change"));
+  };
+  document.addEventListener("click", (e) => {
+    const box = e.target.closest(".brk");
+    if (!box) return;
+    const list = box.querySelector(".brk-list");
+    if (e.target.closest(".brk-add")) {
+      const last = [...list.querySelectorAll(".brk-row")].pop();
+      let a = "", b = "";
+      if (last) { // el siguiente grupo empieza donde terminó el anterior, con la misma duración
+        const [x, y] = [...last.querySelectorAll("input")].map((i) => toMin(i.value));
+        if (x !== null && y !== null) { a = fmt(y); b = fmt(y + span(x, y)); }
+      }
+      list.insertAdjacentHTML("beforeend", rowHtml(box.dataset.prefix, box.dataset.label, a, b));
+      list.lastElementChild.querySelector("input").focus();
+      changed(box);
+    } else if (e.target.closest(".brk-del")) {
+      e.target.closest(".brk-row").remove();
+      changed(box);
+    } else if (e.target.closest(".brk-gen-go")) {
+      const n = parseInt(box.querySelector(".g-n").value, 10), len = parseInt(box.querySelector(".g-len").value, 10);
+      const firstRow = list.querySelector(".brk-row input");
+      const from = toMin(box.querySelector(".g-from").value) ?? (firstRow ? toMin(firstRow.value) : null);
+      if (!(n >= 1) || !(len > 0) || from === null) { alert("Indica cuántos grupos, cuántos minutos y desde qué hora."); return; }
+      list.innerHTML = Array.from({ length: Math.min(n, 12) }, (_, k) =>
+        rowHtml(box.dataset.prefix, box.dataset.label, fmt(from + k * len), fmt(from + (k + 1) * len))).join("");
+      changed(box);
+    }
+  });
+
+  // ---- Turnos de traslape
+  const ovForm = $("ov-form"), ovList = ovForm.querySelector(".ov-list"), tpl = $("ov-tpl");
+  const bases = JSON.parse($("base-shifts").textContent);
+  let seq = 0;
+  function ovInfo(card) {
+    const s = toMin(card.querySelector(".ov-start").value), e = toMin(card.querySelector(".ov-end").value);
+    const info = card.querySelector(".ov-info");
+    if (s === null || e === null || s === e) { info.textContent = ""; return; }
+    const dur = span(s, e);
+    const prefix = `ov_${card.dataset.key}_`;
+    const brk = avgLen(groupsOf(prefix + "breakfast", s)) + avgLen(groupsOf(prefix + "lunch", s));
+    const crosses = [];
+    bases.forEach((b) => {   // cruce con cada turno base (en un reloj de 24 h, también si cruza medianoche)
+      const bs = toMin(b.start), bd = span(bs, toMin(b.end));
+      for (const shift of [-1440, 0, 1440]) {
+        const a = Math.max(s, bs + shift), z = Math.min(s + dur, bs + shift + bd);
+        if (z > a) crosses.push(`${b.name} ${fmt(a)}–${fmt(z)}`);
+      }
+    });
+    info.textContent = `${num(dur / 60)} h · ${num((dur - brk) / 60)} h hábiles por persona` +
+      (crosses.length ? ` · se cruza con ${crosses.join(" y ")}` : " · no se cruza con los turnos base");
+  }
+  const ovRefresh = () => {
+    ovList.querySelectorAll(".ov-card").forEach(ovInfo);
+    ovForm.querySelector(".ov-none").hidden = !!ovList.querySelector(".ov-card");
+  };
+  $("ov-add").addEventListener("click", () => {
+    const key = `n${++seq}`;
+    ovList.insertAdjacentHTML("beforeend", tpl.innerHTML.replaceAll("__KEY__", key));
+    ovList.lastElementChild.querySelector("input[name$='_name']").select();
+    ovRefresh();
+  });
+  ovForm.addEventListener("click", (e) => {
+    const btn = e.target.closest(".ov-remove");
+    if (!btn) return;
+    const card = btn.closest(".ov-card");
+    if (card.dataset.key.startsWith("n")) { card.remove(); ovRefresh(); return; }  // nuevo sin guardar
+    const flag = card.querySelector(".ov-del-flag");
+    flag.value = flag.value ? "" : "1";
+    card.classList.toggle("removed", !!flag.value);
+    btn.textContent = flag.value ? "Deshacer" : "Quitar";
+  });
+  ovForm.addEventListener("input", ovRefresh);
+  ovForm.addEventListener("brk-change", ovRefresh);
+  ovRefresh();
+})();
+</script>
+{% endblock %}

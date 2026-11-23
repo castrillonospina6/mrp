@@ -1,0 +1,3 @@
+space-grotesk-latin.woff2 — Space Grotesk (Florian Karsten), licencia SIL Open Font License 1.1
+https://fonts.google.com/specimen/Space+Grotesk · https://openfontlicense.org
+Se incluye en la app para que las tablets no dependan de internet (Google Fonts) para pintar la pantalla.

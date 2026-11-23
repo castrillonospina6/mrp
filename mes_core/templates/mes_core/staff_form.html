@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% load mes_assets staff_tags %}
+{% block title %}{% if emp %}{{ emp.display_name }}{% else %}Nuevo operario{% endif %}{% endblock %}
+{% block crumbs %}<span>Personal</span><span class="sep">/</span><a href="{% url 'mes_core:employee_list' %}{% if emp %}?site={{ emp.site_id }}{% endif %}">Operarios</a><span class="sep">/</span><b>{% if emp %}{{ emp.display_name }}{% else %}Nuevo{% endif %}</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/staff.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Personal</div>
+    <h1>{% if emp %}{{ emp.display_name }}{% else %}Nuevo operario{% endif %}</h1>
+    <p>Escribe como quieras: el sistema guarda los textos en minúsculas, sin tildes y sin espacios de más, y el documento sin puntos.</p>
+  </div>
+</div>
+
+<form method="post" class="st-layout">{% csrf_token %}
+  <div class="card">
+    <div class="card-h"><h2>Datos del operario</h2></div>
+    <div class="card-b st-form">
+      {% if form.non_field_errors %}<div class="callout bad">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+      <div class="st-form-grid">
+        {% for field in form %}{% if field.name != "active" %}
+          <label class="{% if field.name == 'notes' %}wide{% endif %}">{{ field.label|capfirst }}{{ field }}
+            {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+            {% for e in field.errors %}<span class="errorlist">{{ e }}</span>{% endfor %}</label>
+        {% endif %}{% endfor %}
+        <label class="chk-inline">{{ form.active }} Activo</label>
+      </div>
+    </div>
+    <div class="dlg-f" style="border-top:1px solid var(--border)">
+      <a class="sbtn" href="{% url 'mes_core:employee_list' %}{% if emp %}?site={{ emp.site_id }}{% endif %}">Cancelar</a>
+      {% if not emp %}<button class="sbtn" type="submit" name="next" value="new">Guardar y crear otro</button>{% endif %}
+      <button class="btn" type="submit">Guardar</button>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:18px">
+    <div class="card">
+      <div class="card-h"><h2>Polivalencia</h2><span class="sub">competencias y nivel</span></div>
+      <div class="card-b">
+        {% for es in skills %}
+          <div class="st-skill-row"><span style="text-transform:capitalize;font-weight:600">{{ es.skill.name }}</span>
+            {% if can_skills %}<select name="lvl_{{ es.skill_id }}" aria-label="Nivel en {{ es.skill.name }}">
+              <option value="">Quitar</option>
+              {% for v, label in levels %}<option value="{{ v }}" {% if v == es.level %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>{% else %}<span class="lv l{{ es.level }}">{{ es.level|lvl_label }}</span>{% endif %}</div>
+        {% empty %}<p class="muted" style="margin:0 0 6px">Sin competencias registradas.</p>{% endfor %}
+        {% if can_skills %}
+          <datalist id="skill-names">{% for n in all_skills %}<option value="{{ n }}">{% endfor %}</datalist>
+          {% for i in new_rows %}
+          <div class="st-skill-row">
+            <input name="new_skill_{{ i }}" list="skill-names" placeholder="{% if forloop.first %}Agregar competencia (p. ej. etiquetado){% else %}Otra competencia{% endif %}" aria-label="Nueva competencia {{ i }}">
+            <select name="new_level_{{ i }}" aria-label="Nivel"><option value="">Nivel…</option>
+              {% for v, label in levels %}<option value="{{ v }}">{{ label }}</option>{% endfor %}</select>
+          </div>
+          {% endfor %}
+        {% endif %}
+      </div>
+    </div>
+
+    {% if emp %}
+    <div class="card">
+      <div class="card-h"><h2>Próximas asignaciones</h2></div>
+      <ul class="st-mini-list">
+        {% for ca in assignments %}<li><span>{{ ca.operation.order.number }} · {{ ca.operation.name }}{% if ca.operation.work_center %} · {{ ca.operation.work_center.code }}{% endif %}</span>
+          <span class="muted">{{ ca.operation.planned_start|date:"D d/m H:i"|default:"sin programar" }}</span></li>
+        {% empty %}<li class="muted">Sin asignaciones.</li>{% endfor %}
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2>Asistencia reciente</h2></div>
+      <ul class="st-mini-list">
+        {% for a in attendance %}<li><span>{{ a.day|date:"D d/m" }}{% if a.shift %} · {{ a.shift.name }}{% endif %}</span>
+          <span class="pill {% if a.is_working %}ok{% elif a.status == 'ausente' %}bad{% else %}info{% endif %}">{{ a.get_status_display }}</span></li>
+        {% empty %}<li class="muted">Sin registros.</li>{% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</form>
+{% endblock %}

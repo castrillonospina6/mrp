@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% load mes_assets %}
+{% block title %}Reparto del personal{% endblock %}
+{% block crumbs %}<span>Personal</span><span class="sep">/</span><b>Reparto del personal</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/workforce.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Personal · bolsa global de {{ pool }} operarios</div>
+    <h1>Reparto del personal</h1>
+    <p>De la bolsa de toda la empresa, cuántas personas trabajan en cada bodega y turno. Es el número que usan la planeación,
+      el programador y la capacidad como «operarios disponibles». Nadie queda fijo: el reparto base se ajusta por fecha.</p>
+  </div>
+  <div class="tools">
+    {% if perms.mes_core.view_staffallocation %}<a class="sbtn sm" href="{% url 'mes_core:global_capacity' %}">Capacidad global</a>{% endif %}
+    {% if perms.mes_core.view_staffmove %}<a class="sbtn sm" href="{% url 'mes_core:staff_location' %}">¿Quién está dónde?</a>{% endif %}
+  </div>
+</div>
+
+<section class="card wf-gap">
+  <div class="card-h"><h2>Reparto del {{ day|date:"l d/m/Y" }}</h2>
+    <div class="tools">
+      <a class="sbtn sm" href="?dia={{ prev_day|date:'Y-m-d' }}" aria-label="Día anterior">‹</a>
+      <form method="get" class="wf-inline"><input type="date" name="dia" value="{{ day|date:'Y-m-d' }}" onchange="this.form.submit()" aria-label="Día"></form>
+      <a class="sbtn sm" href="?dia={{ next_day|date:'Y-m-d' }}" aria-label="Día siguiente">›</a>
+    </div></div>
+  <div class="card-b">
+    <div class="wf-stack" role="img" aria-label="Reparto de {{ split.pool }} personas">
+      {% for s in split.sites %}{% if s.people %}<i class="c{{ forloop.counter0|divisibleby:2|yesno:'a,b' }}" style="flex:{{ s.people }}" title="{{ s.site.code }}: {{ s.people }}"><span>{{ s.site.code }} · {{ s.people }}</span></i>{% endif %}{% endfor %}
+      {% if split.absent %}<i class="abs" style="flex:{{ split.absent }}" title="Ausentes: {{ split.absent }}"><span>Ausentes · {{ split.absent }}</span></i>{% endif %}
+      {% if split.free > 0 %}<i class="free" style="flex:{{ split.free }}" title="Sin repartir: {{ split.free }}"><span>Libres · {{ split.free }}</span></i>{% endif %}
+    </div>
+    <p class="wf-sum">Repartidos <b>{{ split.allocated }}</b> de <b>{{ split.pool }}</b>{% if split.absent %} · {{ split.absent }} ausentes{% endif %} ·
+      {% if split.free < 0 %}<span class="neg">faltan {{ split.free|stringformat:"d"|slice:"1:" }} personas: el reparto supera la bolsa</span>{% else %}<b>{{ split.free }}</b> sin repartir{% endif %}</p>
+    <div class="wf-daygrid">
+      {% for s in split.sites %}<div class="wf-dsite">
+        <div class="t"><b>{{ s.site.code }}</b> <span class="muted">{{ s.site.name }}</span><span class="n">{{ s.people }}</span></div>
+        {% for r in s.shifts %}<div class="r {% if r.off %}off{% endif %}"><span>{{ r.shift.name }}</span>
+          {% if r.off %}<span class="muted">{{ r.off }}</span>{% else %}<b>{{ r.people }}</b><span class="pill {% if r.source == 'cambio' %}warn{% elif r.source == 'base' %}brand{% elif r.source %}info{% endif %}">{{ r.source_label }}</span>{% endif %}</div>
+        {% empty %}<div class="r muted">Sin turnos configurados</div>{% endfor %}
+      </div>{% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="card wf-gap">
+  <div class="card-h"><h2>Reparto base</h2><span class="sub">aplica todos los días, salvo los cambios por fecha</span></div>
+  <form method="post" id="base-form">{% csrf_token %}<input type="hidden" name="action" value="base"><input type="hidden" name="dia" value="{{ day|date:'Y-m-d' }}">
+    <div class="card-b wf-basegrid">
+      {% for g in grid %}<fieldset class="wf-bsite"><legend><b>{{ g.site.code }}</b> · {{ g.site.name }}</legend>
+        {% for r in g.rows %}<label class="wf-brow"><span>{% if r.shift %}{{ r.shift.name }} <small class="muted">{{ r.shift.start_time|time:"H:i" }}–{{ r.shift.end_time|time:"H:i" }}</small>{% else %}Toda la bodega <small class="muted">(sin turnos)</small>{% endif %}</span>
+          <input type="number" min="0" step="1" name="{{ r.key }}" value="{{ r.alloc.headcount|default_if_none:'' }}" {% if not can_edit %}disabled{% endif %}
+            placeholder="{% if r.fallback %}{{ r.fallback }} (turno){% else %}—{% endif %}" data-base></label>
+        {% endfor %}</fieldset>{% endfor %}
+    </div>
+    <div class="card-b wf-basefoot">
+      <span id="base-total" class="wf-sum"></span>
+      {% if can_edit %}<button class="btn" type="submit">Guardar reparto base</button>{% endif %}
+      <span class="muted">Vacío = usa los operarios configurados en el turno (el número gris). Una persona trabaja un turno al día, por eso se suman todos los turnos.</span>
+    </div>
+  </form>
+</section>
+
+<section class="card">
+  <div class="card-h"><h2>Cambios por fecha</h2><span class="sub">«hoy 40 a la 224», «esta semana 20 más en fríos»: ganan sobre el reparto base</span></div>
+  {% if can_edit %}<form method="post" class="card-b wf-addform">{% csrf_token %}<input type="hidden" name="action" value="add"><input type="hidden" name="dia" value="{{ day|date:'Y-m-d' }}">
+    <label>Bodega<select name="site" id="ch-site" required>{% for s in sites %}<option value="{{ s.pk }}">{{ s.code }} · {{ s.name }}</option>{% endfor %}</select></label>
+    <label>Turno<select name="shift" id="ch-shift"><option value="">Todos los turnos</option></select></label>
+    <label>Desde<input type="date" name="date_from" value="{{ day|date:'Y-m-d' }}" required></label>
+    <label>Hasta<input type="date" name="date_to" value="{{ day|date:'Y-m-d' }}"></label>
+    <label>Personas<input type="number" name="headcount" min="0" step="1" required></label>
+    <label class="grow">Nota<input type="text" name="note" maxlength="200" placeholder="Opcional: p. ej. refuerzo inventario"></label>
+    <button class="btn" type="submit">Agregar cambio</button>
+  </form>{% endif %}
+  <div class="table-wrap flat"><table>
+    <thead><tr><th>Fechas</th><th>Bodega</th><th>Turno</th><th>Personas</th><th>Nota</th><th>Por</th><th></th></tr></thead>
+    <tbody>{% for c in changes %}<tr>
+      <td>{{ c.date_from|date:"D d/m" }}{% if c.date_to and c.date_to != c.date_from %} → {{ c.date_to|date:"D d/m" }}{% endif %}</td>
+      <td><b>{{ c.site.code }}</b></td><td>{{ c.shift.name|default:"Todos" }}</td><td><b>{{ c.headcount }}</b></td>
+      <td>{{ c.note|default:"—" }}</td><td class="muted">{{ c.created_by.get_full_name|default:c.created_by.username|default:"—" }}</td>
+      <td>{% if can_edit %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="del"><input type="hidden" name="pk" value="{{ c.pk }}"><input type="hidden" name="dia" value="{{ day|date:'Y-m-d' }}">
+        <button class="sbtn sm soft-danger" type="submit" aria-label="Eliminar cambio">Quitar</button></form>{% endif %}</td>
+    </tr>{% empty %}<tr><td colspan="7" class="muted">Sin cambios por fecha.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{{ shifts_by_site|json_script:"wf-shifts" }}
+<script>
+(() => {
+  const pool = {{ pool }};
+  const out = document.getElementById("base-total");
+  const inputs = [...document.querySelectorAll("[data-base]")];
+  const sum = () => {
+    let n = 0, fb = 0;
+    inputs.forEach((i) => { if (i.value !== "") n += Number(i.value) || 0; else fb += parseInt(i.placeholder, 10) || 0; });
+    const tot = n + fb;
+    out.innerHTML = `Reparto base: <b>${tot}</b> de <b>${pool}</b>` + (fb ? ` <span class="muted">(${fb} por la configuración del turno)</span>` : "") +
+      (tot > pool ? ` · <span class="neg">supera la bolsa en ${tot - pool}</span>` : ` · <b>${pool - tot}</b> sin repartir`);
+  };
+  inputs.forEach((i) => i.addEventListener("input", sum));
+  sum();
+  const shifts = JSON.parse(document.getElementById("wf-shifts").textContent);
+  const site = document.getElementById("ch-site"), shift = document.getElementById("ch-shift");
+  const fill = () => {
+    if (!site) return;
+    shift.innerHTML = '<option value="">Todos los turnos</option>' + (shifts[site.value] || []).map(([id, n]) => `<option value="${id}">${n.replace(/[<>&]/g, "")}</option>`).join("");
+  };
+  site?.addEventListener("change", fill);
+  fill();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load mes_assets %}
+{% block title %}Cargar pedidos{% endblock %}
+{% block crumbs %}<span>Pedidos</span><span class="sep">/</span><b>Cargar desde Excel</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/staff.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Pedidos · ventas</div>
+    <h1>Cargar pedidos desde Excel</h1>
+    <p>Una fila por pedido. Cada uno queda «Por planear», igual que con «Nuevo pedido», y planeación recibe un solo aviso con todos.
+      El cliente, el producto y el tipo de servicio se reconocen solos aunque cambien mayúsculas, tildes o espacios.</p>
+  </div>
+  <div class="tools"><a class="sbtn" href="{% url 'mes_core:order_import_template' %}{% if site %}?site={{ site.pk }}{% endif %}"><svg class="ico sm"><use href="#i-download"/></svg> Descargar plantilla</a></div>
+</div>
+
+{% if error %}<div class="callout bad" style="margin-bottom:16px">{{ error }}</div>{% endif %}
+{% if result and not result.ok %}
+<div class="card" style="margin-bottom:18px;border-color:color-mix(in srgb,var(--danger) 35%,var(--border))">
+  <div class="card-h"><svg class="ico" style="color:var(--danger)"><use href="#i-alert"/></svg>
+    <h2>No se cargó «{{ upload_name }}»: {{ result.errors|length }} error{{ result.errors|length|pluralize:"es" }}</h2>
+    <span class="sub">Corrige estas filas en el Excel y vuelve a subirlo. No se guardó ningún pedido.</span></div>
+  <ul class="st-errors">{% for e in result.errors|slice:":200" %}<li>{{ e }}</li>{% endfor %}
+    {% if result.errors|length > 200 %}<li class="muted">… y {{ result.errors|length|add:"-200" }} más.</li>{% endif %}</ul>
+</div>
+{% endif %}
+
+<div class="card">
+  <form method="post" enctype="multipart/form-data" class="card-b st-form">{% csrf_token %}
+    <ol class="st-steps">
+      <li><a href="{% url 'mes_core:order_import_template' %}{% if site %}?site={{ site.pk }}{% endif %}">Descarga la plantilla</a> (trae la lista de tipos de servicio).</li>
+      <li>Obligatorio: <b>producto</b> (código o nombre), <b>cantidad</b> y <b>fecha de entrega</b> (dd/mm/aaaa). Opcional: cliente, tipo de
+        servicio, días de tránsito, referencia, OC, OP, embarque, prioridad (1-5) y observaciones.</li>
+      <li>Si una OP ya existe, esa fila se rechaza para no cargar el mismo pedido dos veces.</li>
+    </ol>
+    <label>Planta (si el archivo no trae la columna «planta»)
+      <select name="site">{% for s in sites %}<option value="{{ s.pk }}" {% if site and s.pk == site.pk %}selected{% endif %}>{{ s.code }} · {{ s.name }}</option>{% endfor %}</select></label>
+    <label>Archivo<input type="file" name="file" accept=".xlsx,.xlsm,.csv" required></label>
+    <p class="st-sub" style="margin:0">Excel (.xlsx) o CSV · máximo {{ max_mb }} MB y {{ max_rows }} pedidos. Si una fila tiene error no se carga nada.</p>
+    <div><button class="btn" type="submit"><svg class="ico sm"><use href="#i-upload"/></svg> Cargar pedidos</button></div>
+  </form>
+</div>
+{% endblock %}

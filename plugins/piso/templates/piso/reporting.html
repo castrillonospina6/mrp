@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Forma de reporte{% endblock %}
+{% block crumbs %}<a href="{% url 'piso:live' %}">Piso en vivo</a> / <b>Forma de reporte</b>{% endblock %}
+{% block extra_head %}
+<style>
+  .fr-help { margin: 0; padding-left: 18px; color: var(--text-2); }
+  .fr-help li { margin: 4px 0; }
+  .fr-int { width: 80px; }
+  .fr-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .fr-chk { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--border-strong);
+            border-radius: 999px; font-size: 13px; cursor: pointer; }
+  .fr-chk input { margin: 0; }
+  .fr-sup { display: grid; gap: 10px; padding: 14px 18px; border-top: 1px solid var(--border); }
+  .fr-sup:first-child { border-top: 0; }
+  .fr-save { display: flex; justify-content: flex-end; padding: 12px 18px; }
+  td select { max-width: 340px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Control de piso · configuración</div>
+    <h1>Forma de reporte</h1>
+    <p>Cómo llega la producción desde cada línea. Hay tres formas, y en cada etapa de un pedido planeación puede elegir otra.</p>
+  </div>
+</div>
+<div class="card" style="margin-bottom:16px"><div class="card-b">
+  <ul class="fr-help">
+    <li><b>Contador:</b> módulos y mesas. El operario toca la pantalla por cada unidad.</li>
+    <li><b>Cada operario reporta cada cierto tiempo:</b> líneas continuas (banda, Vélez…). La pantalla del operario muestra una cuenta regresiva; al llegar a cero escribe lo que hizo en ese tramo.</li>
+    <li><b>El supernumerario reporta por la línea:</b> el asistente del supervisor escribe en su tablet el total de la línea cada tramo y se reparte entre el personal de la etapa (según el tiempo trabajado o en partes iguales, como lo elija planeación en la etapa), o lo escribe por persona.</li>
+    <li><b>Qué aplica:</b> la que se elija en la etapa del pedido (Planeación) → la del proceso → la de la línea → contador. El supernumerario siempre puede escribir cantidades a mano, sea cual sea la forma.</li>
+  </ul>
+</div></div>
+
+<form method="post" class="card" style="margin-bottom:16px">{% csrf_token %}<input type="hidden" name="a" value="lineas">
+  <div class="card-h"><h2>Por línea</h2><span class="sub">Vale para todo lo que corra en la línea, salvo que el proceso o la etapa digan otra cosa.</span></div>
+  <div class="table-wrap flat"><table>
+    <thead><tr><th>Línea</th><th>Planta</th><th>Forma de reportar</th><th class="num">Cada (min)</th></tr></thead>
+    <tbody>{% for r in line_rows %}<tr>
+      <td><b>{{ r.wc.code }}</b> · {{ r.wc.name }}</td><td>{{ r.wc.site.name }}</td>
+      <td><select name="m{{ r.wc.pk }}" {% if not edit_cfg %}disabled{% endif %}><option value="">Contador (por defecto)</option>
+        {% for k, label in modes %}{% if k != "contador" %}<option value="{{ k }}" {% if r.lc.report_mode == k %}selected{% endif %}>{{ label }}</option>{% endif %}{% endfor %}</select></td>
+      <td class="num"><input class="fr-int" type="number" min="5" max="480" name="i{{ r.wc.pk }}" value="{{ r.lc.interval_minutes|default:60 }}" {% if not edit_cfg %}disabled{% endif %}></td>
+    </tr>{% empty %}<tr class="empty-row"><td colspan="4">No hay líneas activas.</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% if edit_cfg %}<div class="fr-save"><button class="btn primary">Guardar líneas</button></div>{% endif %}
+</form>
+
+<form method="post" class="card" id="procesos" style="margin-bottom:16px">{% csrf_token %}<input type="hidden" name="a" value="procesos">
+  <div class="card-h"><h2>Por proceso</h2><span class="sub">Por el nombre de la etapa (Limpieza, Aspersión…), en cualquier línea. Pesa más que la línea.</span></div>
+  <div class="table-wrap flat"><table>
+    <thead><tr><th>Proceso</th><th>Forma de reportar</th><th class="num">Cada (min)</th></tr></thead>
+    <tbody>{% for r in process_rows %}<tr>
+      <td><input type="hidden" name="pn" value="{{ r.name }}">{{ r.name }}</td>
+      <td><select name="pm{{ forloop.counter0 }}" {% if not edit_cfg %}disabled{% endif %}><option value="">Lo de la línea</option>
+        {% for k, label in modes %}<option value="{{ k }}" {% if r.p.report_mode == k %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td>
+      <td class="num"><input class="fr-int" type="number" min="5" max="480" name="pi{{ forloop.counter0 }}" value="{{ r.p.interval_minutes|default_if_none:'' }}" placeholder="Línea" {% if not edit_cfg %}disabled{% endif %}></td>
+    </tr>{% endfor %}
+    <tr><td><input name="pn" placeholder="Otro proceso (nombre de la etapa)" maxlength="120" style="width:100%;min-width:240px" {% if not edit_cfg %}disabled{% endif %}></td>
+      <td><select name="pm{{ process_rows|length }}" {% if not edit_cfg %}disabled{% endif %}><option value="">Lo de la línea</option>{% for k, label in modes %}<option value="{{ k }}">{{ label }}</option>{% endfor %}</select></td>
+      <td class="num"><input class="fr-int" type="number" min="5" max="480" name="pi{{ process_rows|length }}" placeholder="Línea" {% if not edit_cfg %}disabled{% endif %}></td></tr>
+    </tbody>
+  </table></div>
+  {% if edit_cfg %}<div class="fr-save"><button class="btn primary">Guardar procesos</button></div>{% endif %}
+</form>
+
+<div class="card" id="sup">
+  <div class="card-h"><h2>Supernumerarios</h2><span class="sub">Por qué líneas reporta cada uno</span></div>
+  {% for s in sups %}
+  <form method="post" class="fr-sup">{% csrf_token %}<input type="hidden" name="a" value="sup"><input type="hidden" name="emp" value="{{ s.emp.pk }}">
+    <div><b>{{ s.emp.display_name }}</b> <small class="muted">· documento {{ s.emp.document }}{% if s.emp.supervisor %} · supervisor {{ s.emp.supervisor.get_full_name|default:s.emp.supervisor.username }}{% endif %}</small></div>
+    <div><small class="muted">Asignadas aquí (marca las líneas):</small>
+      <div class="fr-chips" style="margin-top:6px">{% for wc in lines %}<label class="fr-chk"><input type="checkbox" name="wc" value="{{ wc.pk }}" {% if wc.pk in s.mes %}checked{% endif %}> {{ wc.code }}</label>{% endfor %}</div></div>
+    {% if s.supervisor %}<div><small class="muted">Por su supervisor (operaciones a su cargo):</small> {% for wc in s.supervisor %}<span class="pill">{{ wc.code }}</span> {% endfor %}</div>{% endif %}
+    {% if s.tablet %}<div><small class="muted">Elegidas por él en la tablet:</small> {% for wc in s.tablet %}<span class="pill">{{ wc.code }}</span> {% endfor %}</div>{% endif %}
+    <div><button class="sbtn sm">Guardar líneas de {{ s.emp.display_name }}</button></div>
+  </form>
+  {% empty %}
+  <div class="card-b muted">Aún no hay supernumerarios. En <a href="{% url 'admin:mes_core_employee_changelist' %}">Administración › Operarios</a> selecciónalos y usa la acción «Tablet de piso: dar acceso como SUPERNUMERARIO», o en la ficha del operario, apartado «Acceso a la tablet», elige el rol Supernumerario.</div>
+  {% endfor %}
+</div>
+{% endblock %}

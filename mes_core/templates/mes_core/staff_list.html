@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% load mes_assets staff_tags %}
+{% block title %}Operarios{% endblock %}
+{% block crumbs %}<span>Personal</span><span class="sep">/</span><b>Operarios</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/staff.css' %}">{% endblock %}
+{% block content %}
+{% if no_site %}<div class="callout">No hay plantas activas. Crea una en Administración.</div>{% else %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Personal general · todas las plantas</div>
+    <h1>{% if manager %}Operarios{% else %}Mi equipo{% endif %}</h1>
+    {% if manager %}<p>Base de personal general, para todas las plantas: supervisor, turno habitual y competencias. El personal se carga desde el
+      panel de administración (uno a uno o desde Excel); el sistema normaliza los textos (minúsculas, sin tildes ni espacios de más).</p>
+    {% else %}<p>Tu equipo. El personal lo carga administración; tú mantienes su <a href="{% url 'mes_core:skills_matrix' %}?site={{ site.pk }}">polivalencia</a>,
+      confirmas su asistencia y lo asignas a tus operaciones desde <a href="{% url 'mes_core:supervision_home' %}?site={{ site.pk }}">Mi turno</a>.</p>{% endif %}
+  </div>
+  <div class="tools">
+    <a class="sbtn" href="{% url 'mes_core:skills_matrix' %}?site={{ site.pk }}"><svg class="ico sm"><use href="#i-blocks"/></svg> Polivalencia</a>
+    {% if can_load %}
+    <a class="btn" href="{% url 'admin:mes_core_employee_changelist' %}"><svg class="ico sm"><use href="#i-upload"/></svg> Cargar personal (Administración)</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="kpis">
+  <div class="kpi"><div class="k-h">{% if manager %}Operarios activos{% else %}En mi equipo{% endif %}<span class="k-ico"><svg class="ico"><use href="#i-users"/></svg></span></div>
+    <div class="k-v">{{ kpi.active }}</div><div class="k-s">{% if manager %}en todas las plantas{% else %}operarios activos{% endif %}</div></div>
+  <div class="kpi"><div class="k-h">Sin supervisor<span class="k-ico"><svg class="ico"><use href="#i-alert"/></svg></span></div>
+    <div class="k-v">{{ kpi.no_sup }}</div><div class="k-s">{% if kpi.no_sup %}<a href="?site={{ site.pk }}&sup=none">{% if can_change %}Ver y asignar{% else %}Ver{% endif %}</a>{% else %}Todos tienen responsable{% endif %}</div></div>
+  <div class="kpi"><div class="k-h">Sin competencias<span class="k-ico"><svg class="ico"><use href="#i-target"/></svg></span></div>
+    <div class="k-v">{{ kpi.no_skill }}</div><div class="k-s">pendientes en la matriz de polivalencia</div></div>
+  <div class="kpi"><div class="k-h">Competencias registradas<span class="k-ico"><svg class="ico"><use href="#i-layers"/></svg></span></div>
+    <div class="k-v">{{ kpi.skills }}</div><div class="k-s"><a href="{% url 'mes_core:skills_matrix' %}?site={{ site.pk }}">Abrir matriz</a></div></div>
+</div>
+
+<div class="card">
+  <form method="get" class="st-toolbar">
+    <input type="hidden" name="site" value="{{ site.pk }}">
+    <input name="q" value="{{ f.q }}" placeholder="Nombre, documento o cargo…" aria-label="Buscar">
+    <select name="sup" aria-label="Supervisor"><option value="{% if manager %}{% else %}all{% endif %}" {% if f.sup == 'all' %}selected{% endif %}>Todos los supervisores</option>
+      <option value="none" {% if f.sup == 'none' %}selected{% endif %}>Sin supervisor</option>
+      {% for u, label in supervisors %}<option value="{{ u.pk }}" {% if f.sup == u.pk|stringformat:'s' %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+    <select name="shift" aria-label="Turno"><option value="">Todos los turnos</option>
+      <option value="none" {% if f.shift == 'none' %}selected{% endif %}>Sin turno</option>
+      {% for s, label in shifts %}<option value="{{ s.pk }}" {% if f.shift == s.pk|stringformat:'s' %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+    <select name="skill" aria-label="Competencia"><option value="">Cualquier competencia</option>
+      {% for s in skills %}<option value="{{ s.pk }}" {% if f.skill == s.pk|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>{% endfor %}</select>
+    <select name="status" aria-label="Estado">
+      <option value="activos" {% if f.status == 'activos' %}selected{% endif %}>Activos</option>
+      <option value="inactivos" {% if f.status == 'inactivos' %}selected{% endif %}>Inactivos</option>
+      <option value="todos" {% if f.status == 'todos' %}selected{% endif %}>Todos</option></select>
+    <button class="sbtn" type="submit"><svg class="ico sm"><use href="#i-search"/></svg> Filtrar</button>
+    <span class="grow"></span>
+    <span class="st-sub">{{ page.paginator.count }} operario{{ page.paginator.count|pluralize }}</span>
+  </form>
+
+  <form method="post" id="bulk-form">{% csrf_token %}
+    <input type="hidden" name="site" value="{{ site.pk }}"><input type="hidden" name="qs" value="{{ qs }}">
+    {% if can_change %}
+    <div class="st-bulk" id="bulk-bar" hidden>
+      <b><span id="bulk-n">0</span> seleccionados</b>
+      <select name="set_supervisor" aria-label="Asignar supervisor"><option value="">Supervisor: sin cambio</option>
+        <option value="none">{% if manager %}Quitar supervisor{% else %}Sacar de mi equipo{% endif %}</option>
+        {% for u, label in bulk_supervisors %}<option value="{{ u.pk }}">→ {{ label }}</option>{% endfor %}</select>
+      <select name="set_shift" aria-label="Asignar turno"><option value="">Turno: sin cambio</option>
+        <option value="none">Quitar turno</option>
+        {% for s, label in shifts %}<option value="{{ s.pk }}">→ {{ label }}</option>{% endfor %}</select>
+      <select name="set_active" aria-label="Estado"><option value="">Estado: sin cambio</option><option value="1">Activar</option><option value="0">Inactivar</option></select>
+      <button class="btn sm" type="submit">Aplicar</button>
+    </div>
+    {% endif %}
+    <div class="table-wrap flat"><table>
+      <thead><tr>{% if can_change %}<th style="width:36px"><input type="checkbox" id="chk-all" aria-label="Seleccionar todos"></th>{% endif %}
+        <th>Operario</th><th>Cargo</th><th>Turno</th><th>Supervisor</th><th>Competencias</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+      {% for r in rows %}{% with e=r.emp %}
+        <tr>
+          {% if can_change %}<td>{% if r.editable %}<input type="checkbox" name="ids" value="{{ e.pk }}" class="chk-row" aria-label="Seleccionar {{ e.display_name }}">{% endif %}</td>{% endif %}
+          <td><span class="st-name">{{ e.display_name }}</span><span class="st-doc">Doc. {{ e.document }}{% if e.phone %} · {{ e.phone }}{% endif %}</span></td>
+          <td>{{ e.position|capfirst|default:"—" }}</td>
+          <td>{{ e.shift.name|default:"—" }}</td>
+          <td>{% if e.supervisor %}{{ e.supervisor|uname }}{% if e.crew_borrowed %}<br><small class="muted" title="Está con este supervisor por la cuadrilla; al terminar la operación queda {% if e.home_supervisor %}con {{ e.home_supervisor|uname }}{% else %}libre{% endif %}">Cuadrilla {{ e.crew_operation.order.number }} · luego {% if e.home_supervisor %}{{ e.home_supervisor|uname }}{% else %}libre{% endif %}</small>{% endif %}{% else %}<span class="pill warn">Sin asignar</span>{% endif %}</td>
+          <td><div class="st-chips">{% for name, lvl in r.skills|slice:":5" %}<span class="lv l{{ lvl }}" title="{{ name }}: {{ lvl|lvl_label }}">{{ name }} <i>{{ lvl|lvl_short }}</i></span>{% empty %}<span class="muted">—</span>{% endfor %}
+            {% if r.skills|length > 5 %}<span class="lv">+{{ r.skills|length|add:"-5" }}</span>{% endif %}</div></td>
+          <td>{% if e.active %}<span class="pill ok">Activo</span>{% else %}<span class="pill">Inactivo</span>{% endif %}</td>
+          <td>{% if can_change and r.editable %}<a class="sbtn sm" href="{% url 'mes_core:employee_edit' e.pk %}">Editar</a>{% endif %}</td>
+        </tr>
+      {% endwith %}{% empty %}
+        <tr><td colspan="8" class="st-empty">{% if f.q or f.sup or f.shift or f.skill %}Ningún operario coincide con los filtros.{% else %}Aún no hay operarios cargados.{% if can_load %} Cárgalos desde «Cargar personal (Administración)».{% else %} Se cargan desde el panel de administración.{% endif %}{% endif %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+  </form>
+  {% if page.paginator.num_pages > 1 %}
+  <div class="st-pager">Página {{ page.number }} de {{ page.paginator.num_pages }}
+    {% if page.has_previous %}<a class="sbtn sm" href="?{{ qs }}&page={{ page.previous_page_number }}">Anterior</a>{% endif %}
+    {% if page.has_next %}<a class="sbtn sm" href="?{{ qs }}&page={{ page.next_page_number }}">Siguiente</a>{% endif %}</div>
+  {% endif %}
+</div>
+
+<script>
+(() => {
+  const all = document.getElementById("chk-all"), bar = document.getElementById("bulk-bar"), n = document.getElementById("bulk-n");
+  const rows = [...document.querySelectorAll(".chk-row")];
+  const sync = () => {
+    const k = rows.filter((c) => c.checked).length;
+    if (bar) { bar.hidden = k === 0; n.textContent = k; }
+    if (all) { all.checked = k && k === rows.length; all.indeterminate = k > 0 && k < rows.length; }
+  };
+  all?.addEventListener("change", () => { rows.forEach((c) => { c.checked = all.checked; }); sync(); });
+  rows.forEach((c) => c.addEventListener("change", sync));
+})();
+</script>
+{% endif %}
+{% endblock %}

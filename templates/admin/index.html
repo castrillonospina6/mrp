@@ -1,0 +1,71 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static log %}
+
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static "admin/css/dashboard.css" %}">{% endblock %}
+{% block coltype %}colMS{% endblock %}
+{% block bodyclass %}{{ block.super }} dashboard{% endblock %}
+{% block nav-breadcrumbs %}{% endblock %}
+{% block nav-sidebar %}{% endblock %}
+{% block content_title %}{% endblock %}
+
+{% block content %}
+<div id="content-main" class="app-list">
+  <section class="mes-hero">
+    <div>
+      <h1>Administración del sistema</h1>
+      <p>Usuarios, roles y datos maestros de la planta: plantas, turnos, líneas, clientes y productos.
+        La operación diaria (pedidos, planeación, programación) se hace desde la aplicación.</p>
+    </div>
+    <a class="mes-btn" href="{{ site_url|default:'/' }}">Ir a la aplicación</a>
+  </section>
+
+  <h2 class="mes-section">Accesos rápidos</h2>
+  <div class="mes-quick">
+    {% if perms.auth.view_user %}
+    <a href="{% url 'admin:auth_user_changelist' %}"><span class="qi qi-users"></span><b>Usuarios</b><small>Altas, contraseñas y roles de cada persona</small></a>
+    {% endif %}
+    {% if perms.auth.view_group %}
+    <a href="{% url 'admin:auth_group_changelist' %}"><span class="qi qi-roles"></span><b>Roles y permisos</b><small>Ventas, Planeación y lo que puede hacer cada uno</small></a>
+    {% endif %}
+    {% if perms.mes_core.view_site %}
+    <a href="{% url 'admin:mes_core_site_changelist' %}"><span class="qi qi-site"></span><b>Plantas y turnos</b><small>Sedes, horarios, descansos y operarios</small></a>
+    {% endif %}
+    {% if perms.mes_core.view_workcenter %}
+    <a href="{% url 'admin:mes_core_workcenter_changelist' %}"><span class="qi qi-line"></span><b>Líneas de producción</b><small>Tipo, estaciones en paralelo y turnos</small></a>
+    {% endif %}
+    {% if perms.mes_core.view_customer %}
+    <a href="{% url 'admin:mes_core_customer_changelist' %}"><span class="qi qi-customer"></span><b>Clientes</b><small>Nivel Bronce, Plata, Oro o VIP</small></a>
+    {% endif %}
+    {% if perms.mes_core.view_product %}
+    <a href="{% url 'admin:mes_core_product_changelist' %}"><span class="qi qi-product"></span><b>Productos</b><small>SKU, nombre y unidad de medida</small></a>
+    {% endif %}
+  </div>
+
+  <h2 class="mes-section">Todas las secciones</h2>
+  <div class="mes-apps">
+    {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
+  </div>
+</div>
+{% endblock %}
+
+{% block sidebar %}
+<div id="content-related">
+  <div class="module" id="recent-actions-module">
+    <h2>Mis cambios recientes</h2>
+    {% get_admin_log 10 as admin_log for_user user %}
+    {% if not admin_log %}
+      <p class="mes-empty">Todavía no has hecho cambios desde aquí.</p>
+    {% else %}
+      <ul class="actionlist">
+      {% for entry in admin_log %}
+        <li class="{% if entry.is_addition %}addlink{% endif %}{% if entry.is_change %}changelink{% endif %}{% if entry.is_deletion %}deletelink{% endif %}">
+          <span class="visually-hidden">{% if entry.is_addition %}{% translate 'Added:' %}{% elif entry.is_change %}{% translate 'Changed:' %}{% elif entry.is_deletion %}{% translate 'Deleted:' %}{% endif %}</span>
+          {% if entry.is_deletion or not entry.get_admin_url %}{{ entry.object_repr }}{% else %}<a href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>{% endif %}
+          <span class="mini quiet">{% if entry.content_type %}{% filter capfirst %}{{ entry.content_type.name }}{% endfilter %}{% else %}{% translate 'Unknown content' %}{% endif %} · {{ entry.action_time|date:"d/m H:i" }}</span>
+        </li>
+      {% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

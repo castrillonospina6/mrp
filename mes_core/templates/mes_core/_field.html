@@ -1,0 +1,6 @@
+<label class="pl-field{% if field.errors %} has-error{% endif %}" for="{{ field.id_for_label }}">
+  <span class="pl-lbl">{{ field.label }}</span>
+  {{ field }}
+  {% if field.help_text %}<span class="pl-help">{{ field.help_text }}</span>{% endif %}
+  {% for e in field.errors %}<span class="pl-err">{{ e }}</span>{% endfor %}
+</label>

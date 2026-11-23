@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% load mes_sites %}
+{% block title %}Traslados{% endblock %}
+{% block crumbs %}<a href="{% url 'piso:live' %}">Piso en vivo</a> / <b>Traslados</b>{% endblock %}
+{% block extra_head %}
+<style>
+  .tr-form { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); padding: 16px 18px; align-items: end; }
+  .tr-form label { display: grid; gap: 4px; font-size: 12.5px; color: var(--muted); }
+  .tr-cols { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+  @media (max-width: 1100px) { .tr-cols { grid-template-columns: 1fr; } }
+  td small { color: var(--muted); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Control de piso · patinadores</div>
+    <h1>Traslados</h1>
+    <p>Traslados de estibas: los crea la oficina o los pide la tablet de la línea («Pedir material»). El patinador los acepta,
+      recoge y entrega desde su tablet; el sistema toma la hora de cada paso. El tiempo esperado de cada ruta se aprende solo
+      (mediana de mínimo 3 viajes).</p>
+  </div>
+  <div class="tools">{% site_chips %}</div>
+</div>
+<div class="grid" style="margin-bottom:16px">
+  <div class="kpi"><div class="k-h">Pendientes</div><div class="k-v">{{ o.pending }}</div></div>
+  <div class="kpi"><div class="k-h">En curso</div><div class="k-v">{{ o.in_course }}</div></div>
+  <div class="kpi"><div class="k-h">Entregados hoy</div><div class="k-v">{{ o.delivered_today }} <small>· {{ o.pallets_today }} estibas</small></div></div>
+  <div class="kpi"><div class="k-h">A tiempo hoy</div><div class="k-v">{% if o.on_time is not None %}{{ o.on_time|floatformat:0 }}%{% else %}–{% endif %}</div></div>
+  <div class="kpi"><div class="k-h">Pendiente más viejo</div><div class="k-v">{% if o.oldest %}<span data-lt="{{ o.oldest }}">–</span>{% else %}–{% endif %}</div></div>
+  <div class="kpi"><div class="k-h">Espera de material (líneas)</div><div class="k-v">{% if o.line_wait_s %}<span data-sec="{{ o.line_wait_s }}"></span>{% else %}–{% endif %}</div></div>
+</div>
+<div class="card" style="margin-bottom:16px">
+  <div class="card-h"><h2>Nuevo traslado</h2>{% if not locations %}<span class="sub">Primero crea las ubicaciones (abajo).</span>{% endif %}</div>
+  <form method="post" class="tr-form">{% csrf_token %}<input type="hidden" name="a" value="nuevo">
+    <label>Origen<select name="o" required><option value="">—</option>{% for l in locations %}{% if l.active %}<option value="{{ l.pk }}">{{ l.name }}</option>{% endif %}{% endfor %}</select></label>
+    <label>Destino<select name="d" required><option value="">—</option>{% for l in locations %}{% if l.active %}<option value="{{ l.pk }}">{{ l.name }}</option>{% endif %}{% endfor %}</select></label>
+    <label>Pedido / lote<select name="lote"><option value="">Sin pedido</option>{% for ord in orders %}<option value="{{ ord.pk }}">{{ ord.number }} · {{ ord.product.name|truncatechars:30 }}</option>{% endfor %}</select></label>
+    <label>Patinador<select name="pat"><option value="">Abierto (cualquiera)</option>{% for m in movers %}<option value="{{ m.id }}">{{ m.name }}{% if m.lines %} · patinador de {{ m.lines|join:", " }}{% endif %}</option>{% endfor %}</select></label>
+    <label>Estibas<input type="number" name="est" min="1" max="99" value="1"></label>
+    <label>Prioridad<select name="pri"><option value="0">Normal</option><option value="1">⚡ Urgente</option></select></label>
+    <label>Para las<input type="time" name="req"></label>
+    <label>Nota<input name="nota" maxlength="200"></label>
+    <button class="btn" type="submit">＋ Crear traslado</button>
+  </form>
+</div>
+<div class="tr-cols">
+  <div class="card">
+    <div class="card-h"><h2>Traslados activos</h2><span class="sub">{{ o.active|length }}</span></div>
+    <div class="table-wrap flat"><table>
+      <thead><tr><th>Ruta</th><th>Estado</th><th>Patinador</th><th>Esperando</th><th></th></tr></thead>
+      <tbody>{% for t in o.active %}<tr>
+        <td><b>{{ t.origin }}</b> → <b>{{ t.destination }}</b><br><small>{% if t.order %}Pedido {{ t.order }} · {% endif %}{{ t.pallets }} estiba(s){% if t.note %} · {{ t.note }}{% endif %}{% if t.from_line %} · 📦 pedido de {{ t.line }}{% if t.by %} por {{ t.by }}{% endif %}{% endif %}</small></td>
+        <td><span class="pill {% if t.status == 'p' %}warn{% else %}info{% endif %}">{{ t.status_label }}</span>{% if t.urgent %} <span class="pill bad">⚡</span>{% endif %}{% if t.incident %} <span class="pill bad">⚠ {{ t.incident }}</span>{% endif %}</td>
+        <td>{% if t.status == 'p' %}<form method="post">{% csrf_token %}<input type="hidden" name="a" value="asignar"><input type="hidden" name="id" value="{{ t.id }}"><select name="pat" onchange="this.form.submit()" aria-label="Patinador"><option value="">Abierto</option>{% for m in movers %}<option value="{{ m.id }}" {% if m.id == t.mover_id %}selected{% endif %}>{{ m.name }}{% if m.lines %} · {{ m.lines|join:", " }}{% endif %}</option>{% endfor %}</select></form>{% else %}{{ t.mover }}{% endif %}</td>
+        <td><span data-lt="{{ t.created_at }}">–</span></td>
+        <td><form method="post" onsubmit="return confirm('¿Cancelar este traslado?')">{% csrf_token %}<input type="hidden" name="a" value="cancelar"><input type="hidden" name="id" value="{{ t.id }}"><button class="sbtn sm" title="Cancelar">✕</button></form></td></tr>
+      {% empty %}<tr class="empty-row"><td colspan="5">No hay traslados activos.</td></tr>{% endfor %}</tbody></table></div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h2>Por patinador (hoy)</h2></div>
+    <div class="table-wrap flat"><table>
+      <thead><tr><th>Patinador</th><th class="num">Viajes</th><th class="num">Estibas</th><th class="num">Ciclo</th><th class="num">A tiempo</th><th class="num">Utiliz.</th><th class="num">Vs. ruta</th></tr></thead>
+      <tbody>{% for m in o.movers %}<tr><td><b>{{ m.name }}</b><br><small>{% if m.stop %}⏸ {{ m.stop.cause }}{% elif m.current %}{{ m.current.status_label }} · {{ m.current.origin }} → {{ m.current.destination }}{% else %}Disponible{% endif %}</small></td>
+        <td class="num">{{ m.kpis.trips }}</td><td class="num">{{ m.kpis.pallets }}</td><td class="num">{% if m.kpis.cycle_s %}<span data-sec="{{ m.kpis.cycle_s }}"></span>{% else %}–{% endif %}</td>
+        <td class="num">{% if m.kpis.on_time is not None %}{{ m.kpis.on_time|floatformat:0 }}%{% else %}–{% endif %}</td>
+        <td class="num">{% if m.kpis.utilization is not None %}{{ m.kpis.utilization|floatformat:0 }}%{% else %}–{% endif %}</td>
+        <td class="num">{% if m.kpis.vs_route is not None %}{{ m.kpis.vs_route|floatformat:0 }}%{% else %}–{% endif %}</td></tr>
+      {% empty %}<tr class="empty-row"><td colspan="7">Aún no hay patinadores. En Administración › Operarios, selecciónalos y usa «Tablet de piso: dar acceso como PATINADOR».</td></tr>{% endfor %}</tbody></table></div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h2>Rutas · tiempo de transporte aprendido</h2><span class="sub">Últimos 90 días</span></div>
+    <div class="table-wrap flat"><table>
+      <thead><tr><th>Ruta</th><th class="num">Viajes</th><th class="num">Mediana</th></tr></thead>
+      <tbody>{% for r in o.routes %}<tr><td>{{ r.origin }} → {{ r.destination }}</td><td class="num">{{ r.trips }}</td><td class="num">{% if r.median_s %}<span data-sec="{{ r.median_s }}"></span>{% else %}<small>aprendiendo</small>{% endif %}</td></tr>
+      {% empty %}<tr class="empty-row"><td colspan="3">Aún no hay traslados entregados.</td></tr>{% endfor %}</tbody></table></div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h2>Ubicaciones</h2><span class="sub">Distancia: 1 cerca · 2 media · 3 lejana (pondera los puntos)</span></div>
+    <form method="post" class="tr-form">{% csrf_token %}<input type="hidden" name="a" value="ubicacion">
+      <label>Nombre<input name="n" maxlength="80" required placeholder="Bodega de insumos"></label>
+      <label>Distancia<select name="f"><option value="1">1 · cerca</option><option value="2">2 · media</option><option value="3">3 · lejana</option></select></label>
+      <label>Es el frente de la línea<select name="m"><option value="">—</option>{% for wc in lines %}<option value="{{ wc.pk }}">{{ wc.code }} · {{ wc.name }}</option>{% endfor %}</select></label>
+      <button class="sbtn" type="submit">Agregar</button>
+    </form>
+    <div class="table-wrap flat"><table><tbody>{% for l in locations %}<tr><td>{{ l.name }}{% if not l.active %} <span class="pill">inactiva</span>{% endif %}<br><small>dist. {{ l.distance }}{% if l.work_center %} · frente de {{ l.work_center.name }}{% endif %}</small></td>
+      <td style="text-align:right"><form method="post">{% csrf_token %}<input type="hidden" name="a" value="{% if l.active %}quitar_ubicacion{% else %}activar_ubicacion{% endif %}"><input type="hidden" name="id" value="{{ l.pk }}"><button class="sbtn sm">{% if l.active %}Desactivar{% else %}Activar{% endif %}</button></form></td></tr>
+    {% empty %}<tr class="empty-row"><td>Sin ubicaciones. Crea la bodega, corte y el frente de cada línea.</td></tr>{% endfor %}</tbody></table></div>
+  </div>
+</div>
+<script>
+(function () {
+  const fmt = s => { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  document.querySelectorAll('[data-sec]').forEach(e => { e.textContent = fmt(+e.dataset.sec); });
+  const tick = () => document.querySelectorAll('[data-lt]').forEach(e => { e.textContent = fmt((Date.now() - new Date(e.dataset.lt).getTime()) / 1e3); });
+  tick(); setInterval(tick, 1000);
+  let v = null;
+  setInterval(async () => {   // se recarga sola cuando cambia un traslado (si no estás escribiendo)
+    if (document.hidden) return;
+    try { const j = await (await fetch("{{ pulse_url|escapejs }}?k=t", {credentials: 'same-origin'})).json();
+      const busy = document.activeElement && ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName);
+      if (v !== null && j.v !== v && !busy) location.reload(); v = j.v; } catch (e) { /* sin conexión */ }
+  }, 4000);
+})();
+</script>
+{% endblock %}

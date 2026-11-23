@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% load mes_assets mes_sites %}
+{% block title %}Inventario de insumos{% endblock %}
+{% block crumbs %}<span>Insumos</span><span class="sep">/</span><b>Inventario</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/staff.css' %}">{% endblock %}
+{% block content %}
+{% if no_site %}<div class="callout">No hay plantas activas.</div>{% else %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Insumos · {{ site.code }} · {{ site.name }}</div>
+    <h1>Inventario de insumos</h1>
+    <p>Existencia en bodega, lo comprometido con pedidos (requerido y aún sin entregar) y el stock de seguridad. Las entregas a
+      los pedidos descuentan solas; las entradas y los ajustes por conteo quedan en <a href="{% url 'mes_core:supply_movements' %}?site={{ site.pk }}">Movimientos</a>.</p>
+  </div>
+  <div class="tools">
+    {% site_chips %}
+    {% if can_edit %}
+    <button class="sbtn" type="button" data-open="imp-dlg"><svg class="ico sm"><use href="#i-upload"/></svg> Cargar desde Excel</button>
+    <button class="btn" type="button" data-open="new-dlg"><svg class="ico sm"><use href="#i-plus"/></svg> Nuevo insumo</button>
+    {% endif %}
+  </div>
+</div>
+
+<div class="kpis">
+  <div class="kpi"><div class="k-h">Insumos<span class="k-ico"><svg class="ico"><use href="#i-box"/></svg></span></div><div class="k-v">{{ kpi.items }}</div><div class="k-s">en {{ site.code }}</div></div>
+  <div class="kpi"><div class="k-h">Bajo stock de seguridad<span class="k-ico"><svg class="ico"><use href="#i-alert"/></svg></span></div><div class="k-v">{{ kpi.low }}</div><div class="k-s">contando lo comprometido</div></div>
+  <div class="kpi"><div class="k-h">Agotados o no alcanzan<span class="k-ico"><svg class="ico"><use href="#i-alert"/></svg></span></div><div class="k-v">{{ kpi.out }}</div><div class="k-s"><a href="?site={{ site.pk }}&estado=reponer">Ver para reponer</a></div></div>
+  <div class="kpi"><div class="k-h">Pedidos esperando insumos<span class="k-ico"><svg class="ico"><use href="#i-check"/></svg></span></div><div class="k-v">{{ kpi.orders }}</div><div class="k-s"><a href="{% url 'mes_core:supplies_queue' %}?site={{ site.pk }}">Liberar a planta</a></div></div>
+</div>
+
+<div class="card">
+  <form method="get" class="st-toolbar">
+    <input type="hidden" name="site" value="{{ site.pk }}">
+    <input name="q" value="{{ q }}" placeholder="Código, nombre o ubicación…" aria-label="Buscar">
+    <select name="estado" aria-label="Estado"><option value="">Todos</option><option value="reponer" {% if state_f == 'reponer' %}selected{% endif %}>Para reponer</option></select>
+    <label class="chk-inline"><input type="checkbox" name="inactivos" value="1" {% if request.GET.inactivos %}checked{% endif %}> Incluir inactivos</label>
+    <button class="sbtn" type="submit">Filtrar</button>
+  </form>
+  <div class="table-wrap flat"><table>
+    <thead><tr><th>Insumo</th><th>Ubicación</th><th class="num">Existencia</th><th class="num">Comprometido</th><th class="num">Disponible</th>
+      <th class="num">Stock de seguridad</th><th>Estado</th>{% if can_edit %}<th></th>{% endif %}</tr></thead>
+    <tbody>
+    {% for r in rows %}{% with s=r.s %}
+      <tr>
+        <td><b>{{ s.product.name }}</b><br><small class="muted">{{ s.product.sku }} · {{ s.product.unit }}{% if not s.active %} · inactivo{% endif %}</small></td>
+        <td>{{ s.location|default:"—" }}</td>
+        <td class="num"><b>{{ s.on_hand|floatformat:"-3g" }}</b></td>
+        <td class="num">{{ r.committed|floatformat:"-3g" }}</td>
+        <td class="num {% if r.free < 0 %}late{% endif %}">{{ r.free|floatformat:"-3g" }}</td>
+        <td class="num">{{ s.safety_stock|floatformat:"-3g" }}</td>
+        <td><span class="pill {{ r.cls }}">{{ r.label }}</span></td>
+        {% if can_edit %}<td style="white-space:nowrap">
+          <button class="sbtn sm" type="button" data-act="receive" data-id="{{ s.pk }}" data-name="{{ s.product.name }}" data-unit="{{ s.product.unit }}">Entrada</button>
+          <button class="sbtn sm" type="button" data-act="adjust" data-id="{{ s.pk }}" data-name="{{ s.product.name }}" data-unit="{{ s.product.unit }}" data-qty="{{ s.on_hand|floatformat:'-3' }}">Ajuste</button>
+          <button class="sbtn sm" type="button" data-act="edit" data-id="{{ s.pk }}" data-name="{{ s.product.name }}" data-safety="{{ s.safety_stock|floatformat:'-3' }}" data-location="{{ s.location }}" data-active="{{ s.active|yesno:'1,0' }}">Editar</button>
+          <a class="sbtn sm" href="{% url 'mes_core:supply_movements' %}?site={{ site.pk }}&insumo={{ s.pk }}" title="Movimientos">⋯</a></td>{% endif %}
+      </tr>
+    {% endwith %}{% empty %}
+      <tr><td colspan="8" class="st-empty">{% if q or state_f %}Ningún insumo coincide.{% else %}Aún no hay insumos en {{ site.code }}.{% if can_edit %} Créalos con «Nuevo insumo» o cárgalos desde Excel.{% endif %}{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+{% if can_edit %}
+<dialog class="dlg" id="new-dlg" style="width:min(520px,calc(100vw - 32px))">
+  <form method="post" class="st-form">{% csrf_token %}<input type="hidden" name="action" value="new"><input type="hidden" name="site" value="{{ site.pk }}">
+    <div class="dlg-h">Nuevo insumo en {{ site.code }}</div>
+    <div class="dlg-b st-form">
+      <label>Código o nombre<input name="product" required maxlength="200" placeholder="Ej.: ETQ-001 o Etiqueta de precio"><span class="helptext">Si ya existe como producto se usa; si no, se crea.</span></label>
+      <div class="st-form-grid">
+        <label>Unidad<select name="unit">{% for v, l in units %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
+        <label>Existencia actual<input name="on_hand" inputmode="decimal" placeholder="0"></label>
+        <label>Stock de seguridad<input name="safety" inputmode="decimal" placeholder="0"></label>
+        <label>Ubicación<input name="location" maxlength="60" placeholder="Bodega A-1"></label>
+      </div>
+    </div>
+    <div class="dlg-f"><button class="sbtn" type="button" data-close>Cancelar</button><button class="btn" type="submit">Guardar</button></div>
+  </form>
+</dialog>
+
+<dialog class="dlg" id="act-dlg">
+  <form method="post" class="st-form">{% csrf_token %}<input type="hidden" name="site" value="{{ site.pk }}">
+    <input type="hidden" name="action" id="act-action"><input type="hidden" name="id" id="act-id">
+    <div class="dlg-h" id="act-title"></div>
+    <div class="dlg-b st-form">
+      <label data-for="receive adjust"><span id="act-qty-label">Cantidad</span><input name="qty" id="act-qty" inputmode="decimal"></label>
+      <label data-for="edit">Stock de seguridad<input name="safety" id="act-safety" inputmode="decimal"></label>
+      <label data-for="edit">Ubicación<input name="location" id="act-location" maxlength="60"></label>
+      <label data-for="edit" class="chk-inline"><input type="checkbox" name="active" id="act-active"> Activo</label>
+      <label data-for="receive adjust">Nota<input name="note" maxlength="255" placeholder="Ej.: factura 1234, conteo mensual"></label>
+    </div>
+    <div class="dlg-f"><button class="sbtn" type="button" data-close>Cancelar</button><button class="btn" type="submit">Guardar</button></div>
+  </form>
+</dialog>
+
+<dialog class="dlg" id="imp-dlg" style="width:min(540px,calc(100vw - 32px))">
+  <form method="post" action="{% url 'mes_core:supply_import' %}" enctype="multipart/form-data">{% csrf_token %}<input type="hidden" name="site" value="{{ site.pk }}">
+    <div class="dlg-h">Cargar inventario desde Excel</div>
+    <div class="dlg-b st-form">
+      <ol class="st-steps">
+        <li><a href="{% url 'mes_core:supply_template' %}?site={{ site.pk }}">Descarga la plantilla</a>.</li>
+        <li>Una fila por insumo: <b>código</b> y <b>nombre</b> (obligatorios), unidad, existencia, stock de seguridad, ubicación.</li>
+        <li>Si el código ya existe se actualiza; la existencia nueva queda como ajuste en Movimientos.</li>
+      </ol>
+      <div class="st-drop"><input type="file" name="file" accept=".xlsx,.xlsm,.csv" required><span class="st-sub">Excel (.xlsx) o CSV</span></div>
+    </div>
+    <div class="dlg-f"><button class="sbtn" type="button" data-close>Cancelar</button><button class="btn" type="submit">Cargar</button></div>
+  </form>
+</dialog>
+<script>
+(() => {
+  document.querySelectorAll("[data-open]").forEach((b) => b.addEventListener("click", () => document.getElementById(b.dataset.open).showModal()));
+  document.querySelectorAll("dialog [data-close]").forEach((b) => b.addEventListener("click", () => b.closest("dialog").close()));
+  const dlg = document.getElementById("act-dlg");
+  const TITLES = { receive: "Entrada de", adjust: "Ajuste por conteo de", edit: "Editar" };
+  document.querySelectorAll("[data-act]").forEach((b) => b.addEventListener("click", () => {
+    const a = b.dataset.act;
+    document.getElementById("act-action").value = a;
+    document.getElementById("act-id").value = b.dataset.id;
+    document.getElementById("act-title").textContent = `${TITLES[a]} ${b.dataset.name}`;
+    dlg.querySelectorAll("[data-for]").forEach((el) => { el.hidden = !el.dataset.for.split(" ").includes(a); });
+    const qty = document.getElementById("act-qty");
+    qty.value = a === "adjust" ? b.dataset.qty : "";
+    qty.required = a !== "edit";
+    document.getElementById("act-qty-label").textContent = a === "adjust" ? `Existencia contada (${b.dataset.unit})` : `Cantidad que entra (${b.dataset.unit})`;
+    if (a === "edit") {
+      document.getElementById("act-safety").value = b.dataset.safety;
+      document.getElementById("act-location").value = b.dataset.location;
+      document.getElementById("act-active").checked = b.dataset.active === "1";
+    }
+    dlg.showModal();
+    (a === "edit" ? document.getElementById("act-safety") : qty).select();
+  }));
+})();
+</script>
+{% endif %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% load mes_assets staff_tags %}
+{% block title %}Insumos {{ order.number }}{% endblock %}
+{% block crumbs %}<span>Insumos</span><span class="sep">/</span><a href="{% url 'mes_core:supplies_queue' %}?site={{ order.site_id }}">Liberar a planta</a><span class="sep">/</span><b>{{ order.number }}</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/staff.css' %}">{% endblock %}
+{% block content %}
+<style>
+  .so-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px 18px; padding: 16px 18px; }
+  .so-facts .l { color: var(--muted); font-size: 12px; } .so-facts .v { font-weight: 600; }
+  .so-table input, .so-table select { height: 32px !important; font-size: 13px; }
+  .so-table input.qty { width: 96px; text-align: right; }
+  .so-table select { max-width: 190px; }
+  .so-table input.note { width: 150px; }
+  .so-table td { vertical-align: middle; }
+  .so-table tr.del td { opacity: .45; text-decoration: line-through; }
+  .so-table .warn-now { box-shadow: 0 0 0 2px var(--danger) !important; }
+  .so-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 14px 18px; border-top: 1px solid var(--border); }
+  .so-actions .grow { flex: 1; }
+  .so-release { display: flex; flex-direction: column; gap: 8px; padding: 14px 18px; border-top: 1px solid var(--border); background: var(--surface-2); }
+  .so-release .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .so-release input[type=text] { flex: 1; min-width: 260px; }
+  .so-return { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 14px 18px; }
+  .so-return input { flex: 1; min-width: 260px; }
+</style>
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow"><span class="badge {{ order.status }}">{{ order.get_status_display }}</span><span>{{ order.process_label }} · {{ order.site.code }}</span></div>
+    <h1>{{ order.number }} · {{ order.product.name }}</h1>
+    <p>{{ order.quantity|floatformat:"-2g" }} {{ order.product.unit }}{% if order.customer %} · {{ order.customer.name }}{% endif %} · {{ order.product.sku }}</p>
+  </div>
+  <div class="tools"><a class="sbtn" href="{{ order.get_absolute_url }}"><svg class="ico sm"><use href="#i-external"/></svg> Abrir pedido</a></div>
+</div>
+{% if order.supplies_note %}<div class="callout warn" style="margin-bottom:16px">{{ order.supplies_note }}</div>{% endif %}
+
+{% if order.status == 'insumos' %}
+<div class="card" style="margin-bottom:18px">
+  <div class="card-h"><h2>Para pasar a planta</h2>
+    <span class="sub">Insumos y logística trabajan en paralelo; el pedido pasa solo a planta cuando los dos liberan.
+      {% if auto_release %}Liberación automática encendida: al entregar el 100 % los insumos se liberan solos.{% else %}Liberación automática apagada: insumos libera a mano.{% endif %}</span></div>
+  <div class="so-facts">
+    <div><div class="l">Insumos</div><div class="v">{% if supplies_ready %}<span class="pill ok">Liberados</span>
+      <small class="muted">{{ order.supplies_released_at|date:"d/m H:i" }}{% if order.supplies_released_by %} · {{ order.supplies_released_by|uname }}{% endif %}</small>
+      {% else %}<span class="pill warn">Pendiente</span>{% endif %}</div></div>
+    <div><div class="l">Logística (mercancía)</div><div class="v">{% if goods_ready %}<span class="pill ok">Mercado</span> <small class="muted">en {{ order.goods_location }}</small>
+      {% else %}<span class="pill warn">Por mercar</span>{% endif %}</div></div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card" style="margin-bottom:18px"><div class="so-facts">
+  <div><div class="l">Inicia (programado)</div><div class="v">{{ order.planned_start|date:"D d/m H:i"|default:"Sin programar" }}</div></div>
+  <div><div class="l">Fecha compromiso</div><div class="v">{{ order.due_date|date:"D d/m H:i"|default:"—" }}</div></div>
+  <div><div class="l">Supervisor(es)</div><div class="v">{% for s in order_supervisors %}{{ s|uname }}{% if not forloop.last %}, {% endif %}{% empty %}Sin asignar{% endfor %}</div></div>
+  <div><div class="l">Etapas</div><div class="v">{{ operations|length }}</div></div>
+  <div><div class="l">Insumos entregados</div><div class="v"><span class="crew"><span class="bar {% if pct >= 100 %}{% elif pct %}warn{% else %}bad{% endif %}"><i style="width:{{ pct }}%"></i></span><b>{{ pct }} %</b></span></div></div>
+</div></div>
+
+<div class="card" style="margin-bottom:18px">
+  <div class="card-h"><h2>Insumos del pedido</h2>
+    <span class="sub">Qué necesita, cuánto hay en bodega y cuánto se le entrega a cada etapa y supervisor</span>
+    <div class="tools">
+      {% if can_edit and bom_count %}<form method="post">{% csrf_token %}<button class="sbtn sm" name="action" value="bom" title="Agrega los insumos de la lista de materiales que aún no están">Traer de la lista de materiales ({{ bom_count }})</button></form>{% endif %}
+      <a class="sbtn sm" href="{% url 'mes_core:bom_edit' order.product_id %}">{% if bom_count %}Ver{% else %}Crear{% endif %} lista de materiales</a>
+    </div></div>
+  {% if not stocks and can_edit %}<div class="callout warn" style="margin:14px 18px">No hay insumos en el inventario de {{ order.site.code }}.
+    <a href="{% url 'mes_core:supply_inventory' %}?site={{ order.site_id }}">Créalos o cárgalos desde Excel</a>.</div>{% endif %}
+  <form method="post" id="so-form">{% csrf_token %}
+    <div class="table-wrap flat"><table class="so-table">
+      <thead><tr><th>Insumo</th><th>Etapa</th><th class="num">Requerido</th><th class="num">En bodega</th><th class="num">Entregado</th>
+        {% if can_edit %}<th class="num">Entregar ahora</th>{% endif %}<th>Entregar a</th><th>Nota</th>{% if can_edit %}<th></th>{% endif %}</tr></thead>
+      <tbody id="so-body">
+      {% for r in rows %}{% with ln=r.line %}
+        <tr class="{% if r.delete %}del{% endif %}" data-key="{{ r.key }}">
+          <td><input type="hidden" name="line" value="{{ r.key }}">
+            {% if ln %}<input type="hidden" name="stock_{{ r.key }}" value="{{ ln.stock_id }}"><b>{{ ln.stock.product.name }}</b><br><small class="muted">{{ ln.stock.product.sku }} · {{ ln.stock.product.unit }}</small>
+            {% else %}<select name="stock_{{ r.key }}" class="so-stock" {% if not can_edit %}disabled{% endif %}><option value="">Elige el insumo…</option>
+              {% for s in stocks %}<option value="{{ s.pk }}" data-onhand="{{ s.on_hand|floatformat:'-3' }}" data-unit="{{ s.product.unit }}" {% if r.stock == s.pk|stringformat:'s' %}selected{% endif %}>{{ s.product.name }} ({{ s.product.sku }})</option>{% endfor %}</select>{% endif %}</td>
+          <td><select name="op_{{ r.key }}" {% if not can_edit %}disabled{% endif %}><option value="">Todo el pedido</option>
+            {% for op in operations %}<option value="{{ op.pk }}" {% if r.op == op.pk|stringformat:'s' %}selected{% endif %}>{{ op.sequence }}. {{ op.name }}</option>{% endfor %}</select></td>
+          <td class="num"><input class="qty" name="req_{{ r.key }}" value="{{ r.req }}" inputmode="decimal" {% if not can_edit %}disabled{% endif %} aria-label="Requerido"></td>
+          <td class="num so-onhand">{% if ln %}{{ ln.stock.on_hand|floatformat:"-3g" }} <span class="pill {{ ln.state.0 }}" title="{{ ln.state.1 }}">{{ ln.state.1 }}</span>{% else %}—{% endif %}</td>
+          <td class="num">{% if ln %}{{ ln.qty_released|floatformat:"-3g" }}{% if ln.qty_pending %} <small class="muted">faltan {{ ln.qty_pending|floatformat:"-3g" }}</small>{% endif %}{% else %}0{% endif %}</td>
+          {% if can_edit %}<td class="num">{% if not ln or ln.qty_pending %}<input class="qty so-now" name="now_{{ r.key }}" value="{{ r.now }}" inputmode="decimal"
+              data-pending="{% if ln %}{{ ln.qty_pending|floatformat:'-3' }}{% endif %}" data-onhand="{% if ln %}{{ ln.stock.on_hand|floatformat:'-3' }}{% endif %}" aria-label="Entregar ahora">{% else %}<span class="pill ok">Completo</span>{% endif %}</td>{% endif %}
+          <td><select name="to_{{ r.key }}" {% if not can_edit %}disabled{% endif %}><option value="">{% if ln and ln.operation and ln.operation.supervisor %}Supervisor de la etapa{% else %}—{% endif %}</option>
+            {% for pk, label in supervisors %}<option value="{{ pk }}" {% if r.to == pk|stringformat:'s' %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td>
+          <td><input class="note" name="note_{{ r.key }}" value="{{ r.note }}" maxlength="255" {% if not can_edit %}disabled{% endif %} aria-label="Nota"></td>
+          {% if can_edit %}<td>{% if ln and ln.qty_released %}<span class="muted" title="Ya tiene entregas">—</span>
+            {% else %}<input type="hidden" name="del_{{ r.key }}" value="{% if r.delete %}1{% endif %}" class="so-del"><button type="button" class="sbtn sm soft-danger so-rm" aria-label="Quitar">×</button>{% endif %}</td>{% endif %}
+        </tr>
+      {% endwith %}{% empty %}
+        <tr class="so-empty"><td colspan="9" class="st-empty">{% if can_edit %}Este pedido aún no tiene insumos. Agrégalos con «+ Agregar insumo»; si no necesita ninguno, libera los insumos directamente.{% else %}Sin insumos registrados.{% endif %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% if can_edit %}
+    <div class="so-actions">
+      <button type="button" class="sbtn" id="so-add" {% if not stocks %}disabled{% endif %}><svg class="ico sm"><use href="#i-plus"/></svg> Agregar insumo</button>
+      <span class="grow"></span>
+      <input name="deliver_note" placeholder="Nota de la entrega (opcional)" maxlength="255" style="width:240px" aria-label="Nota de la entrega">
+      <button class="sbtn" type="submit" name="action" value="save">Guardar</button>
+      <button class="btn" type="submit" name="action" value="deliver" title="Descuenta del inventario lo de «Entregar ahora»">Registrar entrega</button>
+    </div>
+    {% if can_release %}
+    <div class="so-release">
+      <div class="row"><b>Liberar insumos</b><span class="muted" style="font-size:13px">Registra la entrega de «Entregar ahora» y libera la parte de insumos.
+        {% if goods_ready %}Logística ya lo mercó: el pedido pasa a planta en ese momento.{% else %}El pedido pasa a planta cuando logística lo merque.{% endif %}</span></div>
+      {% if missing %}<label class="chk-inline"><input type="checkbox" name="partial" id="so-partial"> Liberar con insumos incompletos</label>
+      <div class="row" id="so-partial-row" hidden><input type="text" name="partial_note" maxlength="200" placeholder="¿Por qué se libera incompleto? (p. ej. la caja llega mañana a las 8)"></div>{% endif %}
+      <div class="row"><button class="btn" type="submit" name="action" value="release">
+        <svg class="ico sm"><use href="#i-check"/></svg> {% if goods_ready %}Entregar y liberar a planta{% else %}Entregar y liberar insumos{% endif %}</button></div>
+    </div>
+    {% endif %}
+    {% endif %}
+  </form>
+  {% if can_return %}
+  <form method="post" class="so-return" onsubmit="return confirm('¿Devolver {{ order.number }} a planeación?')">{% csrf_token %}
+    <input type="hidden" name="action" value="return">
+    <span class="muted" style="font-size:13px">¿No se puede producir con los insumos disponibles?</span>
+    <input name="reason" maxlength="200" placeholder="Motivo para planeación (p. ej. no hay etiqueta X hasta el viernes)" required aria-label="Motivo">
+    <button class="sbtn soft-danger" type="submit">Devolver a planeación</button>
+  </form>
+  {% endif %}
+</div>
+
+<template id="so-row">
+  <tr data-key="__K__">
+    <td><input type="hidden" name="line" value="__K__"><select name="stock___K__" class="so-stock"><option value="">Elige el insumo…</option>
+      {% for s in stocks %}<option value="{{ s.pk }}" data-onhand="{{ s.on_hand|floatformat:'-3' }}" data-unit="{{ s.product.unit }}">{{ s.product.name }} ({{ s.product.sku }})</option>{% endfor %}</select></td>
+    <td><select name="op___K__"><option value="">Todo el pedido</option>{% for op in operations %}<option value="{{ op.pk }}">{{ op.sequence }}. {{ op.name }}</option>{% endfor %}</select></td>
+    <td class="num"><input class="qty" name="req___K__" inputmode="decimal" aria-label="Requerido"></td>
+    <td class="num so-onhand">—</td><td class="num">0</td>
+    <td class="num"><input class="qty so-now" name="now___K__" inputmode="decimal" aria-label="Entregar ahora"></td>
+    <td><select name="to___K__"><option value="">—</option>{% for pk, label in supervisors %}<option value="{{ pk }}">{{ label }}</option>{% endfor %}</select></td>
+    <td><input class="note" name="note___K__" maxlength="255" aria-label="Nota"></td>
+    <td><input type="hidden" name="del___K__" value="" class="so-del"><button type="button" class="sbtn sm soft-danger so-rm" aria-label="Quitar">×</button></td>
+  </tr>
+</template>
+
+<div class="card">
+  <div class="card-h"><h2>Entregas de este pedido</h2></div>
+  <div class="table-wrap flat"><table>
+    <thead><tr><th>Fecha</th><th>Insumo</th><th class="num">Cantidad</th><th>Entregado a</th><th>Registró</th><th>Nota</th></tr></thead>
+    <tbody>{% for m in movements %}
+      <tr><td>{{ m.created_at|date:"d/m H:i" }}</td><td>{{ m.stock.product.name }}</td><td class="num">{{ m.qty|floatformat:"-3g" }}</td>
+        <td>{{ m.deliver_to|uname }}</td><td>{{ m.user|uname }}</td><td style="white-space:normal">{{ m.note }}</td></tr>
+    {% empty %}<tr><td colspan="6" class="st-empty">Aún no hay entregas.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+
+<script>
+(() => {
+  const body = document.getElementById("so-body"), tpl = document.getElementById("so-row");
+  if (!body) return;
+  let n = 100;  // las filas nuevas devueltas tras un error usan n1, n2…
+  document.getElementById("so-add")?.addEventListener("click", () => {
+    body.querySelector(".so-empty")?.remove();
+    body.insertAdjacentHTML("beforeend", tpl.innerHTML.replaceAll("__K__", `n${++n}`));
+    body.lastElementChild.querySelector("select").focus();
+  });
+  body.addEventListener("click", (e) => {
+    const rm = e.target.closest(".so-rm");
+    if (!rm) return;
+    const tr = rm.closest("tr");
+    if (!/^\d+$/.test(tr.dataset.key)) { tr.remove(); return; }
+    const flag = tr.querySelector(".so-del");
+    flag.value = flag.value ? "" : "1";
+    tr.classList.toggle("del", !!flag.value);
+  });
+  const num = (v) => parseFloat(String(v || "").replace(",", "."));
+  function check(tr) {
+    const now = tr.querySelector(".so-now");
+    if (!now) return;
+    const sel = tr.querySelector(".so-stock");
+    const onhand = sel ? num(sel.selectedOptions[0]?.dataset.onhand) : num(now.dataset.onhand);
+    const pending = now.dataset.pending ? num(now.dataset.pending) : num(tr.querySelector("[name^=req_]").value);
+    if (sel) tr.querySelector(".so-onhand").textContent = sel.value ? `${sel.selectedOptions[0].dataset.onhand} ${sel.selectedOptions[0].dataset.unit}` : "—";
+    const v = num(now.value);
+    const bad = v > 0 && ((!isNaN(pending) && v > pending + 1e-9) || (!isNaN(onhand) && v > onhand + 1e-9));
+    now.classList.toggle("warn-now", bad);
+    now.title = bad ? (v > onhand ? "No hay tanta existencia en bodega" : "Es más de lo que falta por entregar") : "";
+  }
+  body.addEventListener("input", (e) => check(e.target.closest("tr")));
+  body.addEventListener("change", (e) => check(e.target.closest("tr")));
+  body.querySelectorAll("tr").forEach(check);
+  const partial = document.getElementById("so-partial");
+  partial?.addEventListener("change", () => { document.getElementById("so-partial-row").hidden = !partial.checked; });
+})();
+</script>
+{% endblock %}

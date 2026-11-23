@@ -1,0 +1,26 @@
+<div class="table-wrap {% if flat %}flat{% endif %}">
+<table>
+  <thead><tr>
+    <th>Pedido</th><th>Producto</th><th>Cliente</th><th>Proceso</th><th class="num">Cantidad</th><th>Avance</th>
+    <th>Estado</th><th class="num">Prio.</th><th>Compromiso</th><th>Fin planeado</th>
+  </tr></thead>
+  <tbody>
+  {% for o in orders %}
+    <tr>
+      <td><a href="{{ o.get_absolute_url }}"><b>{{ o.number }}</b></a><div class="muted" style="font-size:12px">{{ o.site.code }}{% if o.reference %} · {{ o.reference|truncatechars:24 }}{% endif %}</div></td>
+      <td>{{ o.product.name|truncatechars:34 }}<div class="muted" style="font-size:12px">{{ o.product.sku }}</div></td>
+      <td>{% if o.customer %}<span class="tdot t-{{ o.customer.tier }}" style="vertical-align:middle"></span> {{ o.customer.name|truncatechars:24 }}{% else %}<span class="muted">—</span>{% endif %}</td>
+      <td>{{ o.process_label }}</td>
+      <td class="num">{{ o.quantity|floatformat:"-2g" }} <span class="muted">{{ o.product.unit }}</span></td>
+      <td><div style="display:flex;align-items:center;gap:8px"><div class="progress" title="{{ o.progress }}%"><span style="width: {{ o.progress }}%"></span></div><span class="muted" style="font-size:12px">{{ o.progress }}%</span></div></td>
+      <td><span class="badge {{ o.status }}">{{ o.get_status_display }}</span></td>
+      <td class="num">{{ o.priority }}</td>
+      <td>{{ o.due_date|date:"d/m/Y H:i"|default:"—" }}</td>
+      <td {% if o.is_late %}class="late" title="Termina después de la fecha compromiso"{% endif %}>{{ o.planned_end|date:"d/m H:i"|default:"—" }}</td>
+    </tr>
+  {% empty %}
+    <tr class="empty-row"><td colspan="10">No hay pedidos con estos filtros.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>

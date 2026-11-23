@@ -1,0 +1,16 @@
+{
+  "name": "sammu-os",
+  "version": "0.1.0",
+  "description": "Control de piso para confección (clon sin marca): tablets en planta + tablero de oficina",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "qrcode": "^1.5.4"
+  }
+}

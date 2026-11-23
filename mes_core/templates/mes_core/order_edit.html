@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load mes_assets %}
+{% block title %}Editar {{ order.number }}{% endblock %}
+{% block crumbs %}<a href="{% url 'mes_core:order_list' %}">Pedidos</a><span class="sep">/</span><a href="{{ order.get_absolute_url }}">{{ order.number }}</a><span class="sep">/</span><b>Editar</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/staff.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow"><span class="badge {{ order.status }}">{{ order.get_status_display }}</span><span>{{ order.site }}</span></div>
+    <h1>Editar {{ order.number }}</h1>
+    <p>Todos los datos del pedido. Las etapas, líneas y tiempos se cambian en
+      <a href="{% url 'mes_core:planning_detail' order.pk %}">Planeación</a> (con «Editar todo» aunque ya haya empezado); lo
+      reportado se corrige en el historial de reportes del pedido.</p>
+  </div>
+  <div class="tools"><a class="sbtn" href="{% url 'mes_core:planning_detail' order.pk %}"><svg class="ico sm"><use href="#i-layers"/></svg> Planeación</a></div>
+</div>
+
+<form method="post">{% csrf_token %}
+  <div class="card">
+    <div class="card-h"><h2>Datos del pedido</h2></div>
+    <div class="card-b st-form">
+      {% if form.non_field_errors %}<div class="callout bad">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+      <div class="st-form-grid">
+        {% for field in form %}
+          <label class="{% if field.name == 'description' or field.name == 'notes' %}wide{% endif %}">{{ field.label|capfirst }}{{ field }}
+            {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+            {% for e in field.errors %}<span class="errorlist">{{ e }}</span>{% endfor %}</label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="dlg-f" style="border-top:1px solid var(--border)">
+      <a class="sbtn" href="{{ order.get_absolute_url }}">Cancelar</a>
+      <button class="btn" type="submit">Guardar cambios</button>
+    </div>
+  </div>
+</form>
+{% endblock %}

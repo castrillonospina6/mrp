@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% load mes_assets %}
+{% block title %}Lista de materiales {{ product.sku }}{% endblock %}
+{% block crumbs %}<span>Insumos</span><span class="sep">/</span><a href="{% url 'mes_core:bom_list' %}">Listas de materiales</a><span class="sep">/</span><b>{{ product.sku }}</b>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset 'mes_core/staff.css' %}">
+<style>
+  .bom-table input { width: 100%; min-width: 0; box-sizing: border-box; }
+  .bom-table .c-comp { min-width: 240px; } .bom-table .c-num { width: 110px; } .bom-table .c-stage { width: 150px; }
+  tr.del td { opacity: .45; text-decoration: line-through; }
+</style>{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles">
+    <div class="eyebrow">Lista de materiales · {{ product.get_unit_display }}</div>
+    <h1>{{ product.sku }} · {{ product.name }}</h1>
+    <p>Cuánto de cada insumo lleva <b>una unidad</b> de este producto. Ej.: 1 etiqueta por prenda; 0,0417 cajas si cada caja lleva 24.
+      Unidades y cajas se redondean hacia arriba al calcular el pedido.</p>
+  </div>
+  <form method="get" class="tools"><label class="muted" style="font-size:13px">Ejemplo para
+    <input name="cant" value="{{ sample|floatformat:'-2' }}" inputmode="decimal" style="width:90px"> unidades</label>
+    <button class="sbtn sm" type="submit">Calcular</button></form>
+</div>
+
+<div class="card">
+  <form method="post">{% csrf_token %}
+    <div class="table-wrap flat"><table class="bom-table">
+      <thead><tr><th>Insumo (código)</th><th class="num">Por unidad</th><th class="num">Desperdicio %</th><th>Etapa</th><th>Nota</th>
+        <th class="num">Para {{ sample|floatformat:"-2g" }}</th>{% if can_edit %}<th>Quitar</th>{% endif %}</tr></thead>
+      <tbody>
+      {% for r in rows %}
+        <tr class="{% if r.delete %}del{% endif %}">
+          <td class="c-comp"><input type="hidden" name="row" value="{{ r.key }}"><input name="comp_{{ r.key }}" value="{{ r.comp }}" list="bom-comps" placeholder="Código del insumo" {% if not can_edit %}disabled{% endif %} aria-label="Insumo"></td>
+          <td class="c-num"><input name="qty_{{ r.key }}" value="{{ r.qty }}" inputmode="decimal" {% if not can_edit %}disabled{% endif %} aria-label="Cantidad por unidad"></td>
+          <td class="c-num"><input name="scrap_{{ r.key }}" value="{{ r.scrap }}" inputmode="decimal" placeholder="0" {% if not can_edit %}disabled{% endif %} aria-label="Desperdicio"></td>
+          <td class="c-stage"><input name="stage_{{ r.key }}" value="{{ r.stage }}" list="bom-stages" placeholder="Todo el pedido" {% if not can_edit %}disabled{% endif %} aria-label="Etapa"></td>
+          <td><input name="note_{{ r.key }}" value="{{ r.note }}" maxlength="200" {% if not can_edit %}disabled{% endif %} aria-label="Nota"></td>
+          <td class="num">{% if r.line %}{{ r.sample|floatformat:"-3g" }} {{ r.line.component.unit }}{% else %}—{% endif %}</td>
+          {% if can_edit %}<td>{% if r.key|slice:":1" != "n" %}<input type="checkbox" name="del_{{ r.key }}" {% if r.delete %}checked{% endif %} aria-label="Quitar">{% endif %}</td>{% endif %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% if can_edit %}<div class="card-b" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn" type="submit">Guardar lista</button>
+      <span class="muted" style="font-size:13px">Para más filas, guarda y aparecen filas vacías nuevas.</span>
+    </div>{% endif %}
+  </form>
+</div>
+<datalist id="bom-comps">{% for c in components %}<option value="{{ c }}">{% endfor %}</datalist>
+<datalist id="bom-stages">{% for s in stages %}<option value="{{ s }}">{% endfor %}</datalist>
+{% endblock %}

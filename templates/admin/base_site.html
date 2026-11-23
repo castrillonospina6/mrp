@@ -1,0 +1,56 @@
+{% extends "admin/base.html" %}
+{% load i18n mes_assets %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} · {% endif %}{{ title }} · MES Planta{% endblock %}
+
+{% block extrahead %}{{ block.super }}
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%232f3e8f'/%3E%3Cpath d='M4 20V10.5l5 3V10.5l5 3V7l6 3.2V20z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="{% asset 'mes_core/admin_theme.css' %}">
+<script>
+  /* Mismo tema que la aplicación: la app guarda "mes.theme", el panel usa "theme". */
+  (function () {
+    try {
+      var app = localStorage.getItem("mes.theme");
+      var adm = localStorage.getItem("theme");
+      if (app && app !== adm) { localStorage.setItem("theme", app); document.documentElement.dataset.theme = app; }
+      if (!app && adm && adm !== "auto") { localStorage.setItem("theme", "auto"); document.documentElement.dataset.theme = "auto"; }
+      document.addEventListener("click", function (e) {
+        if (!e.target.closest || !e.target.closest(".theme-toggle")) return;
+        setTimeout(function () {
+          var t = localStorage.getItem("theme") || "auto";
+          if (t === "auto") localStorage.removeItem("mes.theme"); else localStorage.setItem("mes.theme", t);
+        }, 0);
+      });
+    } catch (e) {}
+  })();
+</script>
+{% endblock %}
+
+{% block branding %}
+<a class="mes-brand" href="{% url 'admin:index' %}">
+  <span class="mes-logo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10.5l5 3V10.5l5 3V7l6 3.2V20z" fill="currentColor"/></svg></span>
+  <span class="mes-brand-name"><b>MES Planta</b><span>Administración</span></span>
+</a>
+{% if user.is_anonymous %}
+  {% include "admin/color_theme_toggle.html" %}
+{% endif %}
+{% endblock %}
+
+{% block welcome-msg %}{% endblock %}
+
+{% block userlinks %}
+  <a class="mes-back" href="{{ site_url|default:'/' }}">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Volver a la aplicación</a>
+  {% if user.has_usable_password %}<a href="{% url 'admin:password_change' %}">Cambiar contraseña</a>{% endif %}
+  <form id="logout-form" method="post" action="{% url 'admin:logout' %}">
+    {% csrf_token %}
+    <button type="submit">Cerrar sesión</button>
+  </form>
+  {% include "admin/color_theme_toggle.html" %}
+  <span class="mes-user" title="{% firstof user.get_full_name user.get_username %}">
+    <span class="mes-avatar">{% firstof user.get_full_name user.get_username as uname %}{{ uname|make_list|first|upper }}</span>
+    <span class="mes-user-name">{% firstof user.get_short_name user.get_username %}</span>
+  </span>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}

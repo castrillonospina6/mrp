@@ -1,0 +1,1 @@
+<div class="in-meter {{ lv|default:'' }}"><b>{% if v is None %}—{% else %}{{ v }} %{% endif %}</b><span class="bar"><i style="width:{% if v is None %}0{% elif v > 100 %}100{% else %}{{ v }}{% endif %}%"></i></span></div>

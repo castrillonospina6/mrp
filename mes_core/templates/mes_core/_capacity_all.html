@@ -1,0 +1,100 @@
+{% include "mes_core/_company_kpis.html" %}
+<div class="cap-layout">
+  <div class="cap-col">
+
+    <section class="cap-card">
+      <h2>Turnos en curso · todas las bodegas</h2>
+      <p class="cap-help">{{ tot.available }} personas en los turnos actuales de {{ tot.scheduled }} programadas{% if tot.absent %} · {{ tot.absent }} ausentes{% endif %} · {{ tot.capacity_h|floatformat:"0g" }} h disponibles · {{ tot.required_h|floatformat:"0g" }} h requeridas.</p>
+      <div class="cap-occ"><span>Capacidad ocupada</span><b>{% if tot_occ_pct is None %}—{% else %}{{ tot_occ_pct }}%{% endif %}</b></div>
+      <div class="cap-bar lv-{{ tot_level }}"><i style="width:{{ tot_bar }}%"></i></div>
+      <p class="cap-help">Próximos 7 días: {{ tot.week_req|floatformat:"0g" }} h requeridas de {{ tot.week_cap|floatformat:"0g" }} h{% if tot_week_pct is not None %} · {{ tot_week_pct }}%{% endif %}.{% if unlimited_any %} Alguna bodega no tiene configurado su personal: no suma capacidad.{% endif %}</p>
+    </section>
+
+    <section class="cap-card">
+      <div class="cap-card-h"><h2>Capacidad por bodega</h2><span class="cap-help">Toca una bodega para ver su detalle</span></div>
+      <div class="cap-table-wrap">
+      <table class="cap-table cap-all">
+        <thead><tr><th>Bodega</th><th>Turno</th><th class="num">Líneas</th><th class="num">Personas</th><th class="num" title="Horas requeridas / capacidad disponible del turno">Req. / cap.</th><th>Ocupación</th><th class="num">Pedidos</th></tr></thead>
+        <tbody>
+        {% for r in all_rows %}
+          <tr>
+            <td><a href="?site={{ r.site.pk }}"><b>{{ r.site.name }}</b></a><br><small class="muted">{{ r.site.code }}</small></td>
+            {% if r.no_shifts %}
+            <td data-label="Turno"><a class="muted" href="{% url 'mes_core:shift_settings' %}?site={{ r.site.pk }}">Sin turnos · configurar</a></td>
+            <td class="num" data-label="Líneas">{{ r.n_lines }}</td><td class="num" data-label="Personas">—</td>
+            <td class="num" data-label="Req. / cap.">—</td><td data-label="Ocupación">—</td>
+            {% else %}
+            <td data-label="Turno">{{ r.shift.name }}<br><small class="muted">{% if r.sel.off %}{{ r.sel.off|truncatechars:22 }}{% else %}{{ r.shift.start_time|time:"H:i" }}–{{ r.shift.end_time|time:"H:i" }}{% endif %}</small></td>
+            <td class="num" data-label="Líneas">{{ r.n_lines }}</td>
+            <td class="num" data-label="Personas">{% if r.sel.unlimited %}—{% else %}{{ r.sel.available }}{% if r.sel.absent %} <small class="muted">(−{{ r.sel.absent }})</small>{% endif %}{% endif %}</td>
+            <td class="num" data-label="Req. / cap.">{{ r.sel.required_h|floatformat:"0g" }} / {% if r.sel.unlimited %}—{% else %}{{ r.sel.capacity_h|floatformat:"0g" }}{% endif %} h<br><small class="muted">semana {% if r.week_pct is None %}—{% else %}{{ r.week_pct }}%{% endif %}</small></td>
+            <td data-label="Ocupación"><div class="cap-all-occ"><b>{% if r.sel.occ_pct is None %}—{% else %}{{ r.sel.occ_pct }}%{% endif %}</b><div class="cap-bar thin lv-{{ r.sel.level }}"><i style="width:{{ r.bar }}%"></i></div></div></td>
+            {% endif %}
+            <td class="num" data-label="Pedidos">{{ r.open_count|default:0 }}{% if r.late %}<br><small class="bad">{{ r.late }} atrasado{{ r.late|pluralize }}</small>{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="muted">Ninguna bodega tiene líneas ni turnos configurados.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% if idle_sites %}<p class="cap-help">Sin líneas ni turnos: {% for s in idle_sites %}{{ s.name }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
+    </section>
+
+    <section class="cap-card">
+      <h2>Carga por línea · todas las bodegas</h2>
+      <p class="cap-help">Cada línea en el turno actual de su bodega. La más alta es el cuello de botella.</p>
+      <ul class="cap-lines">
+      {% for l in all_lines %}
+        <li class="{% if not l.works %}off{% endif %}">
+          <span class="name"><b>{{ l.wc.code }}</b> {{ l.wc.name }} <small class="muted">· {{ l.site.name }}</small></span>
+          <span class="val">{% if not l.works %}No trabaja este turno{% elif l.occ_pct is None %}—{% else %}{{ l.occ_pct }}% · {{ l.hh|floatformat:1 }} HH{% endif %}</span>
+          <div class="cap-bar thin lv-{{ l.level }}"><i style="width:{{ l.bar }}%"></i></div>
+        </li>
+      {% empty %}
+        <li class="off"><span class="name">No hay líneas en bodegas con turnos.</span></li>
+      {% endfor %}
+      </ul>
+    </section>
+  </div>
+
+  <aside class="cap-col side">
+    <section class="cap-card">
+      <h2>Para decidir</h2>
+      <div class="cap-links">
+        {% if can_plan %}<a class="sbtn sm" href="{% url 'piso:overtime' %}?site=todas">Horas extra (convocar a todos)</a>{% endif %}
+        <a class="sbtn sm" href="{% url 'mes_core:supervision_home' %}?site=todas">Personal y asistencia</a>
+        {% if can_plan %}<a class="sbtn sm" href="{% url 'mes_core:planning_list' %}">Planeación</a>{% endif %}
+        <a class="sbtn sm" href="{% url 'mes_core:plant_board' %}">Tablero de planta</a>
+      </div>
+    </section>
+
+    <section class="cap-card">
+      <h2>Pedidos · todas las plantas</h2>
+      <div class="cap-stats">
+        <a href="{% url 'mes_core:planning_list' %}"><b>{{ to_plan }}</b><span>Por planear</span></a>
+        <div><b>{{ unscheduled_ops }}</b><span>Operaciones sin programar · {{ unscheduled_hh|floatformat:"0g" }} HH</span></div>
+        <a href="{% url 'mes_core:order_list' %}" class="{% if late %}bad{% endif %}"><b>{{ late }}</b><span>Atrasados</span></a>
+        <a href="{% url 'mes_core:order_list' %}" class="{% if at_risk %}warn{% endif %}"><b>{{ at_risk }}</b><span>En riesgo (el plan termina después del compromiso)</span></a>
+        <div><b>{% if on_time_pct is None %}—{% else %}{{ on_time_pct }}%{% endif %}</b><span>Cumplimiento a tiempo · 30 días ({{ done_30 }} terminados)</span></div>
+        <div><b>{{ open_count }}</b><span>Pedidos abiertos</span></div>
+      </div>
+    </section>
+
+    <section class="cap-card">
+      <h2>Producción de hoy</h2>
+      <div class="cap-stats">
+        <div><b>{{ today_good|floatformat:"-1g" }}</b><span>Unidades buenas</span></div>
+        <div class="{% if today_scrap %}warn{% endif %}"><b>{{ today_scrap|floatformat:"-1g" }}</b><span>Merma / rechazo</span></div>
+        <div><b>{% if today_quality is None %}—{% else %}{{ today_quality }}%{% endif %}</b><span>Calidad</span></div>
+      </div>
+    </section>
+  </aside>
+</div>
+<style>
+  @media (min-width: 701px) { .cap-all td, .cap-all th { white-space: nowrap; vertical-align: middle; } }
+  .cap-all td { min-width: 0; overflow-wrap: anywhere; }
+  .cap-all td:first-child { white-space: normal; min-width: 96px; }
+  .cap-all-occ { display: grid; grid-template-columns: 40px minmax(40px, 1fr); gap: 8px; align-items: center; min-width: 96px; }
+  .cap-all small.bad { color: var(--danger); }
+</style>

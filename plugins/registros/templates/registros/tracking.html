@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Seguimiento de pedidos{% endblock %}
+{% block crumbs %}<span>Informes</span><span class="sep">/</span><b>Seguimiento de pedidos</b>{% endblock %}
+{% block extra_head %}
+<style>
+  .tk-f { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+  .tk-f label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; color: var(--text-2); }
+  .tk-f input, .tk-f select { height: 36px; padding: 0 8px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+  .tk-k { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin: 14px 0; }
+  .tk-k a, .tk-k div { display: block; text-decoration: none; color: inherit; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px 14px; }
+  .tk-k a.on { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); }
+  .tk-k b { display: block; font-size: 24px; }
+  .tk-k small { color: var(--muted); }
+  .tk-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 14px; margin-bottom: 14px; }
+  .bar { display: grid; grid-template-columns: minmax(0, 120px) minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: 13px; margin: 6px 0; }
+  .bar > span:nth-child(2) { display: block; height: 14px; border-radius: 7px; background: var(--surface-3); overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: inherit; background: var(--primary); min-width: 2px; max-width: 100%; }
+  .bar b { min-width: 48px; white-space: nowrap; }
+  @media (max-width: 480px) { .bar { grid-template-columns: minmax(0, 90px) minmax(0, 1fr) auto; } }
+  .bar i.ok { background: var(--success); } .bar i.bad { background: var(--danger); } .bar i.warn { background: var(--warning); } .bar i.mute { background: var(--border-strong); }
+  .bar span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar b { text-align: right; }
+  .tk-t td, .tk-t th { white-space: nowrap; font-size: 13px; }
+  td.num, th.num { text-align: right; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="titles"><div class="eyebrow">Informes</div><h1>Seguimiento de pedidos</h1>
+    <p>Como «Seguimiento de paquetes»: lo procesado, lo pendiente, horas y eficiencia de cada pedido. <b>Cumple</b> = terminó completo · <b>No cumple</b> = se cerró con faltante justificado.</p></div>
+  <div class="tools"><a class="sbtn" href="{% url 'registros:export' %}?desde={{ d_from|date:'Y-m-d' }}&hasta={{ d_to|date:'Y-m-d' }}">Exportar a Excel</a></div>
+</div>
+
+<form method="get" class="tk-f" style="margin-bottom:6px">
+  <label>Desde<input type="date" name="desde" value="{{ d_from|date:'Y-m-d' }}"></label>
+  <label>Hasta<input type="date" name="hasta" value="{{ d_to|date:'Y-m-d' }}"></label>
+  <label style="flex:1 1 220px">Buscar<input name="q" value="{{ q }}" placeholder="Pedido, cliente, producto, OP, OC…"></label>
+  <input type="hidden" name="estado" value="{{ state }}">
+  <button class="btn">Ver</button>
+</form>
+<small class="muted">Pedidos creados en el rango o con reportes en el rango.</small>
+
+<div class="tk-k">
+  <a href="?desde={{ d_from|date:'Y-m-d' }}&hasta={{ d_to|date:'Y-m-d' }}&q={{ q|urlencode }}" class="{% if not state %}on{% endif %}"><b>{{ total }}</b><small>Pedidos</small></a>
+  {% for s, n in counts.items %}<a href="?desde={{ d_from|date:'Y-m-d' }}&hasta={{ d_to|date:'Y-m-d' }}&q={{ q|urlencode }}&estado={{ s|urlencode }}" class="{% if state == s %}on{% endif %}"><b>{{ n }}</b><small>{{ s }}</small></a>{% endfor %}
+  <div><b>{% if eff_avg is not None %}{{ eff_avg }} %{% else %}—{% endif %}</b><small>Eficiencia prom. ({{ hours }} h)</small></div>
+</div>
+
+<div class="tk-two">
+  <div class="card"><div class="card-h"><h2>Estado de los pedidos</h2></div><div class="card-b">
+    {% for s, n in counts.items %}<div class="bar"><span>{{ s }}</span><span><i class="{% if s == 'Cumple' %}ok{% elif s == 'No cumple' %}bad{% elif s == 'En proceso' %}warn{% elif s == 'Cancelado' %}mute{% endif %}" style="width:{% widthratio n max_count|default:1 100 %}%"></i></span><b>{{ n }}</b></div>{% endfor %}
+  </div></div>
+  <div class="card"><div class="card-h"><h2>Eficiencia por pedido</h2><span class="sub">los de más horas</span></div><div class="card-b">
+    {% for t in top %}<div class="bar"><span title="{{ t.order.number }}"><a href="{% url 'registros:tracking_detail' t.order.pk %}">{{ t.order.number }}</a></span><span><i class="{% if t.eff >= 100 %}ok{% elif t.eff >= 80 %}{% else %}warn{% endif %}" style="width:{% widthratio t.eff 150 100 %}%"></i></span><b>{{ t.eff }} %</b></div>
+    {% empty %}<p class="muted" style="margin:0">Aún no hay horas registradas en el rango.</p>{% endfor %}
+  </div></div>
+</div>
+
+<div class="card"><div class="table-wrap flat">
+<table class="tk-t">
+  <thead><tr><th>Pedido</th><th>Cliente</th><th>Producto</th><th class="num">Unidades</th><th class="num">Procesadas</th><th class="num">Pendientes</th><th>Estado</th><th class="num">Horas</th><th class="num">Eficiencia</th><th>Supervisores / supernumerarios</th><th>Último reporte</th></tr></thead>
+  <tbody>
+  {% for t in data %}<tr>
+    <td><a href="{% url 'registros:tracking_detail' t.order.pk %}"><b>{{ t.order.number }}</b></a>{% if t.order.external_op %}<br><small class="muted">{{ t.order.external_op }}</small>{% endif %}</td>
+    <td>{{ t.order.customer.name|default:"—" }}</td><td>{{ t.order.product.name|truncatechars:32 }}</td>
+    <td class="num">{{ t.order.quantity|floatformat:"-2g" }}</td><td class="num"><b>{{ t.processed|floatformat:"-2g" }}</b></td>
+    <td class="num">{% if t.state == "Cumple" %}0{% else %}{{ t.pending|floatformat:"-2g" }}{% endif %}</td>
+    <td><span class="pill {% if t.state == 'Cumple' %}ok{% elif t.state == 'No cumple' %}bad{% elif t.state == 'En proceso' %}warn{% endif %}">{{ t.state }}</span>{% if t.closure %}<br><small class="muted" title="{{ t.closure.reason }}">{{ t.closure.reason|truncatechars:30 }}</small>{% endif %}</td>
+    <td class="num">{{ t.hours }}</td><td class="num">{% if t.eff is not None %}{{ t.eff }} %{% else %}—{% endif %}</td>
+    <td style="white-space:normal;min-width:160px"><small>{{ t.coords|join:", "|default:"—" }}{% if t.supers %}<br><span class="muted">{{ t.supers|join:", " }}</span>{% endif %}</small></td>
+    <td>{{ t.last|date:"d/m H:i"|default:"—" }}</td>
+  </tr>{% empty %}<tr class="empty-row"><td colspan="11">No hay pedidos en ese rango.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div></div>
+{% endblock %}
