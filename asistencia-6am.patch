@@ -1,0 +1,201 @@
+diff --git a/README.md b/README.md
+index 3c36d6e..39d28b4 100644
+--- a/README.md
++++ b/README.md
+@@ -767,7 +767,13 @@ línea y cuántas deberían ir en el tramo que está por reportar (también en e
+ - **Llegada**: lo primero que ve cada persona al entrar es «Hoy vas a…» (bodega, línea, operación, supervisor,
+   supernumerario, turno). Al aceptar queda su asistencia del día en el MES: «Presente», o «Llegó tarde» si confirma
+   después de la **Llegada hasta** de su turno (Configuración › Turnos y personal › «Llegada a la terminal»; vacío = sin
+-  límite). Antes de aceptar el servidor no deja marcar ni reportar nada. Vale 14 h (turnos de noche incluidos).
++  límite). Antes de aceptar el servidor no deja marcar ni reportar nada. Vale 14 h (turnos de noche incluidos) **sin
++  pasar del corte diario de las 6:00** (`PISO_ASISTENCIA_DIARIA`, en `config/settings.py` o variable de entorno; vacío =
++  sin corte, solo vence a las 14 h): todos los días a esa hora **todo el personal con tablet vuelve a confirmar su
++  llegada, tenga o no una tarea asignada** (sin tarea la pantalla dice «Igual confirma tu llegada»). Una tablet que ya
++  está abierta salta sola a la pantalla de llegada en pocos segundos. Quien confirma en la hora anterior al corte (de 5:00
++  a 6:00) ya cuenta para el día que empieza y no se le vuelve a pedir. Ojo: el personal del turno de noche (22:00–06:00)
++  también ve la pantalla a las 6:00, justo al terminar su turno.
+ - **Horas extra** (menú *Control de piso › Horas extra*, `/p/piso/horas-extra/`): planeación arma una convocatoria con
+   los días habilitados (entre semana, sábados, domingos; los festivos se reconocen con el calendario laboral), la
+   franja de cada día y cuántas personas se necesitan, y la envía: **Todas** las bodegas (envío masivo a todo el
+diff --git a/config/settings.py b/config/settings.py
+index 483c27e..14b480d 100644
+--- a/config/settings.py
++++ b/config/settings.py
+@@ -159,3 +159,7 @@ MES_EAN_EXIGIR = os.environ.get("MES_EAN_EXIGIR", "0") == "1"
+ # Control de piso: hora en que se cierran solas las sesiones de todas las personas en las tablets (las terminales son
+ # compartidas; al otro día cada quien entra en la que le toque). Vacío = no cerrar. Las tablets fijas de línea no se cierran.
+ PISO_CIERRE_SESIONES = os.environ.get("PISO_CIERRE_SESIONES", "22:00")
++# Control de piso: hora del corte diario de la asistencia. Desde esa hora TODO el personal con tablet (tenga o no una
++# tarea asignada) debe volver a confirmar su llegada; lo confirmado antes del corte (salvo la última hora, para quien
++# llega un poco antes) ya no vale. Vacío = sin corte: la confirmación solo vence a las 14 horas.
++PISO_ASISTENCIA_DIARIA = os.environ.get("PISO_ASISTENCIA_DIARIA", "06:00")
+diff --git a/plugins/piso/checkin.py b/plugins/piso/checkin.py
+index 5d8b2ed..e9f8d59 100644
+--- a/plugins/piso/checkin.py
++++ b/plugins/piso/checkin.py
+@@ -4,13 +4,16 @@ Una sola pantalla: bodega, línea, operación y pedido, supervisor, supernumerar
+ del día como «Presente» en el MES (la misma que ve el supervisor en «Mi turno») y la tablet se habilita. Mientras no
+ acepte, el servidor no deja marcar, reportar ni nada más.
+ 
+-Vale por 14 horas: alcanza para un turno de noche que pasa la medianoche; al otro día se vuelve a pedir.
++Vale por 14 horas (alcanza para un turno de noche que pasa la medianoche), pero nunca pasa del corte diario: todos los
++días a las 6:00 (`PISO_ASISTENCIA_DIARIA`) todo el personal con tablet vuelve a confirmar su llegada, tenga o no una
++tarea asignada. Quien confirma en la hora previa al corte ya cuenta para el día que empieza.
+ """
+ 
+ from __future__ import annotations
+ 
+ from datetime import datetime, timedelta
+ 
++from django.conf import settings
+ from django.core.cache import cache
+ from django.db import transaction
+ from django.db.models import Q
+@@ -22,6 +25,7 @@ from . import floor
+ from .models import CheckIn, FloorAccess
+ 
+ VALID = timedelta(hours=14)
++EARLY = timedelta(hours=1)  # quien llega hasta 1 h antes del corte diario ya cuenta para el día que empieza
+ BLOCKED_MSG = "Primero confirma tu asistencia: acepta la pantalla de llegada."
+ 
+ 
+@@ -29,13 +33,38 @@ def _key(emp_id: int) -> str:
+     return f"piso:checkin:{emp_id}"
+ 
+ 
++def daily_cutoff(now=None) -> "datetime | None":
++    """Último corte diario de la asistencia (por defecto las 6:00, ``PISO_ASISTENCIA_DIARIA``; vacío o mal escrito =
++    sin corte). Es el más reciente que ya pasó: antes de las 6:00 es el de ayer."""
++    raw = str(getattr(settings, "PISO_ASISTENCIA_DIARIA", "06:00") or "").strip()
++    if not raw:
++        return None
++    local = timezone.localtime(now or timezone.now())
++    try:
++        hh, mm = (int(x) for x in raw.split(":")[:2])
++        cut = local.replace(hour=hh, minute=mm, second=0, microsecond=0)
++    except ValueError:
++        return None
++    return cut if cut <= local else cut - timedelta(days=1)
++
++
++def valid_since(now) -> datetime:
++    """Desde cuándo vale una llegada confirmada: las últimas 14 horas, sin pasar del corte diario (menos la hora de
++    anticipo). Una confirmación de antes de eso ya no cuenta y se pide de nuevo."""
++    since = now - VALID
++    cut = daily_cutoff(now)
++    return max(since, cut - EARLY) if cut is not None else since
++
++
+ def confirmed(emp: Employee, now=None) -> bool:
+-    """¿Ya confirmó su llegada en las últimas 14 horas? (memoria del servidor primero: lo consulta cada acción)."""
++    """¿Su llegada confirmada sigue valiendo? Vale 14 horas y hasta el corte diario de las 6:00; sin importar si tiene o
++    no una tarea asignada (memoria del servidor primero: lo consulta cada acción)."""
+     now = now or timezone.now()
++    since = valid_since(now)
+     at = cache.get(_key(emp.pk))
+-    if at is not None and now.timestamp() - at < VALID.total_seconds():
++    if at is not None and at >= since.timestamp():
+         return True
+-    last = (CheckIn.objects.filter(employee=emp, at__gte=now - VALID).order_by("-at")
++    last = (CheckIn.objects.filter(employee=emp, at__gte=since).order_by("-at")
+             .values_list("at", flat=True).first())
+     if last is not None:
+         cache.set(_key(emp.pk), last.timestamp(), int(VALID.total_seconds()))
+diff --git a/plugins/piso/tests.py b/plugins/piso/tests.py
+index 4999065..9057995 100644
+--- a/plugins/piso/tests.py
++++ b/plugins/piso/tests.py
+@@ -522,3 +522,93 @@ class LateArrivalTests(FloorBase):
+         self.assertIsNone(self.night.checkin_deadline)
+         page = self.client.get(reverse("mes_core:shift_settings") + f"?site={self.site.pk}").content.decode()
+         self.assertIn("Llegada a la terminal", page)
++
++
++@override_settings(PISO_ASISTENCIA_DIARIA="06:00")
++class DailyCutoffTests(FloorBase):
++    """Corte diario de las 6:00: todos vuelven a confirmar la llegada, tengan o no una tarea asignada."""
++
++    def setUp(self):
++        super().setUp()
++        from django.core.cache import cache
++
++        cache.clear()
++        # gina: con tablet pero SIN ninguna tarea asignada
++        self.gina = Employee.objects.create(document="1003", full_name="gina lopez", shift=self.shift)
++        acc = FloorAccess(employee=self.gina)
++        acc.set_pin("1234")
++        acc.save()
++
++    def at(self, day_offset, h, m=0):
++        d = timezone.localdate() + timedelta(days=day_offset)
++        return datetime(d.year, d.month, d.day, h, m, tzinfo=timezone.get_current_timezone())
++
++    def test_yesterdays_confirmation_stops_counting_at_6am(self):
++        from . import checkin
++
++        checkin.confirm(self.ana, now=self.at(0, 22, 0))
++        self.assertTrue(checkin.confirmed(self.ana, self.at(1, 5, 30)))    # de madrugada sigue valiendo
++        self.assertFalse(checkin.confirmed(self.ana, self.at(1, 6, 0)))    # a las 6:00 hay que confirmar de nuevo
++        self.assertFalse(checkin.confirmed(self.ana, self.at(1, 9, 0)))
++
++    @override_settings(PISO_ASISTENCIA_DIARIA="")
++    def test_without_a_cutoff_it_only_expires_after_14_hours(self):
++        from . import checkin
++
++        checkin.confirm(self.ana, now=self.at(0, 22, 0))
++        self.assertTrue(checkin.confirmed(self.ana, self.at(1, 6, 0)))
++        self.assertTrue(checkin.confirmed(self.ana, self.at(1, 11, 59)))
++        self.assertFalse(checkin.confirmed(self.ana, self.at(1, 12, 1)))
++
++    def test_everyone_confirms_whether_or_not_they_have_a_task(self):
++        from . import checkin
++
++        for emp in (self.ana, self.gina):
++            checkin.confirm(emp, now=self.at(0, 22, 0))
++        self.assertTrue(floor.employee_tasks(self.ana))
++        self.assertFalse(floor.employee_tasks(self.gina))
++        now = self.at(1, 6, 0)
++        for emp in (self.ana, self.gina):
++            st = checkin.state(emp, now)
++            self.assertFalse(st["done"], emp.full_name)
++        self.assertEqual(checkin.state(self.ana, now)["info"]["operation"], "Armar")
++        self.assertEqual(checkin.state(self.gina, now)["info"]["operation"], "")
++
++    def test_person_without_task_is_blocked_until_confirming(self):
++        from mes_core.models import Attendance
++
++        self.login(doc="1003", checkin=False)
++        s = self.client.get(reverse("piso:api_state")).json()
++        self.assertFalse(s["checkin"]["done"])
++        self.assertEqual(s["checkin"]["info"]["operation"], "")
++        self.assertEqual(self.post("piso:api_mark", {"k": "p"}).status_code, 409)
++        self.assertTrue(self.post("piso:api_checkin").json()["state"]["checkin"]["done"])
++        self.assertTrue(Attendance.objects.filter(employee=self.gina, day=timezone.localdate()).exists())
++
++    def test_arriving_in_the_hour_before_the_cutoff_counts_for_the_new_day(self):
++        from . import checkin
++
++        checkin.confirm(self.ana, now=self.at(1, 5, 20))
++        checkin.confirm(self.beto, now=self.at(1, 4, 30))
++        now = self.at(1, 6, 30)
++        self.assertTrue(checkin.confirmed(self.ana, now))      # llegó a las 5:20: ya cuenta para hoy
++        self.assertFalse(checkin.confirmed(self.beto, now))    # 4:30 queda fuera de la última hora
++
++    def test_new_day_creates_a_new_attendance_record(self):
++        from mes_core.models import Attendance
++
++        from . import checkin
++
++        checkin.confirm(self.ana, now=self.at(0, 22, 0))
++        checkin.confirm(self.ana, now=self.at(1, 6, 10))
++        self.assertEqual(Attendance.objects.filter(employee=self.ana).count(), 2)
++        self.assertTrue(Attendance.objects.filter(employee=self.ana, day=self.at(1, 6, 10).date()).exists())
++
++    def test_cutoff_setting_with_garbage_is_ignored(self):
++        from . import checkin
++
++        for raw in ("", "no-es-hora", "25:99", "6"):
++            with override_settings(PISO_ASISTENCIA_DIARIA=raw):
++                self.assertIsNone(checkin.daily_cutoff(self.at(0, 12)), raw)
++        self.assertEqual(checkin.daily_cutoff(self.at(0, 12)), self.at(0, 6))
++        self.assertEqual(checkin.daily_cutoff(self.at(0, 5, 59)), self.at(-1, 6))
